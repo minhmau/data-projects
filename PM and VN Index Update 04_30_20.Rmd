@@ -1,0 +1,657 @@
+---
+title: "Weather and Financial Market"
+subtitle: 'A Case Study in the Vietnamese Stock Exchange '
+author: "Uyen Le & Minh Pham"
+date: "2/23/2020"
+output: pdf_document
+geometry: "left=2.0cm,right=2.0cm,top=1cm,bottom=2cm"
+longtable: true
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+fontsize: 12pt
+linestretch: 2.0
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+setwd('/Users/minhpham1609/Desktop/PM and Stock Market/Data')
+
+```
+
+```{r, echo=FALSE, include=FALSE}
+##### Libraries #####
+library(data.table)
+library(lubridate)
+library(tidyr)
+library(lfe) # felm model
+library(reshape2) # stack and unstack data
+library(quantmod) # pull data from FRED
+library(rvest)
+library(XML) 
+library(httr)
+library(haven) # read SAS files
+library(readstata13) # read Stata files
+library(sjlabelled) # remove labels from SAS files
+library(gsynth) # gsynth
+library(ggmap) # Schools' Coordinates
+library(stargazer) # export output as latex
+library(MatchIt) # propensity score matching
+library(Synth) # synthetic control
+library(usmap)
+library(tidyverse)
+library(caret)
+library(formatR)
+library(vars)
+library(randomcoloR)
+library(tseries)
+library(forecast)
+library(rugarch)
+library(rmgarch)
+library(fUnitRoots)
+library(DataCombine)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(reshape2)
+library(quantreg)
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+setwd('/Users/minhpham1609/Desktop/PM and Stock Market/Data')
+
+PM.Data <-  fread('HCMC_PM25.csv') %>%
+  mutate(date = as.Date(date, "%Y/%m/%d")) %>%
+  rename(Date = date)
+
+Weather.Data <- fread('TPHCM daily new.csv') %>%
+  mutate(Date = paste(YEAR, MO, DY, sep = '/'),
+         Date = as.Date(Date, "%Y/%m/%d"))
+
+Stock.Data <- fread('HOSE.csv') %>%
+  mutate(Date = as.Date(Date, "%m/%d/%y"))
+
+Stock.Data <- left_join(Stock.Data, PM.Data, 'Date')
+Stock.Data <- left_join(Stock.Data, Weather.Data, 'Date')
+
+#We need to control for some of the effects such as the Monday effect, May-October effects.
+#The January effect (or the so-called turn-of-the-year effect) is related to the fact that stock returns in January are higher than those in other months; 
+#The May to October (MTO) effect suggests lower returns during the period from May to October
+#This is according to US Literature, I'm not sure if anyone has tested for these effects in Vietnam.
+
+Stock.Data$Day <- weekdays(as.Date(Stock.Data$Date))
+Stock.Data$Month <- format(Stock.Data[,"Date"], "%m")
+
+Stock.Data$January.Effect <- ifelse( Stock.Data$Month=="01" , 1, 0)
+Stock.Data$Monday.Effect <- ifelse( Stock.Data$Day=="Monday" , 1, 0)
+Stock.Data$May.October.Effect <- ifelse( Stock.Data$Month %in% 5:10 ,1, 0)
+Stock.Data$Rain.Season <- ifelse( Stock.Data$Month %in% 5:11 ,1, 0)
+
+Stock.Data$Close=as.numeric(Stock.Data$Close)
+
+Stock.Data = Stock.Data[order(as.Date(Stock.Data$Date, format="%Y/%m/%d")),]
+
+plot(Stock.Data$Close)
+Stock.Data$Close.returns=Delt(Stock.Data$Close)
+plot(Stock.Data$Close.returns)
+Stock.Data$Close.returns=(Stock.Data$Close.returns)*100
+Stock.Data$Close.returns=as.numeric(Stock.Data$Close.returns)
+
+Stock.Data$Close.returns.1=c('NA', diff(Stock.Data$Close))
+
+Stock.Data <- slide(Stock.Data, Var = "Close.returns", slideBy = -1)
+Stock.Data <- slide(Stock.Data, Var = "Close.returns", slideBy = -2)
+Stock.Data <- slide(Stock.Data, Var = "Close.returns", slideBy = -12)
+Stock.Data$Close.returns.1lag=Stock.Data$`Close.returns-1`
+Stock.Data$Close.returns.2lag=Stock.Data$`Close.returns-2`
+Stock.Data$Close.returns.12lag=Stock.Data$`Close.returns-12`
+
+#No PM25 included
+Stock.Data.NoPM25 <-  Stock.Data %>% select(Date, YEAR, MO, DY, PRECTOT, QV2M, RH2M, PS, T2M_MAX, T2M_MIN, T2M, T2MWET, Month, Monday.Effect, January.Effect, May.October.Effect, Rain.Season, Close, Close.returns, Close.returns.1lag, Close.returns.2lag, Close.returns.12lag)
+#PM25 included
+Stock.Data.PM25 <- Stock.Data[ which(Stock.Data$pm25 > 1), ]
+
+Stock.Data.NoPM25=Stock.Data.NoPM25[-1,]
+#View(Stock.Data)
+#glimpse(Stock.Data)
+
+
+Stock.Data.NoPM25$yearmonth=as.yearmon( paste(Stock.Data.NoPM25$YEAR, Stock.Data.NoPM25$MO, sep = "." )  , format = "%Y.%m" )
+
+# write_csv(Stock.Data.NoPM25, '/Users/minhpham1609/Desktop/Stock.Data.NoPM25.csv')
+#Question: Why is VN-Index Closing price so high during 2007-2009
+
+#Not Stationary
+plot(Stock.Data.NoPM25$Close.returns[-1], type="l")
+
+#Not Stationary
+plot(Stock.Data.NoPM25$Close, type="l")  # original series
+
+#MLook more Stationary
+plot(as.zoo(Stock.Data.NoPM25$yearmonth), as.zoo(Stock.Data.NoPM25$Close),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Returns Closing Price",
+     xlab = "Date",
+     main = "VN-index Returns")
+
+
+#Test for Stationarity
+adf.test(Stock.Data.NoPM25$Close.returns) # p-value < 0.05 indicates the TS is stationary
+adf.test(Stock.Data.NoPM25$Close.returns, alternative = "stationary", k=0)
+adfTest(Stock.Data.NoPM25$Close.returns, lags = 0, type = "c") #the default type parameter "c" - which means presence of constant (intercept) but absence of time trend
+
+#Both Test shows p=0.01. So Stock.Data.NoPM25$Close.returns is stationary
+
+#Another method is to check ACF and PACF plots. 
+#This is more traditional but reliable
+acf(Stock.Data.NoPM25$Close.returns) 
+#This shows that 1-2 lags could be implemented
+
+head(Stock.Data.NoPM25)
+tail(Stock.Data.NoPM25)
+```
+
+```{r, include=FALSE, echo=FALSE}
+#To be continued.
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(Stock.Data.NoPM25$PRECTOT),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Rain",
+     xlab = "Date",
+     main = "Rainfalls")
+
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(log(Stock.Data.NoPM25$T2MWET)),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Temperature",
+     xlab = "Date",
+     main = "Temp")
+
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(Stock.Data.NoPM25$RH2M),type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Humidity",
+     xlab = "Date",
+     main = "Humidity")
+
+
+#Linear model normal and time series linear
+Stock.Data.NoPM25$Close.returns<- as.ts(Stock.Data.NoPM25$Close.returns)
+Stock.Data.NoPM25$Close<- as.ts(Stock.Data.NoPM25$Close)
+
+# MODEL:
+#Given the nature of HCMC, Humidity and Temperature is highly correlated. So we don't control for humidity 
+cor(Stock.Data.NoPM25$RH2M, Stock.Data.NoPM25$T2MWET, method = c("pearson", "kendall", "spearman"))
+cor.test(Stock.Data.NoPM25$RH2M, Stock.Data.NoPM25$T2MWET, method=c("pearson", "kendall", "spearman"))
+
+model_lm.returns.AR0<-glm(Stock.Data.NoPM25$Close.returns ~  Stock.Data.NoPM25$PRECTOT  + Stock.Data.NoPM25$T2MWET  + as.factor(Stock.Data.NoPM25$DY) +as.factor(Stock.Data.NoPM25$Month)  + as.factor(Stock.Data.NoPM25$YEAR) + as.factor(Stock.Data.NoPM25$Monday.Effect) + as.factor(Stock.Data.NoPM25$May.October.Effect) + as.factor(Stock.Data.NoPM25$Rain.Season) + as.factor(Stock.Data.NoPM25$January.Effect), data=Stock.Data.NoPM25)
+summary(model_lm.returns.AR0)
+
+model_lm.returns.AR1<-glm(Stock.Data.NoPM25$Close.returns ~  Stock.Data.NoPM25$Close.returns.1lag  + Stock.Data.NoPM25$PRECTOT  + Stock.Data.NoPM25$RH2M  + as.factor(Stock.Data.NoPM25$DY) +as.factor(Stock.Data.NoPM25$Month)  + as.factor(Stock.Data.NoPM25$YEAR) + as.factor(Stock.Data.NoPM25$Monday.Effect) + as.factor(Stock.Data.NoPM25$May.October.Effect) + as.factor(Stock.Data.NoPM25$Rain.Season) + as.factor(Stock.Data.NoPM25$January.Effect), data=Stock.Data.NoPM25)
+summary(model_lm.returns.AR1)
+
+model_lm.returns.AR2<-glm(Stock.Data.NoPM25$Close.returns ~  Stock.Data.NoPM25$Close.returns.1lag + Stock.Data.NoPM25$Close.returns.2lag + Stock.Data.NoPM25$PRECTOT  + Stock.Data.NoPM25$T2MWET  + as.factor(Stock.Data.NoPM25$DY) +as.factor(Stock.Data.NoPM25$Month)  + as.factor(Stock.Data.NoPM25$YEAR) + as.factor(Stock.Data.NoPM25$Monday.Effect) + as.factor(Stock.Data.NoPM25$May.October.Effect) + as.factor(Stock.Data.NoPM25$Rain.Season) + as.factor(Stock.Data.NoPM25$January.Effect), data=Stock.Data.NoPM25)
+summary(model_lm.returns.AR2)
+
+par(mfrow = c(2, 2))  # Split the plotting panel into a 2 x 2 grid
+plot(model_lm.returns.AR0)
+plot(model_lm.returns.AR1)
+plot(model_lm.returns.AR2)
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+Stock.Data.PM25$yearmonth=as.yearmon( paste(Stock.Data.PM25$YEAR, Stock.Data.PM25$MO, sep = "." )  , format = "%Y.%m" )
+
+plot(as.zoo(Stock.Data.PM25$yearmonth),as.zoo(Stock.Data.PM25$pm25),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "PM 2.5",
+     xlab = "Date",
+     main = "PM 2.5")
+
+Stock.Data.PM25$Close.returns<- as.ts(Stock.Data.PM25$Close.returns)
+Stock.Data.PM25$Close<- as.ts(Stock.Data.PM25$Close)
+
+hist(Stock.Data.PM25$pm25)
+adf.test(Stock.Data.PM25$Close.returns, alternative = "stationary", k=0)
+adfTest(Stock.Data.PM25$Close.returns, lags = 0, type = "c") #the default type parameter "c" - which means presence of constant (intercept) but absence of time trend
+#Both Test shows p=0.01. So Stock.Data.PM25$Close.returns is stationary
+
+#Another method is to check ACF and PACF plots. 
+#This is more traditional but reliable
+acf(Stock.Data.PM25$Close.returns) 
+#No lag is needed
+
+cor(Stock.Data.PM25$RH2M, Stock.Data.PM25$T2MWET, method = c("pearson", "kendall", "spearman"))
+cor.test(Stock.Data.PM25$RH2M, Stock.Data.PM25$T2MWET, method=c("pearson", "kendall", "spearman"))
+
+#Given the nature of HCMC, Humidity and Temperature is highly correlated. So we don't control for humidity 
+
+#controlling for weather
+PM25.model_lm.returns.AR0<-glm(Stock.Data.PM25$Close.returns ~ Stock.Data.PM25$pm25 + Stock.Data.PM25$PRECTOT  + Stock.Data.PM25$T2MWET  + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25)
+summary(PM25.model_lm.returns.AR0)
+
+PM25.model_lm.returns.AR1<-glm(Stock.Data.PM25$Close.returns ~  Stock.Data.PM25$Close.returns.1lag  + Stock.Data.PM25$pm25 + Stock.Data.PM25$PRECTOT  + Stock.Data.PM25$T2MWET  + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25)
+summary(PM25.model_lm.returns.AR1)
+
+PM25.model_lm.returns.AR2<-glm(Stock.Data.PM25$Close.returns ~  Stock.Data.PM25$Close.returns.1lag + Stock.Data.PM25$Close.returns.2lag  + Stock.Data.PM25$pm25 + Stock.Data.PM25$PRECTOT  + Stock.Data.PM25$T2MWET  + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25)
+summary(PM25.model_lm.returns.AR2)
+
+#sensitivity analysis
+PM25.model_lm.returns.AR1.without.Weather<-glm(Stock.Data.PM25$Close.returns ~  Stock.Data.PM25$Close.returns.1lag  + Stock.Data.PM25$pm25 + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25)
+summary(PM25.model_lm.returns.AR1.without.Weather)
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+Stock.Data.PM25.Rainfall.Positive <- Stock.Data.PM25[ which(Stock.Data.PM25$PRECTOT == 0), ]
+
+PM25.model_lm.returns.AR1.Rainfall.Positive<-glm(Stock.Data.PM25$Close.returns ~  Stock.Data.PM25$Close.returns.1lag  + Stock.Data.PM25$pm25 + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25.Rainfall.Positive)
+summary(PM25.model_lm.returns.AR1.Rainfall.Positive)
+
+PM25.model_lm.returns.AR1.Rainfall.Positive.With.T2M<-glm(Stock.Data.PM25$Close.returns ~  Stock.Data.PM25$Close.returns.1lag  + Stock.Data.PM25$pm25 + Stock.Data.PM25$T2MWET + as.factor(Stock.Data.PM25$DY) +as.factor(Stock.Data.PM25$Month)  + as.factor(Stock.Data.PM25$YEAR) + as.factor(Stock.Data.PM25$Monday.Effect) + as.factor(Stock.Data.PM25$May.October.Effect) + as.factor(Stock.Data.PM25$Rain.Season) + as.factor(Stock.Data.PM25$January.Effect), data=Stock.Data.PM25.Rainfall.Positive)
+summary(PM25.model_lm.returns.AR1.Rainfall.Positive.With.T2M)
+
+latex_PM25.sensitivity.rainfall.positive=stargazer(PM25.model_lm.returns.AR1.Rainfall.Positive,PM25.model_lm.returns.AR1.Rainfall.Positive.With.T2M, type="latex",omit = c("DY", "Month","YEAR", "January.Effect", "Monday.Effect", "May.October.Effect", "Rain.Season"),omit.labels =c( "Day FE", "Month FE","Year FE", "Financial Dummies", "","",""), omit.stat = c("rsq", "f"), column.labels = c("AR1 No Precipitation - No Temp","AR1 No Precipitation - With Temp"), title="Regression Results for Stock Returns VN-Index - No Precipitation")
+
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+latex_No.PM25=stargazer(model_lm.returns.AR0,model_lm.returns.AR1,model_lm.returns.AR2, type="latex",omit = c("DY", "Month","YEAR", "January.Effect", "Monday.Effect", "May.October.Effect", "Rain.Season"),omit.labels =c( "Day FE", "Month FE","Year FE", "Financial Dummies", "","",""), omit.stat = c("rsq", "f"), column.labels = c("AR0","AR1", "AR2"), title="Regression Results for Stock Returns VN-Index - Without PM 2.5")
+
+latex_PM25=stargazer(PM25.model_lm.returns.AR0,PM25.model_lm.returns.AR1,PM25.model_lm.returns.AR2, type="latex",omit = c("DY", "Month","YEAR", "January.Effect", "Monday.Effect", "May.October.Effect", "Rain.Season"),omit.labels =c( "Day FE", "Month FE","Year FE", "Financial Dummies", "","",""), omit.stat = c("rsq", "f"), column.labels = c("AR0","AR1", "AR2"), title="Regression Results for Stock Returns VN-Index - With PM 2.5")
+
+latex_PM25.sensitivity=stargazer(PM25.model_lm.returns.AR1.without.Weather,PM25.model_lm.returns.AR1, type="latex",omit = c("DY", "Month","YEAR", "January.Effect", "Monday.Effect", "May.October.Effect", "Rain.Season"),omit.labels =c( "Day FE", "Month FE","Year FE", "Financial Dummies", "","",""), omit.stat = c("rsq", "f"), column.labels = c("AR1 Without Weather","AR1 With Weather"), title="Regression Results for Stock Returns VN-Index - Sensitivity Analysis")
+
+descriptive= stargazer(Stock.Data)
+```
+
+\abstract{Previous literature have shown that there are psychological evidence and casual interpretation linking weather and mood. This paper investigates the relationship between weather and leading stock exchange index in Vietnam. Using data from the beginning of 2005 to the end of 2019, we find that there are strong significant impact of weather and pollution on stock returns. Specficially, we find a strong significant negative effect of air pollution and stock returns.}
+
+
+# 1. Introduction
+
+The VN-Index is the first and official stock index of Ho Chi Minh Stock Exchange (HSX). The VN-Index is designed to reflect the general price movements of all listed stocks on the HSX. The Ho Chi Minh Stock Exchange (HSX) was formerly Ho Chi Minh City Securities Trading Center , established under the Prime Minister's Decision No. 127/1998 / QD-TTg. The most important goal of the Securities Trading Center is to become a channel to mobilize capital for economic development, while promoting the equitization process of state-owned enterprises. Ho Chi Minh City Stock Exchange officially came into operation on July 20, 2000 and made the first trading session on July 28, 2000 with the first two listed stocks, REE and SAM. The VN-Index was officially launched on this day.
+
+The Vietnam Stock Index or VN-Index is a capitalization-weighted index of all the companies listed on the Ho Chi Minh City Stock Exchange. The index was created with a base index value of 100 as of July 28, 2000. Prior to March 1, 2002, the market only traded on alternate days.
+
+We estimate the relationship between the exogenous short-run changes in fine particulate matter (PM2.5) in Ho Chi Minh City over a 15 year period on daily returns of the VN-index, which is one of the most commonly used benchmarks for the overall Ho Chi Minh Stock Exchange (HSX, or HOSE). We hypothesize that this fine particulate matter, which we refers to as pollution in this paper, decreases the risk attitudes of traders/investors through the channel of short-term changes in psychological and/or physical health. It is important to know that we do not have the problem in which daily variations of the VN-index is affected by other potentially-confounding factors regarding activity of different geographical area in the country. The reasson is that VN-Index is only traded in the Ho Chi Minh Stock Exchange, which our meteorological variables and PM2.5 variable should solely and directly impact the returns of the VN-Index. 
+
+We find a significant negative effect of PM2.5 on VN-Index returns in our preferred specification.  A one standard deviation increase in daily ambient PM2.5 concentrations causes a statistically significant 7.36% reduction in daily percentage returns. Similar from previous findings (Goetzmann and Zhu, 2005; Hirshleifer et al., 2003), we found that the magnitude is slightly smaller but comparable to estimates of the effect of variations in daily pollution conditions on returns. However, we do find a significant impact of temperature on investor behaviors that are the opposites of the previous finding. Specifically, we find a positive effect of temperature on stock returns, in which we still believes that this finding is really applicable for regions what are consistently hot all year around like in HCMC. Meanwhile, the result of pollution on stock returns proves remarkably robust to a variety of different assumptions about confounding and a variety of falsification checks ^[See Section 5].
+
+The results are important for at least couple of reasons. First, we found a different psychological effect of temperature on stock returns, which signals future research to pay more attention to markets that have similar geographical characteristics. Second, rather than focusing on research regarding the effect of pollution either on work in outdoor settings and/or in low skilled occupations (Graff Zivin and Neidell, 2012; Chang et al., 2016), we shed lights on the existing results on a set of indoor workers in a highly-skilled, cognitively-demanding occupation in developing countries, whose exposures to pollutions are greateest out of all. In addition, this findings implies the departure from the efficient markets hypothesis. Specifically, we show that variations in air quality, particularly in regard to pollution matter PM 2.5, in HCMC causes inefficient price signals rippling out across the economy.
+
+# 2. Background and Data
+## 2.1 Background
+
+In this section, we describe several mechanisms that explain how daily local pollution levels  influence stock market returns. Previous literature have shown that changes in air pollution have a variety of well-established impacts on the human body and mind. In behavioral Finance, these psychological changes can affect investor decision making through different channels such as choice bracketing behavior, risk appetite, and mood. 
+
+We focus on pollution, particularly on fine particulate matter (PM2.5). This matter consists of solid and liquid particles in the air less than 2.5 micrometers in diameter, which can be found in various environmental disaster such as forest fires. However, given the PM2.5 levels in HCMC, the source of PM2.5 results from industrial factors, such as fossil fuel combustion by automobiles industry, and commercial and residential heat sources.  This particulate matter PM 2.5 is not only relevant in outdoors settings, such as when traveling to work, but also relevant in indoor settings because of its diminutive size. PM2.5 can easily enter buildings, with penetration ranging from 70–100 percent (Thatcher and Layton, 1995; Ozkaynak et al., 1996; Vette et al., 2001), and unlike other common air pollutants - which either remain outside or break down very rapidly once indoors - PM2.5's exposure in the indoor settings remain highly harmful. 
+
+In the physical aspects, previous reseach (Seaton et al., 1995) have shown that the tiny sizes of the particles that make up PM2.5 can penetrate deep into human lungs and passes beyond into the circulatory system to induce both respiratory and cardiovascular effects ^[ see US EPA 2004b for a review for more harmful effects]. In addition, other risks of exposing to PM 2.5 may include asthma attacks and heart attacks (Dockery and Pope, 1994; Pope, 2000), changes in blood pressure, irritation in the ear, nose, throat, and lungs, and mild headaches (Pope, 2000; Sorenson et al., 2003); Ghio et al., 2000). Moreover, symptoms from PM2.5 exposure can arise soon after exposure, but can also sustain for hours and even days afterwards. This points to the need the need to allow for contemporaneous and lagged effects of pollution in our analysis.
+
+In the cognitive and psychological aspects, since the brain consumes a large fraction of the oxygen needs of the body, any deterioration in blood supply can affect cognitive output (Clarke et al., 1999). Moreover, unlike other pollutants, the size of PM2.5 also allows it to travel up the olfactory axon and enter the brain directly (Wang et al., 2007).
+
+This paper is embedded with various concepts in behavioral economics and finance. \textit{First, our results can be explained by the fact that there is a well-established link from changes in risk aversion to financial decision making. Increased risk aversion leads investors to shift away from risky assets such as stocks, which lowers the returns on the market. In other words, an exogenous increase in risk aversion among a subset of investors would be expected to reduce same-day return. Second, patience is also long viewed as an essential ingredient in stock choices; it enables investors to focus on the long term and ride out the short-run ups and downs. Similarly, choice bracketing can also affect the type of stocks chosen as traders shift away from more complex choices into simpler choices with lower returns (Heyes 2016).} Central to our paper motivation, Saunders (1993) and the subsequent robust studies have established the link from mood to stock returns. Changes in mood induced by the weather and pollution affect the decisions of investors, particularly shifting them to different risk preferences (Kamstra (2003). 
+
+Although we are confident that our effects of local weather and pollution are robust in the Ho Chi Minh Stock Exchange, there may be a chance that other traders who are located elsewhere could trade electronically. However we do think that this is very unlikely for couple of reasons. First, unlike other developed countries, where stock trading are free in commission, trading in Vietnam is still costly. Therefore, physical presence at the trading floor in Ho Chi Minh Stock Exchange is almost certain. Second, gate of entry to the stock exchange in Vietnam is high, meaning the pool of traders in HCMC is generally highly skilled and well-educated in the topic. Given that a more well-off population in Vietnam preferred to live in the city, we are certain that even they trade electronically, their physical presence would still be located within the city. Third, even if we assume that traders whose physically presence are on the trading floor might be receiving instructions from people located anywhere in the country, or even the world, consistent with Saunders (1993), the marginal investors trade in HCMC, such that traders physically present can be expected to significantly influence stock prices. 
+
+## 2.2 Data
+### 2.2.1 Weather Data
+
+
+### 2.2.2 Pollution Data
+
+
+### 2.2.3 Stock Data
+
+
+# 3. Empirical framework & Descriptive Statistics
+## 3.1 Empirical framework
+
+Empirical regression specification for weather data uses similar but improved version of Saunders (1993):
+
+$$R_t= \alpha PRECTOT_t + \mu T2MWET_t + \delta RH2M_t +  \sum_{k}\phi_kR_{t-k} +\tau_t+\gamma_t + \epsilon_{t}$$
+Our data expands from January 4, 2005 to December 30, 2019, where $R_t$ is the daily adjsuted closing returns of VN-Index, $PRECTOT_t$ is daily precipitation in $mm$, $T2MWET_t$ is daily Wet Bulb Temperature in $C^o$, $RH2M_t$ is Relative Humidity in percentage %, and $\sum_{k}\phi_kR_{t-k}$ is the possible lags that could be imposed ^[See section 4.1 for Optimal lag length]. In addition, we also includes time dummies that could help to control for seasonality, and any heterogeneity across time. This means this analysis is safe to exclude many additional potential confounding factors, such as the well-established effect of length of day on investor mood (Kamstra et al., 2003). Specifically, these dummies include $\tau_t$, which is a series of day-of-month, month-of-year, year and season dummies. $\gamma_s$ is a series of dummies controlling for effects that have been shown in the literature to have impacts on stock returns. These are the Monday Effect, the May-to-October Effect, and the January Effect.
+
+Given the nature of the dataset, and the nature of the location we are investigating, Ho Chi Minh City, we exclude Humidity, $RH2M_t$ entirely because it is highly correlated with Temperature $T2MWET_t$. Therefore, our models for weather (1) and pollution (2) becomes: 
+
+$$(1)R_t= \alpha PRECTOT_t + \mu T2MWET_t  +  \sum_{k}\phi_kR_{t-k} +\tau_t+\gamma_t + \epsilon_{t}$$
+$$(2)R_t= \omega PM25 +  \alpha PRECTOT_t + \mu T2MWET_t +   \sum_{k}\phi_kR_{t-k} +\tau_t+\gamma_t + \epsilon_{t}$$
+PM 2.5, denoted $PM25$, is the main pollution index. 
+
+Here is our correlation test:
+
+```{r, echo= F}
+cor.test(Stock.Data.NoPM25$RH2M, Stock.Data.NoPM25$T2MWET, method=c("pearson", "kendall", "spearman"))
+```
+
+
+## 3.2 Descriptive Statistics
+
+```{r,fig4, out.width = '70%', echo=FALSE, ,fig.align='center',fig.cap= 'Humidity'}
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(Stock.Data.NoPM25$RH2M),type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Humidity",
+     xlab = "Date",
+     main = "Humidity")
+```
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Precipitation and Wet Bulb Temperature'}
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(Stock.Data.NoPM25$PRECTOT),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Rain",
+     xlab = "Date",
+     main = "Rainfalls")
+
+plot(as.zoo(Stock.Data.NoPM25$yearmonth),as.zoo(log(Stock.Data.NoPM25$T2MWET)),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Temperature",
+     xlab = "Date",
+     main = "Temp")
+```
+
+
+\begin{table}[!htbp] \centering 
+  \caption{Descriptive Statistics} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lccccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Pctl(25)} & \multicolumn{1}{c}{Pctl(75)} & \multicolumn{1}{c}{Max} \\ 
+\hline \\[-1.8ex] 
+pm25 & 912 & 80.981 & 24.558 & 5.000 & 63.000 & 98.000 & 166.000 \\ 
+PRECTOT & 3,738 & 3.871 & 6.727 & 0 & 0.03 & 4.6 & 76 \\ 
+RH2M & 3,738 & 77.049 & 11.753 & 45.520 & 67.655 & 86.470 & 94.520 \\ 
+T2MWET & 3,738 & 22.883 & 2.144 & 12.060 & 21.600 & 24.460 & 26.000 \\ 
+January.Effect & 3,738 & 0.078 & 0.269 & 0 & 0 & 0 & 1 \\ 
+Monday.Effect & 3,738 & 0.195 & 0.396 & 0 & 0 & 0 & 1 \\ 
+May.October.Effect & 3,738 & 0.089 & 0.285 & 0 & 0 & 0 & 1 \\ 
+Rain.Season & 3,738 & 0.175 & 0.380 & 0 & 0 & 0 & 1 \\ 
+Close.returns & 3,737 & 0.048 & 1.428 & $-$5.872 & $-$0.608 & 0.755 & 4.849 \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
+
+
+# 4. Methodology and Empirical Results
+## 4.1 Methodology
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Daily Closing Price and Adjusted Returns'}
+plot(as.zoo(Stock.Data.NoPM25$yearmonth), as.zoo(Stock.Data.NoPM25$Close),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Returns Closing Price",
+     xlab = "Date",
+     main = "VN-index Returns")
+
+plot(as.zoo(Stock.Data.NoPM25$yearmonth), as.zoo(Stock.Data.NoPM25$Close.returns),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Returns Closing Price",
+     xlab = "Date",
+     main = "VN-index Returns")
+
+```
+
+
+```{r, echo = FALSE}
+#Test for Stationarity
+adf.test(Stock.Data.NoPM25$Close.returns) # p-value < 0.05 indicates the TS is stationary
+# adf.test(Stock.Data.NoPM25$Close.returns, alternative = "stationary", k=0)
+# adfTest(Stock.Data.NoPM25$Close.returns, lags = 0, type = "c") 
+#Both Test shows p=0.01. So Returns data is stationary
+```
+
+
+Another method is to check ACF and PACF plots. This shows that 1 lag could be implemented.
+```{r, echo=FALSE ,fig.align='center',fig.cap= 'ACF Plot'}
+#Another method is to check ACF and PACF plots
+acf(Stock.Data.NoPM25$Close.returns) 
+#This shows that 1-2 lags could be implemented
+```
+
+
+
+## 4.2 Empirical Results
+### 4.2.1 Model of Weather and Stock Returns
+
+Estimating equation (1), our results show very interesting finding, in which temperature actually have a positive effect on returns. This is quite important because this effect is reversed, compared to other mainstream literature. However, we believe that this effect is reflecting the undermining hypothesis of the weather in HCMC. Specifically, since hot weather in HCMC stays consistent through out the years, and there are only two seasons in HCMC (rainning season and dry season), we would expect a different effect of temperature on stock returns. Unlike previous research, where countries, or locations being researched have 4 seasons with temperature fluctuation, it is reseasonale to expect mood changes when temperaure increaseas. However, in case of HCMC where it is hot all year around, it is unlikely that temperature would affect traders' mood, in general. This may come surprising but we think that in fact, when the temperature increases, it would motivate traders to stay indoors more often (cultural effect), and thus make better decisions. This leads to a positive effects on stock price.
+
+\begin{table}[!htbp] \centering 
+  \caption{Regression Results for Stock Returns VN-Index - Without PM 2.5} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-4} 
+\\[-1.8ex] & \multicolumn{3}{c}{Close.returns} \\ 
+ & AR0 & AR1 & AR2 \\ 
+\\[-1.8ex] & (1) & (2) & (3)\\ 
+\hline \\[-1.8ex] 
+ Close.returns.1lag &  & 0.191$^{***}$ & 0.194$^{***}$ \\ 
+  &  & (0.016) & (0.017) \\ 
+ 
+ Close.returns.2lag &  &  & $-$0.016 \\ 
+  &  &  & (0.016) \\ 
+ 
+ PRECTOT & $-$0.003 & $-$0.002 & $-$0.002 \\ 
+  & (0.004) & (0.004) & (0.004) \\ 
+ 
+ T2MWET & 0.062$^{***}$ & 0.053$^{***}$ & 0.053$^{***}$ \\ 
+  & (0.020) & (0.020) & (0.020) \\ 
+ 
+ Constant & $-$0.669 & $-$0.566 & $-$0.548 \\ 
+  & (0.444) & (0.437) & (0.437) \\ 
+ 
+\hline \\[-1.8ex] 
+Day FE & Yes & Yes & Yes \\ 
+Month FE & Yes & Yes & Yes \\ 
+Year FE & Yes & Yes & Yes \\ 
+Financial Dummies & Yes & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 3,737 & 3,736 & 3,735 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 
+
+
+### 4.2.2 Model of PM 2.5, Weather and Stock Returns
+
+Estimating equation (2), our results show consistent resulst compared to previous papers. 
+
+\begin{table}[!htbp] \centering 
+  \caption{Regression Results for Stock Returns VN-Index - With PM 2.5} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-4} 
+\\[-1.8ex] & \multicolumn{3}{c}{Close.returns} \\ 
+ & AR0 & AR1 & AR2 \\ 
+\\[-1.8ex] & (1) & (2) & (3)\\ 
+\hline \\[-1.8ex] 
+ Close.returns.1lag &  & 0.002 & 0.001 \\ 
+  &  & (0.034) & (0.034) \\ 
+ 
+ Close.returns.2lag &  &  & 0.059$^{*}$ \\ 
+  &  &  & (0.034) \\ 
+ 
+ pm25 & $-$0.003$^{*}$ & $-$0.003$^{*}$ & $-$0.002 \\ 
+  & (0.001) & (0.001) & (0.001) \\ 
+ 
+ PRECTOT & $-$0.002 &  & $-$0.002 \\ 
+  & (0.005) &  & (0.005) \\ 
+ 
+ T2MWET & 0.020 &  & 0.018 \\ 
+  & (0.030) &  & (0.030) \\ 
+ 
+ Constant & 0.498 & 0.937$^{***}$ & 0.488 \\ 
+  & (0.731) & (0.284) & (0.731) \\ 
+ 
+\hline \\[-1.8ex] 
+Day FE & Yes & Yes & Yes \\ 
+Month FE & Yes & Yes & Yes \\ 
+Year FE & Yes & Yes & Yes \\ 
+Financial Dummies & Yes & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 912 & 912 & 912 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 
+
+
+```{r, echo=FALSE ,fig.show='hold', fig.align='center',fig.cap= 'Model Fit'}
+par(mfrow = c(2, 2))  # Split the plotting panel into a 2 x 2 grid
+plot(PM25.model_lm.returns.AR1)
+```
+
+
+# 5. Robustness Check
+## 5.1 Sensitivity Analysis
+
+To further challenge the specification we conduct a pair of further tests. If PM2.5 is correlated with other local environmental influences that vary on a daily basis, such as weather and other pollutants, we should conduct a sensitivity analysis where we exclude all meteorological variables and co-pollutant controls to see whether our effects persist. This means that if weather variables correlated with PM2.5 are important confounders then omitting them should appreciably change our results. The results of this exercise (Table 4) shows minimal to no changes in our estimates. This suggests that although weather may have an influence on returns it is not in a way that is correlated with PM2.5. 
+
+\begin{table}[!htbp] \centering 
+  \caption{Regression Results for Stock Returns VN-Index - Sensitivity Analysis} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lcc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & \multicolumn{2}{c}{Close.returns} \\ 
+ & AR1 Without Weather & AR1 With Weather \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline \\[-1.8ex] 
+ Close.returns.1lag & 0.002 & 0.002 \\ 
+  & (0.034) & (0.034) \\ 
+ 
+ pm25 & $-$0.003$^{*}$ & $-$0.003$^{*}$ \\ 
+  & (0.001) & (0.001) \\ 
+ 
+ Constant & 0.937$^{***}$ & 0.937$^{***}$ \\ 
+  & (0.284) & (0.284) \\ 
+ 
+\hline \\[-1.8ex] 
+Day FE & Yes & Yes \\ 
+Month FE & Yes & Yes \\ 
+Year FE & Yes & Yes \\ 
+Financial Dummies & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 912 & 912 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 
+
+## 5.2 Is Rainfall a Confounding Factor? 
+
+We tackle potential criticisms by going deeper into the possible confounding role of precipitation. Precipitation may impact mood directly, and also plays an important role in influencing PM2.5 levels. As a further check we conduct a sub-sample analysis by limiting ourselves to days on which no precipitation occurred. The results (Table 5) show minimal to no changes in PM2.5, which suggests that precipitation is unlikely to be a major source of confounding. 
+
+
+\begin{table}[!htbp] \centering 
+  \caption{Regression Results for Stock Returns VN-Index - No Precipitation} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lcc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & \multicolumn{2}{c}{Close.returns} \\ 
+ & AR1 No Precipitation - No Temp & AR1 No Precipitation - With Temp \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline \\[-1.8ex] 
+ Close.returns.1lag & 0.002 & 0.001 \\ 
+  & (0.034) & (0.034) \\ 
+ 
+ pm25 & $-$0.003$^{*}$ & $-$0.003$^{*}$ \\ 
+  & (0.001) & (0.001) \\ 
+ 
+ T2MWET &  & 0.018 \\ 
+  &  & (0.030) \\ 
+ 
+ Constant & 0.937$^{***}$ & 0.532 \\ 
+  & (0.284) & (0.726) \\ 
+ 
+\hline \\[-1.8ex] 
+Day FE & Yes & Yes \\ 
+Month FE & Yes & Yes \\ 
+Year FE & Yes & Yes \\ 
+Financial Dummies & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 912 & 912 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 
+
+
+
+## 5.3 Placebo Test
+
+We re-estimate our preferred specification replacing the HCMC PM2.5 series with the analogous series from Hanoi series of PM 2.5. (Website is currently down, can't download the data)
+
+# 6. Conclusion
+
+
+
+\newpage
+### Appendix
+
+
+### Reference
+
+
+
+
+
+
+
+
+
+
+
+

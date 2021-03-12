@@ -1,0 +1,55 @@
+---
+title: "Test Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+data("mtcars")
+
+#orientation: rows => then has to specify to Column {data-height=650}
+# orientation: columns => specify {data-width=650}
+
+
+#vertical_layout: fill
+#vertical_layout: scroll
+```
+
+Page 1 {data-orientation=columns}
+======================================================================
+
+### Chart 0
+
+```{r}
+ggplot(mtcars, aes(x=wt, y=cyl)) + geom_point()
+```
+
+Page 2 {data-orientation=rows}
+======================================================================
+
+### Chart 1
+
+```{r}
+ggplot(mtcars, aes(x=disp)) + geom_density()
+```
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+ggplot(mtcars, aes(x=wt)) + geom_bar()
+```
+
+### Chart C
+
+```{r}
+ggplot(mtcars, aes(y=hp)) + geom_boxplot()
+```
+

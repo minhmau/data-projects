@@ -1,0 +1,421 @@
+---
+title: "BRFSS INTERNAL"
+author: "Minh Pham"
+date: "1/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "")
+getwd()
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(readr)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(lmtest)
+library(rsq)
+library(stargazer)
+```
+
+
+```{r, echo=F}
+# brfss_df00 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2000 main.rds" ) )
+# brfss_df01 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2001 main.rds" ) )
+# brfss_df02 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2002 main.rds" ) )
+# brfss_df03 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2003 main.rds" ) )
+# brfss_df04 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2004 main.rds" ) )
+# brfss_df05 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2005 main.rds" ) )
+# brfss_df06 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2006 main.rds" ) )
+# brfss_df07 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2007 main.rds" ) )
+# brfss_df08 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2008 main.rds" ) )
+# brfss_df09 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2009 main.rds" ) )
+# brfss_df10 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2010 main.rds" ) )
+# brfss_df11 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2012 main.rds" ) )
+# brfss_df12 <- 
+#     readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2012 main.rds" ) )
+
+
+
+brfss_df13 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2013 main.rds" ) )
+brfss_df14 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2014 main.rds" ) )
+brfss_df15 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2015 main.rds" ) )
+brfss_df16 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2016 main.rds" ) )
+brfss_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2017 main.rds" ) )
+brfss_df18 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2018 main.rds" ) )
+
+
+brfss_df13$xpsu=as.integer(brfss_df13$xpsu)
+brfss_df14$xpsu=as.integer(brfss_df14$xpsu)
+brfss_df15$xpsu=as.integer(brfss_df15$xpsu)
+brfss_df16$xpsu=as.integer(brfss_df16$xpsu)
+brfss_df17$xpsu=as.integer(brfss_df17$xpsu)
+brfss_df18$xpsu=as.integer(brfss_df18$xpsu)
+
+### Create date
+brfss_df13$iyear <- rep(2013,nrow(brfss_df13)) # make new column
+brfss_df13$Date <- as.Date( paste(brfss_df13$iyear, brfss_df13$imonth , brfss_df13$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df13=brfss_df13[order(as.Date(brfss_df13$Date, format="%d/%m/%Y")),]
+
+brfss_df14$iyear <- rep(2014,nrow(brfss_df14)) # make new column
+brfss_df14$Date <- as.Date( paste(brfss_df14$iyear, brfss_df14$imonth , brfss_df14$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df14=brfss_df14[order(as.Date(brfss_df14$Date, format="%d/%m/%Y")),]
+
+brfss_df15$iyear <- rep(2015,nrow(brfss_df15)) # make new column
+brfss_df15$Date <- as.Date( paste(brfss_df15$iyear, brfss_df15$imonth , brfss_df15$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df15=brfss_df15[order(as.Date(brfss_df15$Date, format="%d/%m/%Y")),]
+
+brfss_df16$iyear <- rep(2016,nrow(brfss_df16)) # make new column
+brfss_df16$Date <- as.Date( paste(brfss_df16$iyear, brfss_df16$imonth , brfss_df16$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df16=brfss_df16[order(as.Date(brfss_df16$Date, format="%d/%m/%Y")),]
+
+brfss_df17$iyear <- rep(2017,nrow(brfss_df17)) # make new column
+brfss_df17$Date <- as.Date( paste(brfss_df17$iyear, brfss_df17$imonth , brfss_df17$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df17=brfss_df17[order(as.Date(brfss_df17$Date, format="%d/%m/%Y")),]
+
+brfss_df18$iyear <- rep(2018,nrow(brfss_df18)) # make new column
+brfss_df18$Date <- as.Date( paste(brfss_df18$iyear, brfss_df18$imonth , brfss_df18$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df18=brfss_df18[order(as.Date(brfss_df18$Date, format="%d/%m/%Y")),]
+
+brfss_df18$sex=brfss_df18$sex1
+
+
+brfss_df1314 <- intersect(colnames(brfss_df13), colnames(brfss_df14))
+
+brfss_df1314 <- rbind(brfss_df13[ , brfss_df1314], brfss_df14[ , brfss_df1314])
+
+brfss_df131415 <- intersect(colnames(brfss_df1314), colnames(brfss_df15))
+
+brfss_df131415 <- rbind(brfss_df1314[ , brfss_df131415], brfss_df15[ , brfss_df131415])
+
+brfss_df13141516 <- intersect(colnames(brfss_df131415), colnames(brfss_df16))
+
+brfss_df13141516 <- rbind(brfss_df131415[ , brfss_df13141516], brfss_df16[ , brfss_df13141516])
+
+brfss_df1314151617 <- intersect(colnames(brfss_df13141516), colnames(brfss_df17))
+
+brfss_df1314151617 <- rbind(brfss_df13141516[ , brfss_df1314151617], brfss_df17[ , brfss_df1314151617])
+
+brfss_df131415161718 <- intersect(colnames(brfss_df1314151617), colnames(brfss_df18))
+
+brfss_df131415161718 <- rbind(brfss_df1314151617[ , brfss_df131415161718], brfss_df18[ , brfss_df131415161718])
+
+brfss_df131415161718$state_name=factor(brfss_df131415161718$xstate , levels = 
+                    c(1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 
+                    37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 
+                    55, 56) ,
+                    
+                labels = 
+                    c("ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", 
+                    "COLORADO", "CONNECTICUT", "DELAWARE", "DISTRICT OF COLUMBIA", 
+                    "FLORIDA", "GEORGIA", "HAWAII", "IDAHO", "ILLINOIS", "INDIANA",
+                    "IOWA", "KANSAS", "KENTUCKY", "LOUISIANA", "MAINE", "MARYLAND",
+                    "MASSACHUSETTS", "MICHIGAN", "MINNESOTA", "MISSISSIPPI", 
+                    "MISSOURI", "MONTANA", "NEBRASKA", "NEVADA", "NEW HAMPSHIRE",
+                    "NEW JERSEY", "NEW MEXICO", "NEW YORK", "NORTH CAROLINA", 
+                    "NORTH DAKOTA", "OHIO", "OKLAHOMA", "OREGON", "PENNSYLVANIA",
+                    "RHODE ISLAND", "SOUTH CAROLINA", "SOUTH DAKOTA", "TENNESSEE",
+                    "TEXAS", "UTAH", "VERMONT", "VIRGINIA", "WASHINGTON",
+                    "WEST VIRGINIA", "WISCONSIN", "WYOMING"))
+
+# Var-names can be used: xstate	fmonth	imonth	iday	iyear	dispcode	xpsu	pvtresd1	colghous	ladult	numadult	nummen	numwomen	genhlth	physhlth	menthlth	poorhlth	hlthpln1	persdoc2	medcost	checkup1	cvdinfr4	cvdcrhd4	cvdstrk3	asthma3	asthnow	chcscncr	chcocncr	chccopd1	havarth3	addepev2	diabete3	veteran3	marital	children	educa	employ1	income2	weight2	height3	renthom1	sex	pregnant	blind	decide	diffwalk	diffdres	diffalon	smoke100	smokday2	stopsmk2	lastsmk2	usenow3	alcday5	avedrnk2	drnk3ge5	maxdrnks	exerany2	seatbelt	flushot6	flshtmy2	hivtst6	hivtstd3	pdiabtst	prediab1	diabage2	insulin	bldsugar	doctdiab	chkhemo3	feetchk	diabeye	diabedu	imfvplac	hpvadvc2	hpvadsht	rcsgendr	rcsrltn2	casthdx2	casthno2	ctelnum1	cadult	cclghous	landline	qstver	qstlang	mscode	xststr	xstrwt	xrawrake	xwt2rake	xchispnc	xcrace1	xcllcpwt	xdualuse	xdualcor	xllcpwt	xrfhlth	xhcvu651	xltasth1	xcasthm1	xasthms1	xdrdxar1	xprace1	xmrace1	xhispanc	xrace	xraceg21	xracegr3	xracexg1	xageg5yr	xage65yr	xagexg	htin4	htm4	wtkg3	xbmi5	xbmi5cat	xrfbmi5	xchldcnt	xeducag	xincomg	xsmoker3	xrfsmok3	drnkany5	drocdy3x	xrfbing5	xtotinda	xrfseat2	xrfseat3	xflshot6	xaidtst3	xage80	one	Date
+
+# 
+# brfss_df131415161718s = brfss_df131415161718 %>% select(xstate, state_name,	fmonth,	imonth,	iday,	iyear,	dispcode,	xpsu,	genhlth,	physhlth,	menthlth,	poorhlth,	hlthpln1,	persdoc2,	medcost,	checkup1,	cvdinfr4,	cvdcrhd4,	cvdstrk3,	asthma3,	asthnow,		chcocncr,	havarth3,	addepev2,	veteran3,	marital,	employ1,	weight2,	height3,	renthom1,	sex,	pregnant,	decide,	smoke100,	smokday2,	stopsmk2,	usenow3,	alcday5,	exerany2	,flushot6,drnk3ge5,	prediab1,	rcsgendr,		casthdx2,	casthno2,	mscode,	xststr,	xstrwt,	xcrace1	,xllcpwt,	xrfhlth,	xhcvu651,	xprace1,	xagexg,	xbmi5,	xrfbmi5,	xchldcnt,	xeducag,	xincomg,	xrfsmok3,	drocdy3x,	xrfbing5,	xtotinda,	one,	Date) 
+
+brfss_df131415161718s = brfss_df131415161718 %>% select(xstate, state_name,	fmonth,	imonth,	iday,	iyear,	dispcode,	xpsu,	genhlth,	physhlth,	menthlth,	poorhlth,	hlthpln1,	persdoc2,	cvdcrhd4,	havarth3,	addepev2,	marital,	employ1,	sex,	decide,	alcday5,	exerany2,	mscode,	xststr,	xstrwt,	xcrace1	,xllcpwt,	xrfhlth,	xhcvu651,	xprace1,	xagexg,	xrfbmi5,	xchldcnt,	xeducag,	xincomg,	xrfsmok3,	drocdy3x,	xrfbing5,	xtotinda,	one,	Date) 
+
+```
+
+
+```{r}
+
+# brfss_df131415161718s$weight = ifelse( brfss_df131415161718s$weight2 %in% 50:999 , as.numeric( brfss_df131415161718s$weight2), NA)
+# brfss_df131415161718s$height = ifelse( brfss_df131415161718s$height3 %in% 200:711 , as.numeric( brfss_df131415161718s$height3), NA)
+# # brfss_df131415161718s$drinking_frequency = ifelse( brfss_df131415161718s$drnk3ge5 %in% 1:76 , as.numeric( brfss_df131415161718s$drnk3ge5), ifelse(brfss_df131415161718s$drnk3ge5==88, brfss_df131415161718s$drnk3ge5==0, NA))
+# brfss_df131415161718s$calculated_bmi_index <- brfss_df131415161718s$xbmi5/100
+
+#DATA cleaning
+
+#recode categorical variables
+
+brfss_df131415161718s$overweight = ifelse( brfss_df131415161718s$xrfbmi5 ==1 , 0, ifelse(brfss_df131415161718s$xrfbmi5==2, 1, NA))
+
+# brfss_df131415161718s$health_coverage_1864= ifelse( brfss_df131415161718s$xhcvu651 ==1 , 1, ifelse(brfss_df131415161718s$xhcvu651==2, 0, NA))
+# brfss_df131415161718s$health_coverage_1864 <- as.factor(recode(brfss_df131415161718s$health_coverage_1864, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$child_race <- ifelse( brfss_df131415161718s$xcrace1 ==1 , 1, ifelse(brfss_df131415161718s$xcrace1==2, 2,ifelse(brfss_df131415161718s$xcrace1==3,3,ifelse(brfss_df131415161718s$xcrace1==4,4,ifelse(brfss_df131415161718s$xcrace1==5,5,ifelse(brfss_df131415161718s$xcrace1==6,6,NA))))))
+# brfss_df131415161718s$child_race <- as.factor(recode(brfss_df131415161718s$child_race, "1" = "white", "2" = "black","3"="native","4"="asian","5"="pacific","6"="other",.default = "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$child_asthma_currently= ifelse( brfss_df131415161718s$casthno2 ==1 , 1, ifelse(brfss_df131415161718s$casthno2==2, 0, NA))
+# brfss_df131415161718s$child_asthma_currently <- as.factor(recode(brfss_df131415161718s$child_asthma_currently, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$child_asthma= ifelse( brfss_df131415161718s$casthdx2 ==1 , 1, ifelse(brfss_df131415161718s$casthdx2==2, 0, NA))
+# brfss_df131415161718s$child_asthma <- as.factor(recode(brfss_df131415161718s$child_asthma, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$childe_gender= ifelse( brfss_df131415161718s$rcsgendr ==1 , 1, ifelse(brfss_df131415161718s$rcsgendr==2, 0, NA))
+# brfss_df131415161718s$childe_gender <- as.factor(recode(brfss_df131415161718s$childe_gender, "1" = "boy", "0" = "girl",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$prediabete = ifelse( brfss_df131415161718s$prediab1 ==1 , 1, ifelse(brfss_df131415161718s$prediab1==3, 0, NA))
+# brfss_df131415161718s$prediabete <- as.factor(recode(brfss_df131415161718s$prediabete, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$flu_shot = ifelse( brfss_df131415161718s$flushot6 ==1 , 1, ifelse(brfss_df131415161718s$flushot6==2, 0, NA))
+# brfss_df131415161718s$flu_shot <- as.factor(recode(brfss_df131415161718s$flu_shot, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$physical_activity = ifelse( brfss_df131415161718s$exerany2 ==1 , 1, ifelse(brfss_df131415161718s$exerany2==2, 0, NA))
+
+# 
+# brfss_df131415161718s$tobaco_now <-ifelse( brfss_df131415161718s$usenow3 ==1 , 1, ifelse(brfss_df131415161718s$usenow3==2, 2,ifelse(brfss_df131415161718s$usenow3==3,3,NA)))
+# brfss_df131415161718s$tobaco_now <- as.factor(recode(brfss_df131415161718s$tobaco_now, "1" = "everyday", "2" = "somedays", "3" = "no" ,.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$stop_smoking = ifelse( brfss_df131415161718s$stopsmk2 ==1 , 1, ifelse(brfss_df131415161718s$stopsmk2==2, 0, NA))
+# brfss_df131415161718s$stop_smoking <- as.factor(recode(brfss_df131415161718s$stop_smoking, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$smoke_frequency <-ifelse( brfss_df131415161718s$smokday2 ==1 , 1, ifelse(brfss_df131415161718s$smokday2==2, 2,ifelse(brfss_df131415161718s$smokday2==3,3,NA)))
+# brfss_df131415161718s$smoke_frequency <- as.factor(recode(brfss_df131415161718s$smoke_frequency, "1" = "everyday", "2" = "somedays", "3" = "no" ,.default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$smoke100cigs = ifelse( brfss_df131415161718s$smoke100 ==1 , 1, ifelse(brfss_df131415161718s$smoke100==2, 0, NA))
+# brfss_df131415161718s$smoke100cigs <- as.factor(recode(brfss_df131415161718s$smoke100cigs, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$pregnant = ifelse( brfss_df131415161718s$pregnant ==1 , 1, ifelse(brfss_df131415161718s$pregnant==2, 0, NA))
+# brfss_df131415161718s$pregnant <- as.factor(recode(brfss_df131415161718s$pregnant, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$rent_home = ifelse( brfss_df131415161718s$renthom1 ==1 , 1, ifelse(brfss_df131415161718s$renthom1==2, 0, NA))
+# brfss_df131415161718s$rent_home <- as.factor(recode(brfss_df131415161718s$rent_home, "1" = "ownhome", "0" = "renthome",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$health_insured = ifelse( brfss_df131415161718s$hlthpln1 ==1 , 1, ifelse(brfss_df131415161718s$hlthpln1==2, 0, NA))
+
+# brfss_df131415161718s$personal_doctor = ifelse( brfss_df131415161718s$persdoc2 ==1 |  brfss_df131415161718s$persdoc2 ==2, 1, ifelse(brfss_df131415161718s$hlthpln1==3, 0, NA))
+
+# brfss_df131415161718s$couldntgotodocbcofcost = ifelse( brfss_df131415161718s$medcost ==1 , 1, ifelse(brfss_df131415161718s$medcost==2, 0, NA))
+# brfss_df131415161718s$couldntgotodocbcofcost <- as.factor(recode(brfss_df131415161718s$couldntgotodocbcofcost, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$doctor_checkup <-  ifelse( brfss_df131415161718s$checkup1 ==1 , 1, ifelse(brfss_df131415161718s$checkup1==2, 2,ifelse(brfss_df131415161718s$checkup1==3,3,ifelse(brfss_df131415161718s$checkup1==4,4,ifelse(brfss_df131415161718s$checkup1==8,5,NA)))))
+# brfss_df131415161718s$doctor_checkup <- as.factor(recode(brfss_df131415161718s$doctor_checkup, "1" = "within1year", "2" = "within2year", "3" = "within5year", "4" = "morethan5year", "5" = "never", .default =  "NA", .missing = "NA"))
+
+# brfss_df131415161718s$heart_atack= ifelse( brfss_df131415161718s$cvdinfr4 ==1 , 1, ifelse(brfss_df131415161718s$cvdinfr4==2, 0, NA))
+# brfss_df131415161718s$heart_atack <- as.factor(recode(brfss_df131415161718s$heart_atack, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$heart_disease= ifelse( brfss_df131415161718s$cvdcrhd4 ==1 , 1, ifelse(brfss_df131415161718s$cvdcrhd4==2, 0, NA))
+
+# brfss_df131415161718s$stroke= ifelse( brfss_df131415161718s$cvdstrk3 ==1 , 1, ifelse(brfss_df131415161718s$cvdstrk3==2, 0, NA))
+# brfss_df131415161718s$stroke <- as.factor(recode(brfss_df131415161718s$stroke, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$asthma= ifelse( brfss_df131415161718s$asthma3 ==1 , 1, ifelse(brfss_df131415161718s$asthma3==2, 0, NA))
+# brfss_df131415161718s$asthma <- as.factor(recode(brfss_df131415161718s$asthma, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$asthma_currently= ifelse( brfss_df131415161718s$asthnow ==1 , 1, ifelse(brfss_df131415161718s$asthnow==2, 0, NA))
+# brfss_df131415161718s$asthma_currently <- as.factor(recode(brfss_df131415161718s$asthma_currently, "1" = "no", "0" = "yes",.default =  "NA", .missing = "NA"))
+# 
+# brfss_df131415161718s$cancer= ifelse( brfss_df131415161718s$chcocncr ==1 , 1, ifelse(brfss_df131415161718s$chcocncr==2, 0, NA))
+# brfss_df131415161718s$cancer <- as.factor(recode(brfss_df131415161718s$cancer, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$arthritis= ifelse( brfss_df131415161718s$havarth3 ==1 , 1, ifelse(brfss_df131415161718s$havarth3==2, 0, NA))
+
+brfss_df131415161718s$depression= ifelse( brfss_df131415161718s$addepev2 ==1 , 1, ifelse(brfss_df131415161718s$addepev2==2, 0, NA))
+
+# brfss_df131415161718s$veteran= ifelse( brfss_df131415161718s$veteran3 ==1 , 1, ifelse(brfss_df131415161718s$veteran3==2, 0, NA))
+# brfss_df131415161718s$veteran <- as.factor(recode(brfss_df131415161718s$veteran, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+
+
+brfss_df131415161718s$calculated_health = ifelse(brfss_df131415161718s$xrfhlth==1,1,ifelse(brfss_df131415161718s$xrfhlth==2,0,NA))
+
+brfss_df131415161718s$calculated_current_smokers = ifelse(brfss_df131415161718s$xrfsmok3==1,0,ifelse(brfss_df131415161718s$xrfsmok3==2,1,NA))
+
+brfss_df131415161718s$calculated_binge_drinkers = ifelse(brfss_df131415161718s$xrfbing5==1,0,ifelse(brfss_df131415161718s$xrfbing5==2,1,NA))
+
+brfss_df131415161718s$calculated_physical_activity = ifelse(brfss_df131415161718s$xtotinda==1,1,ifelse(brfss_df131415161718s$xtotinda==2,0,NA))
+
+brfss_df131415161718s$difficult_making_decision = ifelse(brfss_df131415161718s$decide==1,1,ifelse(brfss_df131415161718s$decide==2,0,NA))
+
+brfss_df131415161718s$general_health_uncoded = ifelse( brfss_df131415161718s$genhlth %in% 1:5 , as.numeric( brfss_df131415161718s$genhlth > 3 ) , NA )
+
+brfss_df131415161718s$alcohol_consumption = ifelse( brfss_df131415161718s$alcday5 %in% 201:230 , as.numeric( brfss_df131415161718s$alcday5 - 200 ) ,ifelse(brfss_df131415161718s$alcday5==888 , brfss_df131415161718s$alcday5==0, NA ))
+
+brfss_df131415161718s$mental_health = ifelse( brfss_df131415161718s$menthlth %in% 1:30 , as.numeric( brfss_df131415161718s$menthlth), ifelse(brfss_df131415161718s$menthlth==88, brfss_df131415161718s$menthlth==0, NA))
+
+brfss_df131415161718s$drink_occasions = ifelse( brfss_df131415161718s$drocdy3x %in% 1:899 , as.numeric( brfss_df131415161718s$drocdy3x), ifelse(brfss_df131415161718s$drocdy3x==1, brfss_df131415161718s$drocdy3x==0, NA))
+
+#https://www.cottagehealth.org/population-health/community-health-needs-assessment/health-indicators/mental-health-poor-days/
+# brfss_df131415161718s$mental_health = replace(brfss_df131415161718s$mental_health, brfss_df131415161718s$mental_health <15,1)
+# brfss_df131415161718s$mental_health = replace(brfss_df131415161718s$mental_health, brfss_df131415161718s$mental_health >=15,0)
+
+brfss_df131415161718s$mentalandphysical_health = ifelse( brfss_df131415161718s$poorhlth %in% 1:30 , as.numeric( brfss_df131415161718s$poorhlth), ifelse(brfss_df131415161718s$poorhlth==88, brfss_df131415161718s$poorhlth==0, NA))
+
+brfss_df131415161718s$physical_health = ifelse( brfss_df131415161718s$physhlth %in% 1:30 , as.numeric( brfss_df131415161718s$physhlth), ifelse(brfss_df131415161718s$physhlth==88, brfss_df131415161718s$physhlth==0, NA))
+
+#demographics
+brfss_df131415161718s$gender= ifelse( brfss_df131415161718s$sex ==1 , 1, ifelse(brfss_df131415161718s$sex==2, 0, NA))
+
+brfss_df131415161718s$number_of_children <-  ifelse( brfss_df131415161718s$xchldcnt ==1 , 1, ifelse(brfss_df131415161718s$xchldcnt==2, 2,ifelse(brfss_df131415161718s$xchldcnt==3,3,ifelse(brfss_df131415161718s$xchldcnt==4,4,ifelse(brfss_df131415161718s$xchldcnt==5,5,ifelse(brfss_df131415161718s$xchldcnt==6,6,NA))))))
+
+brfss_df131415161718s$marital_status <-  ifelse( brfss_df131415161718s$marital ==1 , 1, ifelse(brfss_df131415161718s$marital==2, 2,ifelse(brfss_df131415161718s$marital==3,3,ifelse(brfss_df131415161718s$marital==4,4,ifelse(brfss_df131415161718s$marital==5,5,ifelse(brfss_df131415161718s$marital==6,6,NA))))))
+
+brfss_df131415161718s$employment_status <- ifelse( brfss_df131415161718s$employ1 ==1 , 1, ifelse(brfss_df131415161718s$employ1==2, 2,ifelse(brfss_df131415161718s$employ1==3,3,ifelse(brfss_df131415161718s$employ1==4,4,ifelse(brfss_df131415161718s$employ1==5,5,ifelse(brfss_df131415161718s$employ1==6,6,ifelse(brfss_df131415161718s$employ1==7,7,ifelse(brfss_df131415161718s$employ1==8,8,NA))))))))
+
+brfss_df131415161718s$calculated_race <- ifelse( brfss_df131415161718s$xprace1 ==1 , 1, ifelse(brfss_df131415161718s$xprace1==2, 2,ifelse(brfss_df131415161718s$xprace1==3,3,ifelse(brfss_df131415161718s$xprace1==4,4,ifelse(brfss_df131415161718s$xprace1==5,5,ifelse(brfss_df131415161718s$xprace1==6,6,NA))))))
+
+brfss_df131415161718s$calculated_education <-ifelse( brfss_df131415161718s$xeducag ==1 , 1, ifelse(brfss_df131415161718s$xeducag==2, 2,ifelse(brfss_df131415161718s$xeducag==3,3,ifelse(brfss_df131415161718s$xeducag==4,4,NA))))
+
+
+brfss_df131415161718s$calculated_income <- ifelse( brfss_df131415161718s$xincomg ==1 , 1, ifelse(brfss_df131415161718s$xincomg==2, 2,ifelse(brfss_df131415161718s$xincomg==3,3,ifelse(brfss_df131415161718s$xincomg==4,4,ifelse(brfss_df131415161718s$xincomg==5,5,NA)))))
+
+brfss_df131415161718s$calculated_age <- ifelse( brfss_df131415161718s$xagexg ==1 , 1, ifelse(brfss_df131415161718s$xagexg==2, 2,ifelse(brfss_df131415161718s$xagexg==3,3,ifelse(brfss_df131415161718s$xagexg==4,4,ifelse(brfss_df131415161718s$xagexg==5,5,ifelse(brfss_df131415161718s$xagexg==6,6,NA))))))
+
+brfss_df131415161718s$metropolitan_status <- ifelse( brfss_df131415161718s$mscode ==1 , 1, ifelse(brfss_df131415161718s$mscode==2, 2,ifelse(brfss_df131415161718s$mscode==3,3,ifelse(brfss_df131415161718s$mscode==5,5,NA))))
+
+#Get rid of incomplete observations
+# brfss_df131415161718s=brfss_df131415161718s[ ! brfss_df131415161718s$dispcode %in% c(1200), ]
+brfss_df131415161718s$date=brfss_df131415161718s$Date
+brfss_df131415161718s <- brfss_df131415161718s %>%
+  select(date, everything())
+
+brfss_df131415161718s=na.omit(brfss_df131415161718s)
+
+
+```
+
+```{r}
+brfss_df131415161718s$overweight <- as.factor(recode(brfss_df131415161718s$overweight, "1" = "noobese", "0" = "obese",.default =  "NA", .missing = "NA"))
+brfss_df131415161718s$physical_activity <- as.factor(recode(brfss_df131415161718s$physical_activity, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+brfss_df131415161718s$health_insured <- as.factor(recode(brfss_df131415161718s$health_insured, "1" = "insured", "0" = "noinsured",.default =  "NA", .missing = "NA"))
+brfss_df131415161718s$arthritis <- as.factor(recode(brfss_df131415161718s$arthritis, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+brfss_df131415161718s$depression <- as.factor(recode(brfss_df131415161718s$depression, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+brfss_df131415161718s$heart_disease <- as.factor(recode(brfss_df131415161718s$heart_disease, "1" = "yes", "0" = "no",.default =  "NA", .missing = "NA"))
+# brfss_df131415161718s$personal_doctor <- as.factor(recode(brfss_df131415161718s$personal_doctor, "1" = "yesdoc", "0" = "nodoc",.default =  "NA", .missing = "NA"))
+
+
+
+brfss_df131415161718s$gender=as.factor(recode(brfss_df131415161718s$gender,'1'='M','0'='F',.missing='NA',.default = 'NA'))
+
+brfss_df131415161718s$number_of_children <- as.factor(recode(brfss_df131415161718s$number_of_children, "1" = "nochildren", "2" = "1children", "3" = "2children", "4" = "3children", "5" = "4children", "6" = "5morechildren", .default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$marital_status <- as.factor(recode(brfss_df131415161718s$marital_status, "1" = "married", "2" = "divorced","3"="widowed","4"="separated","5"="nevermarried","6"="membermarriedcoup",.default = "NA", .missing = "NA"))
+
+brfss_df131415161718s$employment_status <- as.factor(recode(brfss_df131415161718s$employment_status, "1" = "wagesemployed", "2" = "selfemployed","3"="noworkmore1","4"="noworkless1","5"="homemaker","6"="student","7"="retired","8"="unable",.default = "NA", .missing = "NA"))
+
+brfss_df131415161718s$calculated_race <- as.factor(recode(brfss_df131415161718s$calculated_race, "1" = "white", "2" = "black","3"="native","4"="asian","5"="pacific","6"="other",.default = "NA", .missing = "NA"))
+
+brfss_df131415161718s$calculated_education <- as.factor(recode(brfss_df131415161718s$calculated_education, "1" = "K", "2" = "HSgrad", "3" = "attendCOL", "4" = "COLgrad", .default = "NA", .missing = "NA")) 
+
+brfss_df131415161718s$calculated_income <- as.factor(recode(brfss_df131415161718s$calculated_income, "1" = "le15K", "2" = "15to25K", "3" = "25to35K", "4" = "35to50K", "5" = "50more", .default = "NA", missing = "NA"))
+
+brfss_df131415161718s$calculated_age <- as.factor(recode(brfss_df131415161718s$calculated_age, "1" = "18to24", "2" = "25to34", "3" = "35to44", "4" = "45to54", "5" = "55to64", "6" = "65older", .default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$metropolitan_status <- as.factor(recode(brfss_df131415161718s$metropolitan_status, "1" = "citycenter", "2" = "countybutcenter", "3" = "suburban", "5" = "notMSA", .default =  "NA", .missing = "NA"))
+
+# outcome variables
+
+brfss_df131415161718s$calculated_physical_activity <- as.factor(recode(brfss_df131415161718s$calculated_physical_activity, "1" = "physical", "0" = "nophysical",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$general_health_uncoded <- as.factor(recode(brfss_df131415161718s$general_health_uncoded, "1" = "badhealth", "0" = "goodhealth",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$difficult_making_decision <- as.factor(recode(brfss_df131415161718s$difficult_making_decision, "1" = "yesdifficultfocus", "0" = "nodifficultfocus",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$calculated_health <- as.factor(recode(brfss_df131415161718s$calculated_health, "1" = "goodhealth", "0" = "badhealth",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$calculated_binge_drinkers <- as.factor(recode(brfss_df131415161718s$calculated_binge_drinkers, "1" = "bingedrink", "0" = "nobingedrink",.default =  "NA", .missing = "NA"))
+
+brfss_df131415161718s$calculated_current_smokers <- as.factor(recode(brfss_df131415161718s$calculated_current_smokers, "1" = "curentsmoker", "0" = "nosmoker",.default =  "NA", .missing = "NA"))
+
+
+#setting reference values
+brfss_df131415161718s$gender <- relevel(brfss_df131415161718s$gender, ref = "F")
+brfss_df131415161718s$calculated_income <- relevel(brfss_df131415161718s$calculated_income, ref = "50more")
+brfss_df131415161718s$calculated_education <- relevel(brfss_df131415161718s$calculated_education, ref = "COLgrad")
+brfss_df131415161718s$calculated_age <- relevel(brfss_df131415161718s$calculated_age, ref = "18to24")
+brfss_df131415161718s$marital_status = relevel(brfss_df131415161718s$marital_status, ref = "married")
+brfss_df131415161718s$employment_status = relevel(brfss_df131415161718s$employment_status, ref = "wagesemployed")
+brfss_df131415161718s$calculated_race = relevel(brfss_df131415161718s$calculated_race, ref = "white")
+brfss_df131415161718s$metropolitan_status = relevel(brfss_df131415161718s$metropolitan_status, ref = "citycenter")
+# brfss_df131415161718s$number_of_children = relevel(brfss_df131415161718s$number_of_children, ref = "nochildren")
+
+
+brfss_df131415161718s$general_health_uncoded = relevel(brfss_df131415161718s$general_health_uncoded, ref = "goodhealth")
+brfss_df131415161718s$difficult_making_decision = relevel(brfss_df131415161718s$difficult_making_decision, ref = "yesdifficultfocus")
+brfss_df131415161718s$calculated_health = relevel(brfss_df131415161718s$calculated_health, ref = "goodhealth")
+brfss_df131415161718s$calculated_binge_drinkers = relevel(brfss_df131415161718s$calculated_binge_drinkers, ref = "nobingedrink")
+# brfss_df131415161718s$calculated_current_smokers = relevel(brfss_df131415161718s$calculated_current_smokers, ref = "nosmoker")
+brfss_df131415161718s$calculated_physical_activity = relevel(brfss_df131415161718s$calculated_physical_activity, ref = "nophysical")
+
+
+#year and state dummies
+brfss_df131415161718s$iyear = as.factor(brfss_df131415161718s$iyear)
+brfss_df131415161718s$imonth = as.factor(brfss_df131415161718s$imonth)
+brfss_df131415161718s$state_name = as.factor(brfss_df131415161718s$state_name)
+
+brfss_df131415161718s$yearmonth=as.yearmon( paste(brfss_df131415161718s$iyear, brfss_df131415161718s$imonth, sep = "." )  , format = "%Y.%m" )
+brfss_df131415161718s$yearmonth = as.factor(brfss_df131415161718s$yearmonth)
+
+options( survey.lonely.psu = "adjust" )
+
+brfss_design <-
+    svydesign(
+        id = ~ xpsu ,
+        strata = ~ xststr ,
+        data = brfss_df131415161718s ,
+        weight = ~ xllcpwt ,
+        nest = TRUE
+    )
+
+# hist(log(brfss_df131415161718$AQI))
+```
+
+
+```{r}
+#TEST  Variables
+results_TEST_external = svyglm(mentalandphysical_health ~ 0 + alcohol_consumption + calculated_current_smokers  + health_insured+ overweight + calculated_physical_activity + heart_disease + arthritis + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name +imonth +iyear + metropolitan_status +state_name*(as.numeric(yearmonth))  , family=quasipoisson(link = "log"), design = brfss_design)
+sum_results_TEST_external=summary(results_TEST_external)
+sum_results_TEST_external
+
+# calculated_health , calculated_current_smokers , calculated_binge_drinkers, calculated_physical_activity, difficult_making_decision, general_health_uncoded
+# alcohol_consumption, mental_health, drink_occasions, mentalandphysical_health, physical_health
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

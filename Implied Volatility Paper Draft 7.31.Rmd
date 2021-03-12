@@ -1,0 +1,367 @@
+---
+title: "Implied Volatility Paper Draft 7.31"
+author: "Chandler Clemons"
+date: "7/31/2019"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55), fig.pos = "H", fig.align = 'center', tidy=TRUE,warning = F,message = F)
+```
+
+```{r, include=FALSE}
+library(quantmod)
+library(formatR)
+library(vars)
+library(randomcoloR)
+library(MSwM)
+library(forecast)
+``` 
+
+
+```{r,include=FALSE}
+
+tickers <- c("^VIX")
+getSymbols(tickers, from ="1980-01-01")
+
+```
+
+```{r,echo=FALSE, fig.cap=c()}
+
+plot(index(VIX),as.numeric(VIX[,6]),main='VIX',xlab = 'Time',ylab = 'Price',typ='l')
+abline(v=as.Date('2008-09-15'), col = 'red')
+abline(v=as.Date('2009-06-01'), col = 'red')
+# abline(v=as.Date('2000-03-10'), col = 'blue') #NASDAQ hi 
+# abline(v=as.Date('2002-10-09'), col = 'blue')
+grid()
+
+```
+
+
+
+
+```{r, include=FALSE}
+getSymbols(c('^VIX', 'XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'),from = '1990-01-01')
+VIX$VIX.rets <- Delt(VIX[,6], type = 'log')
+XLF$XLF.rets <- Delt(XLF[,6], type = 'log')
+XLK$XLK.rets <- Delt(XLK[,6], type = 'log')
+XLE$XLE.rets <- Delt(XLE[,6], type = 'log')
+XLV$XLV.rets <- Delt(XLV[,6], type = 'log')
+XLY$XLY.rets <- Delt(XLY[,6], type = 'log')
+XLI$XLI.rets <- Delt(XLI[,6], type = 'log')
+XLP$XLP.rets <- Delt(XLP[,6], type = 'log')
+XLU$XLU.rets <- Delt(XLU[,6], type = 'log')
+XLB$XLB.rets <- Delt(XLB[,6], type = 'log')
+
+```
+
+
+
+```{r,include=FALSE}
+
+library(xts)
+
+options(tz="America/Los_Angeles")
+cap_data <-getSymbols(c('^VIX', 'XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'),from = '1990-01-01')
+capinfo <- yahooQF('Market Capitalization')
+cap_market <- getQuote(cap_data, what=capinfo)
+cap_market <- na.omit(cap_market)
+
+prcs <- new.env()
+getSymbols(c('XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'),from = '1990-01-01',env = prcs)
+prcs <- as.list(prcs)
+cap_market <- cap_market[names(prcs),]
+
+mkt_cap <- list()
+for(i in 1:length(prcs)){
+  mkt_cap[[i]] <- as.numeric((cap_market[i,2]/prcs[[i]][nrow(prcs[[i]]),6]))*prcs[[i]][,6]
+}
+
+mkt_cap_df <- do.call('merge',mkt_cap)
+head(mkt_cap_df)
+mkt_cap_df_wt <- t(apply(mkt_cap_df,1,function(x)x/sum(x)))
+#head(mkt_cap_df_wt)
+plot(mkt_cap_df_wt[,1],col = 1,typ = 'l',ylim = c(min(mkt_cap_df_wt),max(mkt_cap_df_wt)), main = 'Rolling Mkt Caps')
+for(i in 2:ncol(mkt_cap_df_wt)){
+  lines(mkt_cap_df_wt[,i],col = i)
+}
+legend('topleft',legend = gsub('.Adjusted','',colnames(mkt_cap_df_wt)),col = 1:ncol(mkt_cap_df_wt),lty = 1,cex =0.65)
+
+dat <- merge(VIX, XLF, XLK, XLE, XLV, XLY, XLI, XLP, XLU, XLB, all=TRUE)
+dat$VIX.rets <- Delt(VIX[,6], type = 'log')
+dat$XLF.rets <- Delt(XLF[,6], type = 'log')
+dat$XLK.rets <- Delt(XLK[,6], type = 'log')
+dat$XLE.rets <- Delt(XLE[,6], type = 'log')
+dat$XLV.rets <- Delt(XLV[,6], type = 'log')
+dat$XLY.rets <- Delt(XLY[,6], type = 'log')
+dat$XLI.rets <- Delt(XLI[,6], type = 'log')
+dat$XLP.rets <- Delt(XLP[,6], type = 'log')
+dat$XLU.rets <- Delt(XLU[,6], type = 'log')
+dat$XLB.rets <- Delt(XLB[,6], type = 'log')
+dat <- na.omit(dat)
+sub_dat <- dat[,c('VIX.rets', 'XLF.rets', 'XLK.rets', 'XLE.rets', 'XLV.rets', 'XLY.rets', 'XLI.rets', 'XLP.rets', 'XLU.rets', 'XLB.rets')]
+sub_dat <- na.omit(sub_dat)
+library(vars)
+
+rets_dat <- sub_dat[,-1]
+mkt_cap_df_wt <- mkt_cap_df_wt[-1,]
+
+weighted_rets_dat <-rets_dat*mkt_cap_df_wt
+dim(weighted_rets_dat)
+dim(rets_dat)
+dim(mkt_cap_df_wt)
+
+head(rets_dat)
+head(mkt_cap_df_wt)
+
+head(weighted_rets_dat)
+
+
+
+length(mkt_cap_df_wt)
+length(rets_dat)
+dim(rets_dat)
+dim(mkt_cap_df_wt)
+
+var_tracker <- c()
+for(i in 252:nrow(rets_dat)){
+  rolling_cov <- cov(rets_dat[(i-251):i,])
+  rolling_weights <- apply(mkt_cap_df_wt[(i-251):i,],2,mean)
+  var_est <-( rolling_weights%*%rolling_cov%*%rolling_weights)[1,1]
+  var_tracker <- c(var_tracker,var_est)
+}
+
+scaled_vix <- as.numeric(dat[252:nrow(dat),6])/as.numeric(dat[252,6])
+
+plot(index(XLF[-1,6]),weighted_rets_dat[,1],col = "salmon",typ = 'l',ylim = c(min(weighted_rets_dat),max(weighted_rets_dat)), ylab = 'weighted_rets_dat rets', xlab = 'time', main = 'Rolling Mkt Cap Weighted Returns')
+for(i in 2:ncol(weighted_rets_dat)){
+  lines(index(XLF[-1,6]), weighted_rets_dat[,i],col = i+1)
+}
+legend('topleft',legend = gsub('.Adjusted','',colnames(weighted_rets_dat)),col = c("salmon",3:10),lty = 1,cex =0.65)
+
+plot(index(XLF[-1,6]),weighted_rets_dat[,1],col = "salmon",typ = 'l',ylim = c(min(weighted_rets_dat),max(weighted_rets_dat)), ylab = 'weighted_rets_dat rets', xlab = 'time', main = 'Rolling Mkt Cap Weighted Returns of XLF')
+
+plot(index(XLF[-1,6]),rets_dat[,1],col = "salmon",typ = 'l',ylim = c(min(rets_dat),max(rets_dat)), ylab = 'rets_dat rets', xlab = 'time', main = 'Unweighted Returns')
+for(i in 2:ncol(rets_dat)){
+  lines(index(XLF[-1,6]), rets_dat[,i],col = i+1)
+}
+legend('topleft',legend = gsub('.Adjusted','',colnames(rets_dat)),col = c("salmon",3:10),lty = 1,cex =0.65)
+
+
+```
+
+```{r,echo=FALSE, fig.cap=c()}
+
+plot(index(dat)[252:nrow(dat)],var_tracker/var_tracker[1],typ = 'l',ylim=c(min(var_tracker/var_tracker[1]),max(scaled_vix)), ylab = 'Actual Vol', xlab = 'time', main = 'Actual Vol & VIX')
+lines(index(dat)[252:nrow(dat)],scaled_vix,col = 2)
+abline(v=as.Date('2008-09-15'), col = 'blue')
+abline(v=as.Date('2009-06-01'), col = 'blue')
+abline(v=as.Date('2000-03-10'), col = 'blue') #NASDAQ hi 
+abline(v=as.Date('2002-10-09'), col = 'blue') #NASDAQ lo
+grid()
+
+sub_dat$Actual.vol <- c(rep(NA,251),var_tracker)
+sub_dat <- na.omit(sub_dat)
+sub_dat$Actual.vol <- Delt(sub_dat$Actual.vol,type='log')
+sub_dat <- na.omit(sub_dat)
+
+var_tracker_long <- c()
+for(i in 252:nrow(rets_dat)){
+  rolling_cov <- cov(rets_dat[1:i,])
+  rolling_weights <- apply(mkt_cap_df_wt[1:i,],2,mean)
+  var_est <-( rolling_weights%*%rolling_cov%*%rolling_weights)[1,1]
+  var_tracker_long <- c(var_tracker_long,var_est)
+}
+
+plot(index(dat)[252:nrow(dat)],var_tracker_long/var_tracker_long[1],typ = 'l',ylim=c(min(scaled_vix),max(scaled_vix)), ylab = 'Long-Run Vol', xlab = 'time', main = 'Long-run Vol & VIX')
+lines(index(dat)[252:nrow(dat)],scaled_vix,col = 2)
+abline(v=as.Date('2008-09-15'), col = 'blue')
+abline(v=as.Date('2009-06-01'), col = 'blue')
+abline(v=as.Date('2000-03-10'), col = 'blue') #NASDAQ hi
+abline(v=as.Date('2002-10-09'), col = 'blue') #NASDAQ lo
+grid()
+
+
+var_tracker_monthly <- c()
+for(i in 31:nrow(rets_dat)){
+  rolling_cov <- cov(rets_dat[(i-30):i,])
+  rolling_weights <- apply(mkt_cap_df_wt[(i-30):i,],2,mean)
+  var_est <-( rolling_weights%*%rolling_cov%*%rolling_weights)[1,1]
+  var_tracker_monthly <- c(var_tracker_monthly,var_est)
+}
+
+plot(index(dat)[31:nrow(dat)],var_tracker_monthly/var_tracker_monthly[1],typ = 'l', ylab = '30 day rolling Vol', xlab = 'time', main = '30 day rolling Vol & VIX')
+lines(index(dat)[252:nrow(dat)],scaled_vix,col = 2)
+abline(v=as.Date('2008-09-15'), col = 'blue')
+abline(v=as.Date('2009-06-01'), col = 'blue')
+abline(v=as.Date('2000-03-10'), col = 'blue') #NASDAQ hi
+abline(v=as.Date('2002-10-09'), col = 'blue') #NASDAQ lo
+grid()
+
+```
+
+
+
+```{r, echo=FALSE}
+
+# month_vix.rets <- to.monthly(sub_dat[,1])
+# 
+# month_vix.adj <- to.monthly(VIX$VIX.Adjusted)
+# 
+# plot(month_vix.adj$`VIX$VIX.Adjusted.Close`)
+# plot(month_vix.rets$`sub_dat[, 1].Close`)
+# 
+# month_XLF.rets <- to.monthly(sub_dat[,2])
+# plot(month_XLF.rets$`sub_dat[, 2].Close`)
+# plot(month_vix.rets$`sub_dat[, 1].Close`)
+# plot(month_vix.adj$`VIX$VIX.Adjusted.Close`)
+```
+
+##### Playing around with MS model (XLF and actual Vol only)
+
+```{r}
+##### Play around with MS model ######
+
+
+
+mod_vix <- as.ts(sub_dat$VIX.rets)
+mod_act <- as.ts(sub_dat$Actual.vol)
+mod_xlf <- as.ts(sub_dat$XLF.rets)
+
+mod<-lm(mod_vix~mod_act+mod_xlf)
+# summary(mod)
+
+mod.mswm=msmFit(mod,k=2,p=1,sw=c(rep(T,5)))
+
+summary(mod.mswm)
+plot(mod.mswm)
+# par(mar=c(3,3,3,3))
+# plotProb(mod.mswm)
+# plotProb(mod.mswm, which=1)
+# plotProb(mod.mswm, which=2)
+# plotProb(mod.mswm, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=1, which=1)
+# plotDiag(mod.mswm, regime=1, which=2)
+# plotDiag(mod.mswm, regime=1, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=2, which=2)
+# plotDiag(mod.mswm, regime=2, which=3)
+# plotReg(mod.mswm, regime=1)
+# plotReg(mod.mswm, regime=2)
+
+
+```
+
+##### Playing around with MS model (all ETFs)
+
+```{r}
+##### Playing around with MS model ######
+
+mod_vix <- as.ts(sub_dat$VIX.rets)
+# mod_act <- as.ts(sub_dat$Actual.vol)
+# mod_xlf <- as.ts(sub_dat$XLF.rets)
+# mod_xlk <- as.ts(sub_dat$XLK.rets)
+# mod_xle <- as.ts(sub_dat$XLE.rets)
+# mod_xlv <- as.ts(sub_dat$XLV.rets)
+# mod_xly <- as.ts(sub_dat$XLY.rets)
+# mod_xli <- as.ts(sub_dat$XLI.rets)
+# mod_xlp <- as.ts(sub_dat$XLP.rets)
+# mod_xlu <- as.ts(sub_dat$XLU.rets)
+# mod_xlb <- as.ts(sub_dat$XLB.rets)
+
+mod_xlf <- as.ts(weighted_rets_dat$XLF.rets[-c(1:252),])
+mod_xlk <- as.ts(weighted_rets_dat$XLK.rets[-c(1:252),])
+mod_xle <- as.ts(weighted_rets_dat$XLE.rets[-c(1:252),])
+mod_xlv <- as.ts(weighted_rets_dat$XLV.rets[-c(1:252),])
+mod_xly <- as.ts(weighted_rets_dat$XLY.rets[-c(1:252),])
+mod_xli <- as.ts(weighted_rets_dat$XLI.rets[-c(1:252),])
+mod_xlp <- as.ts(weighted_rets_dat$XLP.rets[-c(1:252),])
+mod_xlu <- as.ts(weighted_rets_dat$XLU.rets[-c(1:252),])
+mod_xlb <- as.ts(weighted_rets_dat$XLB.rets[-c(1:252),])
+
+
+
+
+mod<-lm(mod_vix~mod_act+mod_xlf+mod_xlk+mod_xle+mod_xlv+mod_xly+mod_xli+mod_xlp+mod_xlu+mod_xlb)
+# summary(mod)
+
+mod.mswm=msmFit(mod,k=2,p=1,sw=c(rep(T,13)))
+
+plot(mod.mswm)
+summary(mod.mswm)
+# par(mar=c(3,3,3,3))
+# plotProb(mod.mswm, which=1)
+# plotProb(mod.mswm, which=2)
+# plotProb(mod.mswm, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=1, which=1)
+# plotDiag(mod.mswm, regime=1, which=2)
+# plotDiag(mod.mswm, regime=1, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=2, which=2)
+# plotDiag(mod.mswm, regime=2, which=3)
+
+
+coef_diff <-  mod.mswm@Coef[1,]-mod.mswm@Coef[2,]  
+seCoef_2 <- mod.mswm@seCoef^2
+denom <- sqrt(seCoef_2[1,]+seCoef_2[2,])
+z_test <- coef_diff/denom
+
+coef_diff <- rbind(mod.mswm@Coef[1,],mod.mswm@Coef[2,],coef_diff,z_test)
+rownames(coef_diff) <- c("Regime 1", "Regime 2", "Difference in beta", "z score")
+coef_diff
+
+```
+
+# Playing around with MS model unweighted returns
+
+```{r}
+##### Playing around with MS model unweighted returns ######
+
+mod_vix <- as.ts(sub_dat$VIX.rets)
+mod_act <- as.ts(sub_dat$Actual.vol)
+mod_xlf <- as.ts(sub_dat$XLF.rets)
+mod_xlk <- as.ts(sub_dat$XLK.rets)
+mod_xle <- as.ts(sub_dat$XLE.rets)
+mod_xlv <- as.ts(sub_dat$XLV.rets)
+mod_xly <- as.ts(sub_dat$XLY.rets)
+mod_xli <- as.ts(sub_dat$XLI.rets)
+mod_xlp <- as.ts(sub_dat$XLP.rets)
+mod_xlu <- as.ts(sub_dat$XLU.rets)
+mod_xlb <- as.ts(sub_dat$XLB.rets)
+
+
+
+
+mod<-lm(mod_vix~mod_act+mod_xlf+mod_xlk+mod_xle+mod_xlv+mod_xly+mod_xli+mod_xlp+mod_xlu+mod_xlb)
+# summary(mod)
+
+mod.mswm=msmFit(mod,k=2,p=1,sw=c(rep(T,13)))
+
+plot(mod.mswm)
+summary(mod.mswm)
+# par(mar=c(3,3,3,3))
+# plotProb(mod.mswm, which=1)
+# plotProb(mod.mswm, which=2)
+# plotProb(mod.mswm, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=1, which=1)
+# plotDiag(mod.mswm, regime=1, which=2)
+# plotDiag(mod.mswm, regime=1, which=3)
+# plotDiag(mod.mswm, regime=2, which=1)
+# plotDiag(mod.mswm, regime=2, which=2)
+# plotDiag(mod.mswm, regime=2, which=3)
+
+
+coef_diff <-  mod.mswm@Coef[1,]-mod.mswm@Coef[2,]  
+seCoef_2 <- mod.mswm@seCoef^2
+denom <- sqrt(seCoef_2[1,]+seCoef_2[2,])
+z_test <- coef_diff/denom
+
+coef_diff <- rbind(mod.mswm@Coef[1,],mod.mswm@Coef[2,],coef_diff,z_test)
+rownames(coef_diff) <- c("Regime 1", "Regime 2", "Difference in beta", "z score")
+coef_diff
+
+```

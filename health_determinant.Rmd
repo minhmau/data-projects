@@ -1,0 +1,286 @@
+---
+title: "Social Health Determinants"
+subtitle: 'Random Forest Model of Social Health Factors'
+author: "Minh Pham"
+date: "4/28/2020"
+output: pdf_document
+geometry: "left=2.5cm,right=2.5cm,top=1cm,bottom=2cm"
+longtable: true
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+fontsize: 12pt
+linestretch: 1.2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(devtools)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(stargazer)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(reshape2)
+library(ROSE)
+library(randomForest)
+```
+
+
+```{r, echo=F}
+brfss_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2017 main.rds" ) )
+
+
+brfss_df17$xpsu=as.integer(brfss_df17$xpsu)
+
+
+### Create date
+brfss_df17$iyear <- rep(2017,nrow(brfss_df17)) # make new column
+brfss_df17$Date <- as.Date( paste(brfss_df17$iyear, brfss_df17$imonth , brfss_df17$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df17=brfss_df17[order(as.Date(brfss_df17$Date, format="%d/%m/%Y")),]
+
+brfss_df17$state_name=factor(brfss_df17$xstate , levels = 
+                    c(1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 
+                    37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 
+                    55, 56) ,
+                    
+                labels = 
+                    c("ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", 
+                    "COLORADO", "CONNECTICUT", "DELAWARE", "DISTRICT OF COLUMBIA", 
+                    "FLORIDA", "GEORGIA", "HAWAII", "IDAHO", "ILLINOIS", "INDIANA",
+                    "IOWA", "KANSAS", "KENTUCKY", "LOUISIANA", "MAINE", "MARYLAND",
+                    "MASSACHUSETTS", "MICHIGAN", "MINNESOTA", "MISSISSIPPI", 
+                    "MISSOURI", "MONTANA", "NEBRASKA", "NEVADA", "NEW HAMPSHIRE",
+                    "NEW JERSEY", "NEW MEXICO", "NEW YORK", "NORTH CAROLINA", 
+                    "NORTH DAKOTA", "OHIO", "OKLAHOMA", "OREGON", "PENNSYLVANIA",
+                    "RHODE ISLAND", "SOUTH CAROLINA", "SOUTH DAKOTA", "TENNESSEE",
+                    "TEXAS", "UTAH", "VERMONT", "VIRGINIA", "WASHINGTON",
+                    "WEST VIRGINIA", "WISCONSIN", "WYOMING"))
+
+# All Vars: xstate	fmonth	imonth	iday	iyear	dispcode	xpsu	ctelenm1	pvtresd1	colghous	statere1	cellfon4	ladult	numadult	nummen	numwomen	safetime	ctelnum1	cellfon5	cadult	pvtresd3	cclghous	cstate1	landline	hhadult	genhlth	physhlth	menthlth	poorhlth	hlthpln1	persdoc2	medcost	checkup1	bphigh4	bpmeds	cholchk1	toldhi2	cholmed1	cvdinfr4	cvdcrhd4	cvdstrk3	asthma3	asthnow	chcscncr	chcocncr	chccopd1	havarth3	addepev2	chckidny	diabete3	diabage2	lmtjoin3	arthdis2	arthsocl	joinpai1	sex	marital	educa	renthom1	numhhol2	numphon2	cpdemo1a	veteran3	employ1	children	income2	internet	weight2	height3	pregnant	deaf	blind	decide	diffwalk	diffdres	diffalon	smoke100	smokday2	stopsmk2	lastsmk2	usenow3	ecigaret	ecignow	alcday5	avedrnk2	drnk3ge5	maxdrnks	fruit2	fruitju2	fvgreen1	frenchf1	potatoe1	vegetab2	exerany2	exract11	exeroft1	exerhmm1	exract21	exeroft2	exerhmm2	strength	seatbelt	flushot6	flshtmy2	pneuvac3	shingle2	hivtst6	hivtstd3	hivrisk5	pdiabtst	prediab1	insulin	bldsugar	feetchk2	doctdiab	chkhemo3	feetchk	eyeexam	diabeye	diabedu	copdcogh	copdflem	copdbrth	copdbtst	copdsmok	harehab1	strehab1	cvdasprn	aspunsaf	rlivpain	rduchart	rducstrk	bpeathbt	bpsalt	bpalchol	bpexer	bpeatadv	bpsltadv	bpalcadv	bpexradv	bpmedadv	bphi2mr	arttoday	arthwgt	arthexer	arthedu	asthmage	asattack	aservist	asdrvist	asrchkup	asactlim	asymptom	asnoslep	asthmed3	asinhalr	painact2	qlmentl2	qlstres2	qlhlth2	sleptim1	adsleep	slepday1	slepsno2	slepbrth	medicare	hlthcvr1	delaymed	dlyother	nocov121	lstcovrg	drvisits	medscos1	carercvd	medbill1	asbialch	asbidrnk	asbibing	asbiadvc	asbirduc	cncrdiff	cncrage	cncrtyp1	csrvtrt2	csrvdoc1	csrvsum	csrvrtrn	csrvinst	csrvinsr	csrvdein	csrvclin	csrvpain	csrvctl1	ssbsugr2	ssbfrut3	wtchsalt	dradvise	marijana	usemrjn1	rsnmrjna	pfpprvn2	typcntr7	nobcuse6	imfvplac	hpvadvc2	hpvadsht	tetanus	lcsfirst	lcslast	lcsnumcg	lcsctscn	caregiv1	crgvrel2	crgvlng1	crgvhrs1	crgvprb2	crgvpers	crgvhous	crgvmst2	crgvexpt	cimemlos	cdhouse	cdassist	cdhelp	cdsocial	cddiscus	emtsuprt	lsatisfy	sdhbills	sdhmove	howsafe1	sdhfood	sdhmeals	sdhmoney	sdhstres	sxorient	trnsgndr	firearm4	gunload	loadulk2	rcsgendr	rcsrltn2	casthdx2	casthno2	qstver	qstlang	mscode	xststr	xstrwt	xrawrake	xwt2rake	ximprace	xchispnc	xcrace1	xcprace	xcllcpwt	xdualuse	xdualcor	xllcpwt2	xllcpwt	
+# xrfhlth	xphys14d	xment14d	xhcvu651	xrfhype5	xcholch1	xrfchol1	xmichd	xltasth1	xcasthm1	xasthms1	xdrdxar1	xlmtact1	xlmtwrk1	xlmtscl1	xprace1	xmrace1	xhispanc	xrace	xraceg21	xracegr3	xracexg1	xageg5yr	xage65yr	xage80	xagexg	htin4	htm4	wtkg3	xbmi5	xbmi5cat	xrfbmi5	xchldcnt	xeducag	xincomg	xsmoker3	xrfsmok3	xecigsts	xcurecig	drnkany5	drocdy3x	xrfbing5	xdrnkwek	xrfdrhv5	ftjuda2x	frutda2x	grenda1x	frnchdax	potada1x	vegeda2x	xmisfrt1	xmisveg1	xfrtres1	xvegres1	xfrutsu1	xvegesu1	xfrtlt1a	xveglt1a	xfrt16a	xveg23a	xfruite1	xvegete1	xtotinda	metvl11x	metvl21x	maxvo2x	fc60x	actin11x	actin21x	padur1x	padur2x	pafreq1x	pafreq2x	xminac11	xminac21	strfreqx	pamiss1x	pamin11x	pamin21x	pa1minx	pavig11x	pavig21x	pa1vigmx	xpacat1	xpaindx1	xpa150r2	xpa300r2	xpa30021	xpastrng	xparec1	xpastae1	xrfseat2	xrfseat3	xflshot6	xpneumo2	xaidtst3	one	Date	state_name
+
+#write_csv(brfss_df17, '/Users/minhpham1609/Desktop/brfss_df17.csv')
+
+brfss = brfss_df17 %>% select(state_name,	xphys14d,	xment14d,	hlthpln1,	addepev2, marital,	employ1,	sex,	xprace1,	xagexg,	xrfbmi5,	xeducag,	xincomg,	xrfsmok3,	xrfbing5,	xtotinda, lsatisfy, sdhbills,	sdhmove,	howsafe1,	sdhfood,	sdhmeals,	sdhmoney,	sdhstres, drvisits, xrfhype5, xrfchol1, xmichd, xcasthm1, drnkany5, xflshot6, xpneumo2, emtsuprt, xrfhlth, xpsu,xststr,xllcpwt,xdrdxar1 )
+
+# Outcome: xrfhlth (Adults with good or better health), xphys14d (3 level not good physical health status), xment14d (3 level not good mental health status), lsatisfy, 
+ 
+# Biological Determinant: xagexg, sex
+
+# Social Determinant of Health:
+# - Socio-economic status: xeducag (Education), employ1 (employment), xincomg (Income), marital
+# - Race: xprace1
+
+# Mediators and Moderators: Health Literacy and Language, Transportation, emtsuprt (Social Supports), sdhbills (Be able to pay bills for home), sdhmove (move frequency), howsafe1 (neighborhood safety), sdhfood (couln't  buy more Food), sdhmeals (couldn't pay for food), sdhmoney (money leftover), sdhstres (stress), 
+
+# - Behaviors: xrfsmok3 (Smoking), Diet, Nutrition, xtotinda (Exercise), Substance Abuse, xrfbing5 (Binge Drinker), drnkany5 ( having had at least one drink), 
+# - Use of Care: hlthpln1 (Have any health care coverage?), drvisits (doctor visits), xflshot6 (flu shot), xpneumo2 (vaccination), 
+# - Medical Illness:  addepev2 (depressive disorder), xrfbmi5 (obese), xrfhype5 (high blood pressure), xrfchol1 (cholesterol), xmichd (heart disease), xdrdxar1 (arthritis), xcasthm1 (asthma)
+# - Conditions: Drug Dependence
+
+
+```
+
+```{r}
+#DATA cleaning
+
+#recode categorical variables
+
+brfss$overweight = ifelse( brfss$xrfbmi5 ==1 , 0, ifelse(brfss$xrfbmi5==2, 1, NA))
+
+brfss$physical_notgood = ifelse( brfss$xphys14d ==1 , 1, ifelse(brfss$xphys14d==2, 2,ifelse(brfss$xphys14d==3,3,NA)))
+brfss$physical_notgood=as.factor(brfss$physical_notgood)
+
+brfss$mental_notgood = ifelse( brfss$xment14d ==1 , 1, ifelse(brfss$xment14d==2, 2,ifelse(brfss$xment14d==3,3,NA)))
+brfss$mental_notgood=as.factor(brfss$mental_notgood)
+
+brfss$health_insured = ifelse( brfss$hlthpln1 ==1 , 1, ifelse(brfss$hlthpln1==2, 0, NA))
+
+brfss$depression= ifelse( brfss$addepev2 ==1 , 1, ifelse(brfss$addepev2==2, 0, NA))
+
+brfss$marital_status <-  ifelse( brfss$marital ==1 , 1, ifelse(brfss$marital==2, 2,ifelse(brfss$marital==3,3,ifelse(brfss$marital==4,4,ifelse(brfss$marital==5,5,ifelse(brfss$marital==6,6,NA))))))
+
+brfss$employment_status <- ifelse( brfss$employ1 ==1 , 1, ifelse(brfss$employ1==2, 2,ifelse(brfss$employ1==3,3,ifelse(brfss$employ1==4,4,ifelse(brfss$employ1==5,5,ifelse(brfss$employ1==6,6,ifelse(brfss$employ1==7,7,ifelse(brfss$employ1==8,8,NA))))))))
+brfss$employment_status=as.factor(brfss$employment_status)
+
+brfss$gender= ifelse( brfss$sex ==1 , 1, ifelse(brfss$sex==2, 0, NA))
+
+brfss$calculated_health = ifelse(brfss$xrfhlth==1,1,ifelse(brfss$xrfhlth==2,0,NA))
+
+brfss$calculated_race <- ifelse( brfss$xprace1 ==1 , 1, ifelse(brfss$xprace1==2, 2,ifelse(brfss$xprace1==3,3,ifelse(brfss$xprace1==4,4,ifelse(brfss$xprace1==5,5,ifelse(brfss$xprace1==6,6,NA))))))
+brfss$calculated_race=as.factor(brfss$calculated_race)
+
+brfss$calculated_education <-ifelse( brfss$xeducag ==1 , 1, ifelse(brfss$xeducag==2, 2,ifelse(brfss$xeducag==3,3,ifelse(brfss$xeducag==4,4,NA))))
+brfss$calculated_education=as.factor(brfss$calculated_education)
+
+brfss$calculated_income <- ifelse( brfss$xincomg ==1 , 1, ifelse(brfss$xincomg==2, 2,ifelse(brfss$xincomg==3,3,ifelse(brfss$xincomg==4,4,ifelse(brfss$xincomg==5,5,NA)))))
+brfss$calculated_income=as.factor(brfss$calculated_income)
+
+brfss$calculated_age <- ifelse( brfss$xagexg ==1 , 1, ifelse(brfss$xagexg==2, 2,ifelse(brfss$xagexg==3,3,ifelse(brfss$xagexg==4,4,ifelse(brfss$xagexg==5,5,ifelse(brfss$xagexg==6,6,NA))))))
+brfss$calculated_age=as.factor(brfss$calculated_age)
+
+brfss$calculated_current_smokers = ifelse(brfss$xrfsmok3==1,0,ifelse(brfss$xrfsmok3==2,1,NA))
+
+brfss$calculated_binge_drinkers = ifelse(brfss$xrfbing5==1,0,ifelse(brfss$xrfbing5==2,1,NA))
+
+brfss$calculated_physical_activity = ifelse(brfss$xtotinda==1,1,ifelse(brfss$xtotinda==2,0,NA))
+
+brfss$satisfaction <-ifelse( brfss$lsatisfy ==1 , 1, ifelse(brfss$lsatisfy==2, 2,ifelse(brfss$lsatisfy==3,3,ifelse(brfss$lsatisfy==4,4,NA))))
+brfss$satisfaction=as.factor(brfss$satisfaction)
+
+brfss$sd_bills = ifelse( brfss$sdhbills ==1 , 0, ifelse(brfss$sdhbills==2, 1, NA))
+
+brfss$sd_move = ifelse( brfss$sdhmove %in% 1:52 , as.numeric( brfss$sdhmove), ifelse(brfss$sdhmove==88, brfss$sdhmove==0, NA))
+
+brfss$sd_safe_neighbor <-ifelse( brfss$howsafe1 ==1 , 1, ifelse(brfss$howsafe1==2, 2,ifelse(brfss$howsafe1==3,3,ifelse(brfss$howsafe1==4,4,NA))))
+brfss$sd_safe_neighbor=as.factor(brfss$sd_safe_neighbor)
+
+brfss$sd_cant_buy_morefood = ifelse( brfss$sdhfood ==1 , 1, ifelse(brfss$sdhfood==2, 2,ifelse(brfss$sdhfood==3,3,NA)))
+brfss$sd_cant_buy_morefood=as.factor(brfss$sd_cant_buy_morefood)
+
+brfss$sd_cant_afford_food = ifelse( brfss$sdhmeals ==1 , 1, ifelse(brfss$sdhmeals==2, 2,ifelse(brfss$sdhmeals==3,3,NA)))
+brfss$sd_cant_afford_food=as.factor(brfss$sd_cant_afford_food)
+
+brfss$sd_finance_situation = ifelse( brfss$sdhmoney ==1 , 1, ifelse(brfss$sdhmoney==2, 2,ifelse(brfss$sdhmoney==3,3,NA)))
+brfss$sd_finance_situation=as.factor(brfss$sd_finance_situation)
+
+brfss$sd_stress <-  ifelse( brfss$sdhstres ==1 , 1, ifelse(brfss$sdhstres==2, 2,ifelse(brfss$sdhstres==3,3,ifelse(brfss$sdhstres==4,4,ifelse(brfss$sdhstres==5,5,NA)))))
+brfss$sd_stress=as.factor(brfss$sd_stress)
+
+brfss$doctor_visits = ifelse( brfss$drvisits %in% 1:76 , as.numeric( brfss$drvisits), ifelse(brfss$drvisits==88, brfss$drvisits==0, NA))
+
+brfss$high_bloodpressure = ifelse( brfss$xrfhype5 ==1 , 0, ifelse(brfss$xrfhype5==2, 1, NA))
+
+brfss$cholesterol_checked = ifelse( brfss$xrfchol1 ==1 , 0, ifelse(brfss$xrfchol1==2, 1, NA))
+
+brfss$heart_disease = ifelse( brfss$xmichd ==1 , 1, ifelse(brfss$xmichd==2, 0, NA))
+
+brfss$arthritis = ifelse( brfss$xdrdxar1 ==1 , 1, ifelse(brfss$xdrdxar1==2, 0, NA))
+
+brfss$asthma_current = ifelse( brfss$xcasthm1 ==1 , 0, ifelse(brfss$xcasthm1==2, 1, NA))
+
+brfss$have_1drink = ifelse( brfss$drnkany5 ==1 , 1, ifelse(brfss$drnkany5==2, 0, NA))
+
+brfss$flu_shot = ifelse( brfss$xflshot6 ==1 , 1, ifelse(brfss$xflshot6==2, 0, NA))
+
+brfss$pneumonia_vaccination = ifelse( brfss$xpneumo2 ==1 , 1, ifelse(brfss$xpneumo2==2, 0, NA))
+
+brfss$emotional_supprt <-  ifelse( brfss$emtsuprt ==1 , 1, ifelse(brfss$emtsuprt==2, 2,ifelse(brfss$emtsuprt==3,3,ifelse(brfss$emtsuprt==4,4,ifelse(brfss$emtsuprt==5,5,NA)))))
+
+brfss$sd_move=as.integer(brfss$sd_move)
+brfss$doctor_visits=as.integer(brfss$doctor_visits)
+sapply(brfss, class)
+sapply(brfss, levels)
+
+# Transform
+brfss=data.frame(brfss)
+
+#glm
+brfss.main = brfss %>% select(state_name,overweight,physical_notgood,mental_notgood,health_insured, depression, marital_status,employment_status, gender, calculated_health, calculated_race, calculated_education, calculated_income, calculated_age, calculated_current_smokers, calculated_binge_drinkers, calculated_physical_activity, satisfaction, sd_bills, sd_move, sd_safe_neighbor, sd_cant_buy_morefood, sd_cant_afford_food, sd_finance_situation,  sd_stress, high_bloodpressure,  cholesterol_checked, heart_disease, asthma_current, have_1drink, flu_shot, pneumonia_vaccination, doctor_visits, emotional_supprt,xllcpwt  )
+
+model.glm <- lm(calculated_health ~ sd_bills+ sd_safe_neighbor+ sd_cant_buy_morefood+ sd_cant_afford_food+ sd_cant_afford_food+ sd_finance_situation+  sd_stress+ overweight+health_insured+ depression+ marital_status+employment_status+ gender+ calculated_race+ calculated_education+ calculated_income+ calculated_age+ calculated_current_smokers+ calculated_physical_activity+  high_bloodpressure+  cholesterol_checked+ heart_disease+ asthma_current+ have_1drink  +  doctor_visits + emotional_supprt, family=quasibinomial(link=logit), weights=xllcpwt, data=brfss.main)
+
+summary(model.glm)
+#random forest
+brfss_cal.health = brfss %>% select(calculated_health, sd_bills, sd_safe_neighbor, sd_cant_buy_morefood, sd_cant_afford_food, sd_cant_afford_food, sd_finance_situation,  sd_stress, overweight,health_insured, depression, marital_status,employment_status, gender, calculated_race, calculated_education, calculated_income, calculated_age, calculated_current_smokers, calculated_physical_activity,  high_bloodpressure,  cholesterol_checked, heart_disease, asthma_current, have_1drink  ,  doctor_visits , emotional_supprt)
+brfss_cal.health=na.omit(brfss_cal.health)
+
+dataset_size = floor(nrow(brfss_cal.health)*0.70)
+index <- sample(1:nrow(brfss_cal.health), size = dataset_size)
+training <- brfss_cal.health[index,]
+testing <- brfss_cal.health[-index,]
+
+model.rf <- randomForest(calculated_health ~ ., data=brfss_cal.health, mtry=4, ntree=2001,importance=TRUE)
+
+plot(model.rf)
+results <- data.frame(testing$calculated_health, predict(model.rf, testing[,2:26], type = "response"))
+
+plot(results)
+#flu_shot, pneumonia_vaccination
+
+#complex survey
+brfss_survey = brfss %>% select(state_name,overweight,physical_notgood,mental_notgood,health_insured, depression, marital_status,employment_status, gender, calculated_health, calculated_race, calculated_education, calculated_income, calculated_age, calculated_current_smokers, calculated_binge_drinkers, calculated_physical_activity, satisfaction, sd_bills, sd_move, sd_safe_neighbor, sd_cant_buy_morefood, sd_cant_afford_food, sd_finance_situation,  sd_stress, high_bloodpressure,  cholesterol_checked, heart_disease, asthma_current, have_1drink, flu_shot, pneumonia_vaccination, doctor_visits, emotional_supprt,xpsu,xststr,xllcpwt  )
+
+sapply(brfss_survey, class)
+
+# brfss_survey=na.omit(brfss_survey)
+
+brfss_design <-
+    svydesign(
+        id = ~ xpsu ,
+        strata = ~ xststr ,
+        data = brfss_survey ,
+        weight = ~ xllcpwt ,
+        nest = TRUE
+    )
+
+
+model.survey = svyglm(calculated_health ~ sd_bills+ sd_safe_neighbor+ sd_cant_buy_morefood+ sd_cant_afford_food+ sd_cant_afford_food+ sd_finance_situation+  sd_stress+ overweight+health_insured+ depression+ marital_status+employment_status+ gender+ calculated_race+ calculated_education+ calculated_income+ calculated_age+ calculated_current_smokers+ calculated_physical_activity+  high_bloodpressure+  cholesterol_checked+ heart_disease+ asthma_current+ have_1drink  +  doctor_visits + emotional_supprt, family=quasibinomial(link=logit), design = brfss_design)
+sum.model.survey=summary(model.survey)
+sum.model.survey
+#checking what's wrong
+table(brfss_survey$health_insured)
+
+
+
+```
+
+```{r}
+
+```
+
+# 1. Introduction
+
+
+ 
+There is a need to establish the value for money of social determinants of health interventions. This is particularly important where policies and practices in other sectors are not aligned with positive impacts on determinants of health and there may be arguments against this alignment. Economic evaluation evidence does exist for social determinants of health interventions, but comes in very different shapes and sizes. However, most cost–benefit studies in policy areas related to the social determinants of health fail to capture the health effects. Hence, there is a need to consider those effects (and provide credible evidence for them), as they may alter the prioritization decisions that would otherwise be based on understated returns of investment. 
+
+WHO: What are the social determinants of health? The social determinants of health are the conditions in which people are born, grow, live, work and age. These conditions are shaped by the distribution of money, power and resources at global, national and local levels – sometimes termed “structural determinants” of health inequities.
+
+NOVU: It seems like a foregone conclusion that a person’s social circumstances would impact their health, and during the past 30 years, there has been a sizable body of evidence from social epidemiological literature that shows non-health characteristics of individuals contribute significantly to their health. These social circumstances, which collectively are called the social determinants of health (SDoH), are “the structural determinants and conditions in which people are born, grow, live, work and age.”
+ 
+Researchers have found that health care use and outcomes are embedded in the socioeconomic factors of individuals as well as collective factors in society, not just biological factors, such as a person’s age, sex or genetic makeup. For years, social  epidemiologists have demonstrated the effect of external factors, such as a person’s income and socioeconomic status, which has led to the widely accepted view that a person’s income, education and occupation are social determinants of health.
+
+
+
+# 2. Theoretical Framework
+
+
+# 3. Empirical Framework
+### 3.1 GLM
+
+
+### 3.2 Random Forest Model
+
+
+
+
+

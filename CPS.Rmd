@@ -1,0 +1,239 @@
+---
+title: "CPS"
+author: "Minh Pham"
+date: \today
+output: pdf_document
+geometry: "left=2.5cm,right=2.5cm,top=1cm,bottom=2cm"
+longtable: true
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+fontsize: 12pt
+linestretch: 1.2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(devtools)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(stargazer)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(reshape2)
+library(ROSE)
+library(randomForest)
+library(countreg)
+library(mfx)
+library(censReg)
+library(Matching)
+library(MatchIt)
+library(fastDummies)
+library(Hmisc)
+library(gridExtra)
+library(cem)
+library(margins)
+library(magick)
+```
+
+```{r}
+#lodown( "cpsasec" , output_dir = file.path( path.expand( "~" ) , "CPSASEC" ) )
+```
+
+```{r}
+# cpsasec_cat <-
+#     get_catalog( "cpsasec" ,
+#         output_dir = file.path( path.expand( "~" ) , "CPSASEC" ) )
+
+cpsasec_df13 <- 
+    readRDS( file.path( path.expand( "~" ) , "CPSASEC" , "2013 cps asec.rds" ) )
+cpsasec_df14 <- 
+    readRDS( file.path( path.expand( "~" ) , "CPSASEC" , "2014 cps asec.rds" ) )
+cpsasec_df15 <- 
+    readRDS( file.path( path.expand( "~" ) , "CPSASEC" , "2015 cps asec.rds" ) )
+cpsasec_df16 <- 
+    readRDS( file.path( path.expand( "~" ) , "CPSASEC" , "2016 cps asec.rds" ) )
+cpsasec_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "CPSASEC" , "2017 cps asec.rds" ) )
+
+
+cpsasec_df13$iyear <- rep(2013,nrow(cpsasec_df13)) # make new column
+cpsasec_df14$iyear <- rep(2014,nrow(cpsasec_df14)) # make new column
+cpsasec_df15$iyear <- rep(2015,nrow(cpsasec_df15)) # make new column
+cpsasec_df16$iyear <- rep(2016,nrow(cpsasec_df16)) # make new column
+cpsasec_df17$iyear <- rep(2017,nrow(cpsasec_df17)) # make new column
+
+
+cpsasec_df1314 <- intersect(colnames(cpsasec_df13), colnames(cpsasec_df14))
+
+cpsasec_df1314 <- rbind(cpsasec_df13[ , cpsasec_df1314], cpsasec_df14[ , cpsasec_df1314])
+
+cpsasec_df131415 <- intersect(colnames(cpsasec_df1314), colnames(cpsasec_df15))
+
+cpsasec_df131415 <- rbind(cpsasec_df1314[ , cpsasec_df131415], cpsasec_df15[ , cpsasec_df131415])
+
+cpsasec_df13141516 <- intersect(colnames(cpsasec_df131415), colnames(cpsasec_df16))
+
+cpsasec_df13141516 <- rbind(cpsasec_df131415[ , cpsasec_df13141516], cpsasec_df16[ , cpsasec_df13141516])
+
+cpsasec_df1314151617 <- intersect(colnames(cpsasec_df13141516), colnames(cpsasec_df17))
+
+cpsasec_df1314151617 <- rbind(cpsasec_df13141516[ , cpsasec_df1314151617], cpsasec_df17[ , cpsasec_df1314151617])
+
+#write_csv(cpsasec_df1314151617, '/Users/minhpham1609/Desktop/cpsasec_df1314151617.csv')
+```
+
+
+```{r}
+cpsasec_df1314151617$state_name =
+            factor(
+                cpsasec_df1314151617$gestfips ,
+                levels = 
+                    c(1L, 2L, 4L, 5L, 6L, 8L, 9L, 10L, 
+                    11L, 12L, 13L, 15L, 16L, 17L, 18L, 
+                    19L, 20L, 21L, 22L, 23L, 24L, 25L, 
+                    26L, 27L, 28L, 29L, 30L, 31L, 32L, 
+                    33L, 34L, 35L, 36L, 37L, 38L, 39L, 
+                    40L, 41L, 42L, 44L, 45L, 46L, 47L, 
+                    48L, 49L, 50L, 51L, 53L, 54L, 55L, 
+                    56L) ,
+                labels =
+                    c("Alabama", "Alaska", "Arizona", "Arkansas", "California", 
+                    "Colorado", "Connecticut", "Delaware", "District of Columbia", 
+                    "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", 
+                    "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", 
+                    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", 
+                    "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", 
+                    "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", 
+                    "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", 
+                    "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", 
+                    "Washington", "West Virginia", "Wisconsin", "Wyoming")
+            ) 
+
+
+
+cpsasec_dfs = cpsasec_df1314151617 %>% select(state_name,div_yn,iyear, a_sex, a_age, htotval, marsupwt, a_hga, prdtrace)  
+
+#htotval : total household income
+#PRDTRACE: race
+#A_HGA: Educational attainment
+
+cpsasec_dfs$ownstock = ifelse( cpsasec_dfs$div_yn ==1 , 1, ifelse(cpsasec_dfs$div_yn==2, 0, NA))
+
+cpsasec_dfs$a_hga=ifelse( cpsasec_dfs$a_hga ==31 , 1, ifelse(cpsasec_dfs$a_hga==32, 1, ifelse(cpsasec_dfs$a_hga==33,1, ifelse(cpsasec_dfs$a_hga==34,1, ifelse(cpsasec_dfs$a_hga==35,1, ifelse(cpsasec_dfs$a_hga==36,1, ifelse(cpsasec_dfs$a_hga==37,1, ifelse(cpsasec_dfs$a_hga==38,1, ifelse(cpsasec_dfs$a_hga==39,2, ifelse(cpsasec_dfs$a_hga==40,3, ifelse(cpsasec_dfs$a_hga==41,3, ifelse(cpsasec_dfs$a_hga==42,3, ifelse(cpsasec_dfs$a_hga==43,4, ifelse(cpsasec_dfs$a_hga==44,4, ifelse(cpsasec_dfs$a_hga==45,4, ifelse(cpsasec_dfs$a_hga==46,4, NA))))))))))))))))
+
+cpsasec_dfs$a_age= ifelse( cpsasec_dfs$a_age %in% 18:24 , 1 , ifelse( cpsasec_dfs$a_age %in% 25:34 , 2, ifelse( cpsasec_dfs$a_age %in% 35:44 , 3, ifelse( cpsasec_dfs$a_age %in% 45:54 , 4, ifelse( cpsasec_dfs$a_age %in% 55:64 , 5, ifelse( cpsasec_dfs$a_age %in% 65:85 , 6, NA ))))))
+
+cpsasec_dfs$htotval= ifelse( cpsasec_dfs$htotval %in% 0:15000 , 1, ifelse(cpsasec_dfs$htotval %in% 15000:25000 , 2, ifelse(cpsasec_dfs$htotval %in% 25000:35000 , 3, ifelse(cpsasec_dfs$htotval %in% 35000:50000 , 4, ifelse(cpsasec_dfs$htotval %in% 50000:max(cpsasec_dfs$htotval) , 5,  NA)))))
+
+cpsasec_dfs$prdtrace= ifelse( cpsasec_dfs$prdtrace ==1 , 1, ifelse( cpsasec_dfs$prdtrace ==2 , 2, ifelse( cpsasec_dfs$prdtrace ==3 , 3, ifelse( cpsasec_dfs$prdtrace ==4 , 4, ifelse( cpsasec_dfs$prdtrace ==5, 5, ifelse( cpsasec_dfs$prdtrace %in% 6:26, 6, NA))))))
+
+
+cpsasec_dfs=na.omit(cpsasec_dfs)
+colSums(is.na(cpsasec_dfs))
+
+    
+cpsasec_dfs$gender=as.factor(recode(cpsasec_dfs$a_sex,'1'='male','2'='female',.missing='NA',.default = 'NA'))
+
+cpsasec_dfs$calculated_education <- as.factor(recode(cpsasec_dfs$a_hga, "1" = "K", "2" = "HSgrad", "3" = "attendCOL", "4" = "COLgrad", .default = "NA", .missing = "NA")) 
+
+cpsasec_dfs$calculated_income <- as.factor(recode(cpsasec_dfs$htotval, "1" = "le15K", "2" = "15to25K", "3" = "25to35K", "4" = "35to50K", "5" = "50more", .default = "NA", missing = "NA"))
+
+cpsasec_dfs$calculated_age <- as.factor(recode(cpsasec_dfs$a_age, "1" = "18to24", "2" = "25to34", "3" = "35to44", "4" = "45to54", "5" = "55to64", "6" = "65older", .default =  "NA", .missing = "NA"))
+
+cpsasec_dfs$calculated_race <- as.factor(recode(cpsasec_dfs$prdtrace, "1" = "white", "2" = "black","3"="native","4"="asian","5"="pacific","6"="other" ,.default = "NA", .missing = "NA"))
+
+cpsasec_dfs$iyear=as.factor(cpsasec_dfs$iyear)
+
+    
+#setting reference values
+cpsasec_dfs$gender <- relevel(cpsasec_dfs$gender, ref = "female")
+cpsasec_dfs$calculated_income <- relevel(cpsasec_dfs$calculated_income, ref = "50more")
+cpsasec_dfs$calculated_education <- relevel(cpsasec_dfs$calculated_education, ref = "COLgrad")
+cpsasec_dfs$calculated_age <- relevel(cpsasec_dfs$calculated_age, ref = "18to24")
+cpsasec_dfs$calculated_race = relevel(cpsasec_dfs$calculated_race, ref = "white")
+
+```
+
+```{r}
+glm.ps <- glm(ownstock ~ gender + calculated_education + calculated_income + calculated_age + calculated_race, family = binomial(), data=cpsasec_dfs )
+summary(glm.ps)
+
+#---Attach	the	predicted	propensity	score	to	the	datafile
+cpsasec_dfs$psvalue	<- predict(glm.ps,	type	= "response")
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

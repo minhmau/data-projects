@@ -1,0 +1,538 @@
+---
+title: "Sector Weights Sandbox 4.23"
+date: "9/30/2019"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),  fig.pos = "!h", fig.align = 'center', tidy=TRUE,warning = F,message = F)
+```
+
+
+```{r, include=FALSE}
+library(quantmod)
+library(formatR)
+library(vars)
+library(randomcoloR)
+library(MSwM)
+library(forecast)
+library(PerformanceAnalytics)
+library(rmgarch)
+library(stargazer)
+library(tvReg)
+library(pracma)
+library(fDMA)
+library(mcmc)
+library(MCMCglmm)
+library(rollRegres)
+library(fDMA)
+library(somebm)
+library(bsts)
+?mcmc
+``` 
+
+
+Here were see that the linear model does not recovere the weights
+
+```{r,echo=TRUE}
+# set.seed(1)
+# xa <- as.ts(rnorm(3000,0.1,0.03))
+# xb <- as.ts(rnorm(3000,0.2,0.04))
+# xc <- as.ts(rnorm(3000,0.3,0.05))
+# 
+# 
+# # wa <- rnorm(3000, .2, .01)
+# # wb <- rnorm(3000, .2, .01)
+# # wc <- 1-wa-wb
+# 
+# wa <- as.numeric(gbm(x0 = .2, mu = .2, sigma = .5, t0 = 0, t = 1, n = 2999))
+# wb <- as.numeric(gbm(x0 = .2, mu = .05, sigma = .5, t0 = 0, t = 1, n = 2999))
+# wc <- as.numeric(1-wa-wb)
+# 
+# 
+# # wa <- movavg(wa, 30, type = "e")
+# # wb <- movavg(wb, 30, type = "e")
+# # wc <- movavg(wc, 30, type = "e")
+# 
+# 
+# # Combining all random series into one matrix
+# rand_dat <- cbind(xa,xb,xc)
+# 
+# #Multiplying each element in the matrix by its respective weight
+# rand_dat_weighted <- cbind(wa*xa,wb*xb,wc*xc)
+# 
+# # Summing across each row to get a weighted index of the three random series
+# rand_index <- as.ts(rowSums(rand_dat_weighted))
+# 
+# 
+# # Calculating the 100-day rolling variance of the random index
+# var_rand_index <- c()
+# for(i in 100:length(rand_index)){
+#   var_rand_index[i] <- var(rand_index[(i-99):i])
+#   
+# }
+# var_rand_index <- na.omit(var_rand_index)
+# 
+# 
+# 
+# # Calculating the 100-day rolling variances and covariances of the individual random series
+# rolling_cov1 <- c()
+# rolling_cov2 <- c()
+# rolling_cov3 <- c()
+# rolling_sigma_a <-c()
+# rolling_sigma_b <-c()
+# rolling_sigma_c <-c()
+# for(i in 100:3000){
+# rolling_cov1[i] <- na.omit(cov(xa[(i-99):i],xb[(i-99):i]))
+# rolling_cov2[i] <- na.omit(cov(xa[(i-99):i],xc[(i-99):i]))
+# rolling_cov3[i] <- na.omit(cov(xc[(i-99):i],xb[(i-99):i]))
+# rolling_sigma_a[i] <- na.omit(var(xa[(i-99):i]))
+# rolling_sigma_b[i] <- na.omit(var(xb[(i-99):i]))
+# rolling_sigma_c[i] <- na.omit(var(xc[(i-99):i]))
+# }
+# 
+# rolling_cov1 <- na.omit(rolling_cov1)
+# rolling_cov2 <- na.omit(rolling_cov2)
+# rolling_cov3 <- na.omit(rolling_cov3)
+# rolling_sigma_a <- na.omit(rolling_sigma_a)
+# rolling_sigma_b <- na.omit(rolling_sigma_b)
+# rolling_sigma_c <- na.omit(rolling_sigma_c)
+# 
+# 
+# a <- rolling_sigma_a/(wa^2) 
+# b <- rolling_sigma_b/(wb^2)  
+# c <- rolling_sigma_c/(wc^2)  
+# ab <- rolling_cov1/(2*wa*wb) 
+# ac <- rolling_cov2/(2*wa*wc) 
+# bc <- rolling_cov3/(2*wb*wc)
+# 
+# plot(a, type = 'l')
+# plot(rolling_sigma_a, type = 'l')
+# 
+# # #Running the regression model with 100-day rolling variance of the random index as the dependent variable
+# # mdl <- lm(var_rand_index~0+rolling_sigma_a + rolling_sigma_b  + rolling_sigma_c + rolling_cov1 + rolling_cov2 + rolling_cov3)
+# # #summary(mdl)
+# # mdl <- lm(var_rand_index~0+a + b + c + ab + ac + bc)
+# # 
+# # mean(wa)
+# # mean(wb)
+# # mean(wc)
+# # 
+# # #Square root of the estimated parameters for each variance returns the weights exactly.
+# # sqrt(coef(mdl)[1])
+# # sqrt(coef(mdl)[2])
+# # sqrt(coef(mdl)[3])
+# 
+# plot(wa, type='l')
+# plot(wb, type='l')
+# plot(wc, type='l')
+
+```
+
+```{r}
+
+# ss <- list()
+# ss <- AddLocalLinearTrend(list(), var_rand_index)
+# 
+# bsts_var <- bsts(var_rand_index~0+rolling_sigma_a + rolling_sigma_b  + rolling_sigma_c + rolling_cov1 + rolling_cov2 + rolling_cov3,
+#                 state.specification = ss,
+#                niter = 1000)
+# 
+# plot(bsts_var, "predictors")
+# 
+# PlotBstsCoefficients(bsts_var)
+
+#######################################
+# ss <- list()
+# ss <- AddLocalLevel(ss, var_rand_index)
+# ss <- AddDynamicRegression(ss, var_rand_index~0+rolling_sigma_a + rolling_sigma_b  + rolling_sigma_c + rolling_cov1 + rolling_cov2 + rolling_cov3)
+# model <- bsts(var_rand_index, state.specification = ss, niter = 1000, seed = 8675309)
+# plot(model, "dynamic", burn = 100)
+#######################################
+
+
+# plot(model$dynamic.regression.coefficients[,,3][,3], type ='l')
+# 
+# coefs <- as.data.frame(model$dynamic.regression.coefficients)
+# 
+# head(coefs)
+# 
+# plot(coefs$rolling_sigma_c.1, type ='l')
+# 
+# plot(model$final.state[,3], type ='l')
+
+
+
+```
+
+```{r}
+# set.seed(8675309)
+# n <- 1000
+# x <- matrix(rnorm(n))
+# 
+# # beta follows a random walk with sd = .1 starting at -12.
+# beta <- cumsum(rnorm(n, 0, .1)) - 12
+# 
+# # level is a local level model with sd = 1 starting at 18.
+# level <- cumsum(rnorm(n)) + 18
+# 
+# # sigma.obs is .1
+# error <- rnorm(n, 0, .1)
+# 
+# y <- level + x * beta + error
+# par(mfrow = c(1, 3))
+# plot(y, main = "Raw Data")
+# plot(x, y - level, main = "True Regression Effect")
+# plot(y - x * beta, main = "Local Level Effect")
+# 
+# ss <- list()
+# ss <- AddLocalLevel(ss, y)
+# ss <- AddDynamicRegression(ss, y ~ x)
+# ## In a real appliction you'd probably want more than 100
+# ## iterations. See comment above about the random seed.
+# model2 <- bsts(y, state.specification = ss, niter = 100, seed = 8675309)
+# plot(model2, "dynamic", burn = 10)
+# lines(beta, col=2)
+# 
+# 
+# xx <- rnorm(10)
+# pred <- predict(model, newdata = xx)
+# plot(pred)
+
+```
+However, if we apply a Time Varying OLS model, the estimated weights get fairly close to solving the problem. We can see that average of the estimated parameters approaches the actual weights. We can also use this method to plot the estimated parameters vs. the market cap weights. 
+
+
+```{r}
+
+# ind_vars <- cbind(rolling_sigma_a, rolling_sigma_b, rolling_sigma_c, rolling_cov1, rolling_cov2,rolling_cov3)
+# ind_vars <- na.omit(as.ts(ind_vars, order.by = index(ind_vars)))
+# dep_var <- na.omit(var_rand_index)
+# 
+# # bw <- bw(ind_vars, dep_var, est = "ll", tkernel = "Gaussian")
+# #  bwCov(ind_vars, cv.block = 0, est = c("lc", "ll"), tkernel = c("Epa",       "Gaussian"))
+# 
+# coef.tvlm <- tvOLS(x = ind_vars, y = dep_var, bw = 0.0019, est = "ll", tkernel = "Gaussian")$tvcoef
+# #
+# weight_mat <- sqrt(coef.tvlm)
+# #
+# plot(weight_mat[,1], type = 'l', ylim = range(0, 1))
+# lines(weight_mat[,2], col = 2)
+# lines(weight_mat[,3], col = 3)
+# lines(wa, col = "grey")
+# lines(wb, col = "pink")
+# lines(wc, col = "dark green")
+#  legend("topright", c(expression(beta[1]), expression(beta[2]),expression(beta[3]),"wa", "wb", "wc"), col = c(1, 2, 3, "grey", "pink", "dark green"), bty="n", lty = 1)
+# 
+# 
+# mean(wa)
+# mean(wb)
+# mean(wc)
+# sqrt(mean(coef.tvlm[,1]))
+# sqrt(mean(coef.tvlm[,2]))
+# sqrt(mean(coef.tvlm[,3]))
+# 
+# 
+# 
+# mod <- tvp(y=dep_var, x= ind_vars, V = .01, lambda = 1)
+# 
+# coef_mat <- sqrt(mod$thetas[,c(2:4)])
+# plot(coef_mat[,1])
+# max(coef_mat[,1])
+# max(coef_mat[,2])
+# max(coef_mat[,3])
+# 
+# mod2 <- roll_regres(na.omit(var_rand_index)~0+na.omit(rolling_sigma_a) + na.omit(rolling_sigma_b)  + na.omit(rolling_sigma_c) + na.omit(rolling_cov1) + na.omit(rolling_cov2) + na.omit(rolling_cov3), width = 45L, do_compute = c("sigmas", "r.squareds", "1_step_forecasts"))
+#     lapply(mod2, tail)
+# 
+# summary(mod2)
+# 
+# w1 <- sqrt(na.omit(mod2$coefs[,1]))
+# w2 <- sqrt(na.omit(mod2$coefs[,2]))
+# w3 <- sqrt(na.omit(mod2$coefs[,3]))
+# 
+# plot(w1, type ='l')
+# plot(w2, type ='l')
+# plot(w3, type ='l')
+# 
+# mean(na.omit(wa))
+# mean(na.omit(wb))
+# mean(na.omit(wc))
+# 
+# # mod2 <- roll.reg(na.omit(var_rand_index)~0+na.omit(rolling_sigma_a) + na.omit(rolling_sigma_b)  + na.omit(rolling_sigma_c) + na.omit(rolling_cov1) + na.omit(rolling_cov2) + na.omit(rolling_cov3), window  = 45)
+#    
+# 
+# # summary(mod2)
+# wa <- sqrt(na.omit(mod2$coefs[,1]))
+# wb <- sqrt(na.omit(mod2$coefs[,2]))
+# wc <- sqrt(na.omit(mod2$coefs[,3]))
+# 
+# plot(wa, type ='l')
+# plot(wb, type ='l')
+# plot(wc, type ='l')
+# 
+# mean(na.omit(wa))
+# mean(na.omit(wb))
+# mean(na.omit(wc))
+# 
+```
+
+
+
+```{r,include=FALSE}
+
+library(xts)
+
+# options(tz="America/Los_Angeles")
+cap_data <-getSymbols(c('^VIX', 'XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'),from = '1990-01-01')
+capinfo <- yahooQF('Market Capitalization')
+cap_market <- getQuote(cap_data, what=capinfo)
+cap_market <- na.omit(cap_market)
+cap_sp <- getSymbols("SPY")
+
+
+prcs <- new.env()
+getSymbols(c('XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB'),from = '1990-01-01',env = prcs)
+prcs <- as.list(prcs)
+cap_market <- cap_market[names(prcs),]
+
+sum(cap_market$`Market Capitalization`)
+sp_cap <- getQuote(cap_sp, what=capinfo)
+sp_cap <- sp_cap$`Market Capitalization`
+sp_cap - sum(cap_market$`Market Capitalization`)
+
+mkt_cap <- list()
+for(i in 1:length(prcs)){
+  mkt_cap[[i]] <- as.numeric((cap_market[i,2]/prcs[[i]][nrow(prcs[[i]]),6]))*prcs[[i]][,6]
+}
+
+mkt_cap_df <- do.call('merge',mkt_cap)
+# head(mkt_cap_df)
+mkt_cap_df_wt <- t(apply(mkt_cap_df,1,function(x)x/sum(x)))
+#head(mkt_cap_df_wt)
+
+
+
+dat <- merge(VIX, XLF, XLK, XLE, XLV, XLY, XLI, XLP, XLU, XLB, all=TRUE)
+dat$VIX.rets <- Delt(VIX[,6], type = 'log')
+dat$XLB.rets <- Delt(XLB[,6], type = 'log')
+dat$XLE.rets <- Delt(XLE[,6], type = 'log')
+dat$XLF.rets <- Delt(XLF[,6], type = 'log')
+dat$XLI.rets <- Delt(XLI[,6], type = 'log')
+dat$XLK.rets <- Delt(XLK[,6], type = 'log')
+dat$XLP.rets <- Delt(XLP[,6], type = 'log')
+dat$XLU.rets <- Delt(XLU[,6], type = 'log')
+dat$XLV.rets <- Delt(XLV[,6], type = 'log')
+dat$XLY.rets <- Delt(XLY[,6], type = 'log')
+dat <- na.omit(dat)
+sub_dat <- dat[,c('VIX.rets', 'XLB.rets', 'XLE.rets', 'XLF.rets', 'XLI.rets', 'XLK.rets', 'XLP.rets', 'XLU.rets', 'XLV.rets', 'XLY.rets')]
+sub_dat <- na.omit(sub_dat)
+
+rets_dat <- sub_dat[,-1]
+mkt_cap_df_wt <- mkt_cap_df_wt[-1,]
+
+
+```
+
+
+```{r,include=F}
+rets_dat <- rets_dat[,order(colnames(rets_dat))]
+mkt_cap_df_wt <- mkt_cap_df_wt[,order(colnames(mkt_cap_df_wt))]
+
+
+sector_index <- mkt_cap_df_wt*rets_dat
+
+sector_index.new <- rowSums(sector_index)
+# head(sector_index)
+
+sector_index.new <- as.xts(sector_index.new, order.by = as.Date(index(sector_index), "%Y-%m-%d" ))
+
+sector_index = sector_index.new
+
+
+sector_index_vol <- rollapply(sector_index, width = 21, FUN = "sd.annualized")
+sector_index_vol <- (na.omit(sector_index_vol)/sqrt(252))^2
+
+
+
+
+
+```
+
+
+
+isolating XLF
+
+
+```{r}
+
+
+# head(mkt_cap_df)
+# head(mkt_cap_df_wt)
+# 
+# mkt_cap_df_lessXLF <- mkt_cap_df[,-3]
+# 
+# 
+# mkt_cap_df_wt_lessXLF <- t(apply(mkt_cap_df_lessXLF,1,function(x)x/sum(x)))
+# mkt_cap_df_wt_lessXLF <- mkt_cap_df_wt_lessXLF[-1,]
+# head(mkt_cap_df_wt_lessXLF)
+# 
+# rets_dat_lessXLF <- rets_dat[,-3]
+# head(rets_dat_lessXLF)
+# 
+# portfolio_dat_lessXLF <- c() 
+# for(i in 30:nrow(rets_dat_lessXLF)){
+#   portfolio_est_lessXLF <-t(mkt_cap_df_wt_lessXLF[i,])%*%t(rets_dat_lessXLF[i,])
+#   portfolio_dat_lessXLF <- c(portfolio_dat_lessXLF,portfolio_est_lessXLF)
+# }
+# 
+# portfolio_dat_lessXLF <- as.zoo(portfolio_dat_lessXLF)
+# index(portfolio_dat_lessXLF) <- index(rets_dat[-c(1:29)])
+# portfolio_dat_lessXLF <- as.xts(portfolio_dat_lessXLF)
+# colnames(portfolio_dat_lessXLF) <- "portfolio_rets_lessXLF"
+# head(portfolio_dat_lessXLF)
+# head(spy_vol.monthly.rets)
+# head(rets_dat[,3])
+# 
+# head(VIX.rets)
+# 
+# mod1_dat <- merge(VIX.rets, portfolio_dat_lessXLF, rets_dat[,3])
+# head(mod1_dat)
+# mod1_dat <- na.omit(mod1_dat)
+# head(mod1_dat)
+# 
+# 
+# 
+# # Calculating the 100-day rolling variances and covariances of the individual random series
+# rolling_cov1 <- c()
+# rolling_sigma_Port <-c()
+# rolling_sigma_XLF <-c()
+# for(i in 22:nrow(mod1_dat)){
+# rolling_cov1[i] <- cov(mod1_dat$portfolio_rets_lessXLF[(i-21):i],mod1_dat$XLF.rets[(i-21):i])
+# rolling_sigma_Port[i] <- var(mod1_dat$portfolio_rets_lessXLF[(i-21):i])
+# rolling_sigma_XLF[i] <- var(mod1_dat$XLF.rets[(i-21):i])
+# }
+# 
+# rolling_cov1 <- na.omit(rolling_cov1)
+# rolling_sigma_Port <- na.omit(rolling_sigma_Port)
+# rolling_sigma_XLF <- na.omit(rolling_sigma_XLF)
+# 
+# plot(rolling_cov1, type='l')
+# plot(rolling_sigma_Port, type='l')
+# plot(rolling_sigma_XLF, type='l')
+
+
+```
+
+```{r}
+# sector_index_vol <- sector_index_vol[-c(1:30)]
+# length(sector_index_vol)
+# length(rolling_cov1)
+# length(rolling_sigma_Port)
+# length(rolling_sigma_XLF)
+# 
+# 
+# ss <- list()
+# ss <- AddLocalLevel(ss, sector_index_vol)
+# ss <- AddDynamicRegression(ss, sector_index_vol~0+rolling_sigma_Port + rolling_sigma_XLF  + rolling_cov1)
+# mod <- bsts(var_rand_index, state.specification = ss, niter = 10000, seed = 8675309)
+# plot(mod, "dynamic", burn = 1000)
+
+
+
+```
+
+
+
+
+
+
+```{r,include=F}
+
+
+#Hisam Modifications#
+var_tracker_monthly <- c()
+data_holder_cov <- matrix(NA,nrow(rets_dat),36)
+data_holder_var <- matrix(NA,nrow(rets_dat),9)
+for(i in 31:nrow(rets_dat)){
+  rolling_cov <- cov(rets_dat[(i-30):i,])
+  #Store the rolling covariance
+  data_holder_cov[i,] <- rolling_cov[lower.tri(rolling_cov)]
+  #Store the rolling variance
+  data_holder_var[i,] <- diag(rolling_cov)
+  rolling_weights <- apply(mkt_cap_df_wt[(i-30):i,],2,mean)
+  var_est <-( rolling_weights%*%rolling_cov%*%rolling_weights)[1,1]
+  var_tracker_monthly <- c(var_tracker_monthly,var_est)
+}
+
+
+
+
+#Get the names of the covariances
+nms_match <- which(lower.tri(rolling_cov),arr.ind = T)
+#Clean up the column names
+colnames(data_holder_cov) <- gsub('.rets','',paste(colnames(rolling_cov)[nms_match[,1]],colnames(rolling_cov)[nms_match[,2]],sep='_'))
+#set the column names for the rolling variance estaimtes
+colnames(data_holder_var) <- colnames(rolling_cov)
+#Combind variances with covariances
+data_holder <- cbind(data_holder_var,data_holder_cov)
+#Create a time series object
+data_holder <- as.xts(data_holder,as.Date(index(rets_dat)))
+data_holder_with_vol <- merge(data_holder,sector_index_vol)
+
+head(data_holder_with_vol)
+data_holder_with_vol <- na.omit(data_holder_with_vol)
+# weights_model <- roll_regres(sector_index_vol ~ 0+.,data = data_holder_with_vol, width = 45, do_downdates = T)
+
+# tail(weights_model$coefs[1:9])
+
+# mdl <- lm(sector_index_vol ~ 0+.,data = data_holder_with_vol)
+
+ncol(data_holder_with_vol)
+
+# weights_model <- roll.reg(sector_index_vol ~ 0+.,data = data_holder_with_vol, window = 45)
+# weights_model <- roll.reg(data_holder_with_vol$sector_index_vol, data_holder_with_vol[,-46] , window = 252, c = F)
+
+# weights <- sqrt(weights_model$coeff.[,1:9])
+# 
+# plot(weights[,1], type='l')
+
+
+```
+
+
+Now trying the time-varying OLS model on the model with portfolio variance and dependent variable and all variances and covariances as independent variables. We see what the model breaks down. This is possibly due to the trending and high levels of variance in the market cap weights, as shown in the rolling caps graph below. Perhaps this is getting closer, but still not correct. 
+
+```{r}
+ind_vars <- na.omit(data_holder)
+dep_var <- na.omit(sector_index_vol[-c(1:10)])
+colnames(dep_var) <- "sector_index_vol"
+
+head(ind_vars)
+head(dep_var)
+
+all_vars <- merge(dep_var, ind_vars)
+head(all_vars)
+all_vars <- na.omit(all_vars)
+all_vars <- all_vars[-c(1:4216),]
+
+
+```
+
+
+```{r}
+
+ss <- list()
+ss <- AddLocalLevel(ss, all_vars$sector_index_vol)
+ss <- AddDynamicRegression(ss, all_vars$sector_index_vol~0+all_vars$XLB.rets+all_vars$XLE.rets+all_vars$XLF.rets+all_vars$XLI.rets+all_vars$XLK.rets+all_vars$XLP.rets+all_vars$XLU.rets+all_vars$XLV.rets+all_vars$XLY.rets+all_vars$XLE_XLB+all_vars$XLF_XLB+all_vars$XLI_XLB+all_vars$XLK_XLB+all_vars$XLP_XLB+all_vars$XLU_XLB+all_vars$XLV_XLB+all_vars$XLY_XLB+all_vars$XLF_XLE+all_vars$XLI_XLE+all_vars$XLK_XLE+all_vars$XLP_XLE+all_vars$XLU_XLE+all_vars$XLV_XLE+all_vars$XLY_XLE+all_vars$XLI_XLF+all_vars$XLK_XLF+all_vars$XLP_XLF+all_vars$XLU_XLF+all_vars$XLV_XLF+all_vars$XLY_XLF+all_vars$XLK_XLI+all_vars$XLP_XLI+all_vars$XLU_XLI+all_vars$XLV_XLI+all_vars$XLY_XLI+all_vars$XLP_XLK+all_vars$XLU_XLK+all_vars$XLV_XLK+all_vars$XLY_XLK+all_vars$XLU_XLP+all_vars$XLV_XLP+all_vars$XLY_XLP+all_vars$XLV_XLU+all_vars$XLY_XLU+all_vars$XLY_XLV)
+
+model <- bsts(all_vars$sector_index_vol, state.specification = ss, niter=20)
+plot(model, "dynamic", burn = 10)
+
+
+```
+
+
+
+

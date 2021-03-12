@@ -1,0 +1,1305 @@
+---
+title: "Volatility Overload"
+author: "Minh Pham & Chandler Clemons"
+date: \today
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+linestretch: 1.2
+longtable: yes
+geometry: left=2.5cm,right=2.5cm,top=1cm,bottom=2cm
+subtitle: How Market Volatility Affects Self-Reported Health
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(devtools)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(stargazer)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(reshape2)
+library(ROSE)
+library(countreg)
+library(mfx)
+```
+
+
+```{r, , include=FALSE, echo=FALSE}
+brfss_df13 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2013 main.rds" ) )
+brfss_df14 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2014 main.rds" ) )
+brfss_df15 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2015 main.rds" ) )
+brfss_df16 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2016 main.rds" ) )
+brfss_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2017 main.rds" ) )
+
+
+brfss_df13$xpsu=as.integer(brfss_df13$xpsu)
+brfss_df14$xpsu=as.integer(brfss_df14$xpsu)
+brfss_df15$xpsu=as.integer(brfss_df15$xpsu)
+brfss_df16$xpsu=as.integer(brfss_df16$xpsu)
+brfss_df17$xpsu=as.integer(brfss_df17$xpsu)
+
+### Create date
+brfss_df13$iyear <- rep(2013,nrow(brfss_df13)) # make new column
+brfss_df13$Date <- as.Date( paste(brfss_df13$iyear, brfss_df13$imonth , brfss_df13$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df13=brfss_df13[order(as.Date(brfss_df13$Date, format="%d/%m/%Y")),]
+
+brfss_df14$iyear <- rep(2014,nrow(brfss_df14)) # make new column
+brfss_df14$Date <- as.Date( paste(brfss_df14$iyear, brfss_df14$imonth , brfss_df14$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df14=brfss_df14[order(as.Date(brfss_df14$Date, format="%d/%m/%Y")),]
+
+brfss_df15$iyear <- rep(2015,nrow(brfss_df15)) # make new column
+brfss_df15$Date <- as.Date( paste(brfss_df15$iyear, brfss_df15$imonth , brfss_df15$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df15=brfss_df15[order(as.Date(brfss_df15$Date, format="%d/%m/%Y")),]
+
+brfss_df16$iyear <- rep(2016,nrow(brfss_df16)) # make new column
+brfss_df16$Date <- as.Date( paste(brfss_df16$iyear, brfss_df16$imonth , brfss_df16$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df16=brfss_df16[order(as.Date(brfss_df16$Date, format="%d/%m/%Y")),]
+
+brfss_df17$iyear <- rep(2017,nrow(brfss_df17)) # make new column
+brfss_df17$Date <- as.Date( paste(brfss_df17$iyear, brfss_df17$imonth , brfss_df17$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df17=brfss_df17[order(as.Date(brfss_df17$Date, format="%d/%m/%Y")),]
+
+
+brfss_df1314 <- intersect(colnames(brfss_df13), colnames(brfss_df14))
+
+brfss_df1314 <- rbind(brfss_df13[ , brfss_df1314], brfss_df14[ , brfss_df1314])
+
+brfss_df131415 <- intersect(colnames(brfss_df1314), colnames(brfss_df15))
+
+brfss_df131415 <- rbind(brfss_df1314[ , brfss_df131415], brfss_df15[ , brfss_df131415])
+
+brfss_df13141516 <- intersect(colnames(brfss_df131415), colnames(brfss_df16))
+
+brfss_df13141516 <- rbind(brfss_df131415[ , brfss_df13141516], brfss_df16[ , brfss_df13141516])
+
+brfss_df1314151617 <- intersect(colnames(brfss_df13141516), colnames(brfss_df17))
+
+brfss_df1314151617 <- rbind(brfss_df13141516[ , brfss_df1314151617], brfss_df17[ , brfss_df1314151617])
+
+brfss_df= brfss_df1314151617 %>% select(xstate,	fmonth,	imonth,	iday,	iyear,	xpsu,	marital,	employ1,	sex,	xststr,	xstrwt,	xllcpwt,	xprace1,	xagexg,	xchldcnt,	xeducag,	xincomg,	Date, lsatisfy, xtotinda, alcday5, xrfsmok3  ) 
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+returns.lag <- read.csv("~/Desktop/lagreturns.csv")
+
+returns.lag$date= as.Date(returns.lag$date, format = "%m/%d/%y")
+returns.lag$date= as.Date(returns.lag$date, format = "%Y-%m-%d")
+
+brfss_df$date=brfss_df$Date
+brfss_df$date=as.Date(brfss_df$date, "%Y-%m-%d")
+
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+#DATA cleaning:
+
+brfss_df$well_being = ifelse( brfss_df$lsatisfy %in% 1:4 , as.numeric( brfss_df$lsatisfy <= 2 ) , NA )
+
+brfss_df$alcohol_consumption = ifelse( brfss_df$alcday5 %in% 201:230 , as.numeric( brfss_df$alcday5 - 200 ) ,ifelse(brfss_df$alcday5==888 , brfss_df$alcday5==0, NA ))
+
+brfss_df$calculated_current_smokers = ifelse(brfss_df$xrfsmok3==1,0,ifelse(brfss_df$xrfsmok3==2,1,NA))
+
+brfss_df$exercise = ifelse( brfss_df$xtotinda ==1 , 1, ifelse(brfss_df$xtotinda==2, 0, NA))
+
+#demographics
+brfss_df$gender= ifelse( brfss_df$sex ==1 , 1, ifelse(brfss_df$sex==2, 0, NA))
+
+brfss_df$number_of_children <-  ifelse( brfss_df$xchldcnt ==1 , 1, ifelse(brfss_df$xchldcnt==2, 2,ifelse(brfss_df$xchldcnt==3,3,ifelse(brfss_df$xchldcnt==4,4,ifelse(brfss_df$xchldcnt==5,5,ifelse(brfss_df$xchldcnt==6,5, NA))))))
+
+brfss_df$marital_status <-  ifelse( brfss_df$marital ==1 , 1, ifelse(brfss_df$marital==2, 2,ifelse(brfss_df$marital==3,3,ifelse(brfss_df$marital==4,4,ifelse(brfss_df$marital==5,5,ifelse(brfss_df$marital==6,6, NA))))))
+
+brfss_df$employment_status <- ifelse( brfss_df$employ1 ==1 , 1, ifelse(brfss_df$employ1==2, 2,ifelse(brfss_df$employ1==3,3,ifelse(brfss_df$employ1==4,4,ifelse(brfss_df$employ1==5,5,ifelse(brfss_df$employ1==6,6,ifelse(brfss_df$employ1==7,7,ifelse(brfss_df$employ1==8,8, NA))))))))
+
+brfss_df$calculated_race <- ifelse( brfss_df$xprace1 ==1 , 1, ifelse(brfss_df$xprace1==2, 2,ifelse(brfss_df$xprace1==3,3,ifelse(brfss_df$xprace1==4,4,ifelse(brfss_df$xprace1==5,5,ifelse(brfss_df$xprace1==6,6,NA))))))
+
+brfss_df$calculated_education <-ifelse( brfss_df$xeducag ==1 , 1, ifelse(brfss_df$xeducag==2, 2,ifelse(brfss_df$xeducag==3,3,ifelse(brfss_df$xeducag==4,4, NA))))
+
+
+brfss_df$calculated_income <- ifelse( brfss_df$xincomg ==1 , 1, ifelse(brfss_df$xincomg==2, 2,ifelse(brfss_df$xincomg==3,3,ifelse(brfss_df$xincomg==4,4,ifelse(brfss_df$xincomg==5,5,ifelse(brfss_df$xincomg==9,9, NA))))))
+
+brfss_df$calculated_age <- ifelse( brfss_df$xagexg ==1 , 1, ifelse(brfss_df$xagexg==2, 2,ifelse(brfss_df$xagexg==3,3,ifelse(brfss_df$xagexg==4,4,ifelse(brfss_df$xagexg==5,5,ifelse(brfss_df$xagexg==6,6,NA))))))
+
+# brfss_df$metropolitan_status <- ifelse( brfss_df$mscode ==1 , 1, ifelse(brfss_df$mscode==2, 2,ifelse(brfss_df$mscode==3,3,ifelse(brfss_df$mscode==5,5,NA))))
+
+brfss_df=na.omit(brfss_df)
+colSums(is.na(brfss_df))
+table(brfss_df$xstate)
+```
+
+```{r , include=FALSE, echo=FALSE}
+BRFSS_FINANCE_data= merge(returns.lag,brfss_df, by="date")
+
+BRFSS_FINANCE_data= BRFSS_FINANCE_data %>% select(imonth,	iyear,	xpsu,	gender,	number_of_children,	marital_status,	employment_status,	xststr,	xstrwt,	xllcpwt,	calculated_race,	calculated_education,	calculated_income,	calculated_age,	date,	xstate, VIX.Adjusted, SPY.Adjusted, SPY.rets, VIX.rets, well_being, alcohol_consumption, calculated_current_smokers, exercise ) 
+
+# X30returns,halfmonthreturns, X1weekreturns, VIX.rets, vix30returns, vixhalfmonthreturns, vix1weekreturns
+
+#getting rid of duplicates
+BRFSS_FINANCE_data=BRFSS_FINANCE_data[order(BRFSS_FINANCE_data$xpsu),]
+BRFSS_FINANCE_data=BRFSS_FINANCE_data %>% distinct(xpsu, .keep_all = TRUE)
+
+colSums(is.na(BRFSS_FINANCE_data))
+
+BRFSS_FINANCE_data=na.omit(BRFSS_FINANCE_data)
+
+```
+
+
+```{r , include=FALSE, echo=FALSE}
+#DEMOGRAPHICS
+
+BRFSS_FINANCE_data$gender=as.factor(recode(BRFSS_FINANCE_data$gender,'1'='male','0'='female',.missing='NA',.default = 'NA'))
+
+BRFSS_FINANCE_data$number_of_children <- as.factor(recode(BRFSS_FINANCE_data$number_of_children, "1" = "nochildren", "2" = "1children", "3" = "2children", "4" = "3children", "5" = "4morechildren", .default =  "NA", .missing = "NA"))
+
+BRFSS_FINANCE_data$marital_status <- as.factor(recode(BRFSS_FINANCE_data$marital_status, "1" = "married", "2" = "divorced","3"="widowed","4"="separated","5"="nevermarried","6"="membermarriedcoup",.default = "NA", .missing = "NA"))
+
+BRFSS_FINANCE_data$employment_status <- as.factor(recode(BRFSS_FINANCE_data$employment_status, "1" = "wagesemployed", "2" = "selfemployed","3"="noworkmore1","4"="noworkless1","5"="homemaker","6"="student","7"="retired","8"="unable",.default = "NA", .missing = "NA"))
+
+BRFSS_FINANCE_data$calculated_race <- as.factor(recode(BRFSS_FINANCE_data$calculated_race, "1" = "white", "2" = "black","3"="native","4"="asian","5"="pacific","6"="other" ,.default = "NA", .missing = "NA"))
+
+BRFSS_FINANCE_data$calculated_education <- as.factor(recode(BRFSS_FINANCE_data$calculated_education, "1" = "K", "2" = "HSgrad", "3" = "attendCOL", "4" = "COLgrad", .default = "NA", .missing = "NA")) 
+
+BRFSS_FINANCE_data$calculated_income <- as.factor(recode(BRFSS_FINANCE_data$calculated_income, "1" = "le15K", "2" = "15to25K", "3" = "25to35K", "4" = "35to50K", "5" = "50more","9"="others", .default = "NA", missing = "NA"))
+
+BRFSS_FINANCE_data$calculated_age <- as.factor(recode(BRFSS_FINANCE_data$calculated_age, "1" = "18to24", "2" = "25to34", "3" = "35to44", "4" = "45to54", "5" = "55to64", "6" = "65older", .default =  "NA", .missing = "NA"))
+
+BRFSS_FINANCE_data$state_name <- as.factor(BRFSS_FINANCE_data$xstate)
+
+#setting reference values
+BRFSS_FINANCE_data$gender <- relevel(BRFSS_FINANCE_data$gender, ref = "female")
+BRFSS_FINANCE_data$calculated_income <- relevel(BRFSS_FINANCE_data$calculated_income, ref = "50more")
+BRFSS_FINANCE_data$calculated_education <- relevel(BRFSS_FINANCE_data$calculated_education, ref = "COLgrad")
+BRFSS_FINANCE_data$calculated_age <- relevel(BRFSS_FINANCE_data$calculated_age, ref = "18to24")
+BRFSS_FINANCE_data$marital_status = relevel(BRFSS_FINANCE_data$marital_status, ref = "married")
+BRFSS_FINANCE_data$employment_status = relevel(BRFSS_FINANCE_data$employment_status, ref = "wagesemployed")
+BRFSS_FINANCE_data$calculated_race = relevel(BRFSS_FINANCE_data$calculated_race, ref = "white")
+BRFSS_FINANCE_data$number_of_children = relevel(BRFSS_FINANCE_data$number_of_children, ref = "nochildren")
+
+#year and state dummies
+BRFSS_FINANCE_data$iyear = as.factor(BRFSS_FINANCE_data$iyear)
+BRFSS_FINANCE_data$imonth = as.factor(BRFSS_FINANCE_data$imonth)
+BRFSS_FINANCE_data$state_name = as.factor(BRFSS_FINANCE_data$state_name)
+BRFSS_FINANCE_data$state_name=tolower(BRFSS_FINANCE_data$state_name)
+
+#state-specific-time trends
+BRFSS_FINANCE_data$yearmonth=as.yearmon( paste(BRFSS_FINANCE_data$iyear, BRFSS_FINANCE_data$imonth, sep = "." )  , format = "%Y.%m" )
+BRFSS_FINANCE_data$yearmonth = as.factor(BRFSS_FINANCE_data$yearmonth)
+```
+
+```{r, include=FALSE, echo=FALSE}
+table(BRFSS_FINANCE_data$well_being)
+
+data_balanced_over <- ovun.sample(well_being ~ VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + yearmonth + xstrwt + SPY.rets, data = BRFSS_FINANCE_data, method = "over",N = 90222)$data
+
+data_balanced_both <- ovun.sample(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + yearmonth + xstrwt + SPY.rets, data = BRFSS_FINANCE_data, method = "both", p=0.5,  N=47522, seed = 1)$data
+
+data_balanced_under <- ovun.sample(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + yearmonth + xstrwt + SPY.rets, data = BRFSS_FINANCE_data, method = "under",  N=4822, seed = 1)$data
+```
+
+```{r, include=FALSE, echo=FALSE}
+#without + state_name*as.numeric(yearmonth)
+#model vix using data_balanced_both
+test.lm1.vix.both = glm(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=binomial(link=logit),    data = data_balanced_both)
+sum_test.lm1.vix.both=summary(test.lm1.vix.both)
+sum_test.lm1.vix.both
+
+#model vix using data_balanced_under
+test.lm1.vix.under = glm(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=binomial(link=logit),    data = data_balanced_under)
+sum_test.lm1.vix.under=summary(test.lm1.vix.under)
+sum_test.lm1.vix.under
+
+
+#model vix using data_balanced_over
+test.lm1.vix.over = glm(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=binomial(link=logit),    data = data_balanced_over)
+sum_test.lm1.vix.over=summary(test.lm1.vix.over)
+sum_test.lm1.vix.over
+
+#marginal effects
+xb.logit.vix <- predict(test.lm1.vix.both)
+factor.logit.vix <- mean(dlogis(xb.logit.vix))
+APE.logit.vix <- coef(test.lm1.vix.both) * factor.logit.vix
+model.marginal.vixMEM = logitmfx(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear , data  = data_balanced_both, atmean = TRUE) #MEM
+model.marginal.vixAME = logitmfx(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear , data  = data_balanced_both, atmean = FALSE) #AME
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+#model spy
+test.lm1.spy.both = glm(well_being ~  SPY.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=binomial(link=logit),    data = data_balanced_both)
+sum_test.lm1.spy.both=summary(test.lm1.spy.both)
+sum_test.lm1.spy.both
+
+test.lm1.spy.under = glm(well_being ~  SPY.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name  + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=quasibinomial(link=logit),    data = data_balanced_under)
+sum_test.lm1.spy.under=summary(test.lm1.spy.under)
+sum_test.lm1.spy.under
+
+test.lm1.spy.over = glm(well_being ~  SPY.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name  + imonth + iyear + state_name*as.numeric(yearmonth), weights=xstrwt, family=binomial(link=logit),    data = data_balanced_over)
+sum_test.lm1.spy.over=summary(test.lm1.spy.over)
+sum_test.lm1.spy.over
+
+# SPY.rets, X30returns,halfmonthreturns, X1weekreturns, VIX.rets, vix30returns, vixhalfmonthreturns, vix1weekreturns
+```
+
+```{r, include=FALSE, echo=FALSE}
+#alcohol_consumption model
+model.glm.drinking = glm(alcohol_consumption ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), family=poisson(link = "log"), weights = xstrwt,  data  = BRFSS_FINANCE_data)
+sum.model.glm.drinking=summary(model.glm.drinking)
+sum.model.glm.drinking #
+
+countreg::rootogram(model.glm.drinking)
+
+model.glm.nb.drinking = glm.nb(alcohol_consumption ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights = xstrwt,  data  = BRFSS_FINANCE_data)
+sum.model.glm.nb.drinking=summary(model.glm.nb.drinking)
+sum.model.glm.nb.drinking #best model
+
+countreg::rootogram(model.glm.nb.drinking)
+```
+
+```{r, include=FALSE, echo=FALSE}
+# #smoking
+brfss.smoking = BRFSS_FINANCE_data
+table(brfss.smoking$calculated_current_smokers)
+data_balanced_both.smoker <- ovun.sample(calculated_current_smokers ~  ., data = brfss.smoking, method = "both", p=0.5,  N=46655, seed = 1)$data
+data_balanced_under.smoker <- ovun.sample(calculated_current_smokers ~  ., data = brfss.smoking, method = "under",  N=14002, seed = 1)$data
+data_balanced_over.smoker <- ovun.sample(calculated_current_smokers ~  ., data = brfss.smoking, method = "over",  N=79308, seed = 1)$data
+
+model.glm.smoker= glm(calculated_current_smokers ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name + imonth + iyear + state_name*as.numeric(yearmonth), weights = xstrwt, family=binomial(link=logit), data  = data_balanced_both.smoker)
+sum.model.glm.smoker=summary(model.glm.smoker)
+sum.model.glm.smoker
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+#robustness check
+
+#logit
+table(data_balanced_both$well_being)
+# Create Training Data
+input_ones <- data_balanced_both[which(data_balanced_both$well_being == 1), ]  # all 1's
+input_zeros <- data_balanced_both[which(data_balanced_both$well_being == 0), ]  # all 0's
+set.seed(150)  # for repeatability of samples
+input_zeros_training_rows <- sample(1:nrow(input_zeros), 0.7*nrow(input_zeros)) 
+input_ones_training_rows <- sample(1:nrow(input_ones), 0.7*nrow(input_zeros))  
+ 
+training_ones <- input_ones[input_ones_training_rows, ]  
+training_zeros <- input_zeros[input_zeros_training_rows, ]
+trainingData <- rbind(training_ones, training_zeros)  # row bind the 1's and 0's 
+table(trainingData$well_being)
+
+# Create Test Data
+test_ones <- input_ones[-input_ones_training_rows, ]
+test_zeros <- input_zeros[-input_zeros_training_rows, ]
+testData <- rbind(test_ones, test_zeros)  # row bind the 1's and 0's 
+table(testData$well_being)
+
+```
+
+```{r , include=FALSE, echo=FALSE}
+descrips_financial_brfss_lag =
+  BRFSS_FINANCE_data %>%
+  dplyr::select(well_being, calculated_age ,gender,calculated_income,calculated_education,marital_status,number_of_children,employment_status,calculated_race,state_name)
+
+descriptive_statisics <- descrips_financial_brfss_lag %>%
+  # build base summary table
+  tbl_summary(
+    by = well_being,
+    # change variable labels
+    label = list(well_being ~ "Well-Being",
+                 calculated_age ~ "Age",
+                 gender ~ "Gender",
+                 calculated_income ~ "Income",
+                 calculated_education ~ "Education",
+                 marital_status ~ "Marital Status",
+                 number_of_children ~ "Number of Children",
+                 calculated_race ~ "Race",
+                 employment_status ~ "Employment Status",
+                 state_name ~ "State Name"),
+    # change statistics printed in table
+    statistic = list(all_continuous() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} / {N} ({p}%)"),
+  ) %>%
+  # add statistic labels
+  add_stat_label() %>%
+  # bold variable labels, italicize levels
+  bold_labels() %>%
+  italicize_levels() %>%
+   gt() %>%
+  tab_header(
+    title = md("Descriptive Statistics"),
+    subtitle = md("By Well-Being")
+  ) %>%
+  as_latex()
+
+descriptive_statisics %>%
+  as.character() %>%
+  cat()
+
+
+```
+
+```{r , include=FALSE, echo=FALSE}
+latex_general_vix=stargazer(test.lm1.vix.both,test.lm1.vix.over,test.lm1.vix.under, type="latex",omit = c("imonth","state_name","state_name*(as.numeric(imonth))"),omit.labels =c("Month FE","State FE", "State-specific Time Trends"), omit.stat = c("rsq", "f"), column.labels = c("Under and Over Sampling", "Oversampling", "Undersampling"), title="Regression Results for Well-Being - VIX Model")
+
+latex_general_spy=stargazer(test.lm1.spy.both,test.lm1.spy.over,test.lm1.spy.under, type="latex",omit = c("imonth","state_name","state_name*(as.numeric(imonth))"),omit.labels =c("Month FE","State FE","State-specific Time Trends"), omit.stat = c("rsq", "f"), column.labels = c("Under and Over Sampling", "Over Sampling", "Undersampling"), title="Regression Results for Well-Being - SPY Model")
+
+latex.risky =stargazer(model.glm.smoker,model.glm.nb.drinking, type="latex",omit = c("imonth","iyear","state_name"),omit.labels =c("Month FE","Year FE","State FE"), omit.stat = c("rsq", "f"), column.labels = c("Current Smoker", "Alcohol Consumption"), title="Regression Results for Risky Outcomes")
+```
+
+
+
+\abstract{We investigate how self-reported well-being varies with the stock performance of 500 large companies listed on stock exchanges in the United States (S\&P 500). Because stock prices represent the discounted value of the company’s future cash-flows, aggregated market indices, such as the S\&P 500, are forward looking in nature and thus provide leading economic indicators. By studying the relationship between individual well-being levels and anticipated market volatility, this research contributes to our understanding of the psychological impact of future economic uncertainty. Prior literature examining this topic typically relies on board economic indicators, such as the unemployment rate (Böckerman, Petri, and Ilmakunnas, 2009 and Brenner, M. Harvey, and Mooney, 1983), or directional changes in market indices, such as the Dow Jones Industrial Average (Cotti, Dunn, and Tefft, 2013). We propose that a volatility index, namely the VIX, offers a more robust empirical assessment of how financial market conditions affect mental and physical states of being and postulate that volatility clusters provide a better indication of market turmoil than simply looking at negative returns. After accounting for associations with the unemployment rate, we find positive relationship between the VIX and poor self-reported well-being. These results are consistent with models of directional changes in the S\&P 500.}
+
+
+
+
+# 1. Introduction
+
+Modern finance theory postulates that asset prices in a competitive market reflect all available public information, so that in the limit, prices only move in response to news. Thus, a stock’s price is an average of the market’s sentiment regarding the future performance of the underlying company, and movements from this equilibrium price reflects the interpretation of new and exogenous information regarding the expected cash flows of the firm. At the index level, price changes reflect updates to the forecasted free cash-flows of a specific sector or the market as a whole and provides a forward-looking indicator of macroeconomic performance. For this study, which assess the impact of market conditoins on well-being, we are concerned the aggregate level of uncertainty surrounding future price movements – the tightening and widening of confidence intervals around price forecasts, which is reflected through changes in the price of options contracts. As uncertainty increases, out-of-the-money call and put options become more expensive, i.e the implied likelihood of out-of-the-money options increases. Thus, aggregating these prices across the broader market provides a proxy for the general level of economic doubt, precariousness, and unease.
+
+In order to capture this effect, similar papers have used this dataset to study the relationship between self-reported well-being variables and market indicators, such as the Dow Jones Industrial Average (DJIA) (Cotti, Dunn, and Tefft, 2013). We approach this question from a slightly different angle; rather that assessing the correlation between well-being and directional changes in market indices, we measure the relationship between well-being and the magnitude of \emph{anticipated} changes in market indices – market \emph{implied} volatility. We believe this is an improvement for several reasons. First, periods of market turmoil are characteristically marked by large price movements in both directions – volatility clusters. That is, large market declines may be followed by a large transitory rebound, which is then followed by another large decline. We propose that these transitory rebounds amidst a broader crisis do not provide psychological relief in equal proportion to the distress caused by a market fall of equal magnitude. Thus, our empirical model should capture the market’s level of uncertainty (implied volatility) rather than noisy directional price changes, to which a linear estimation model would be sensitive. Second, the perception of well-being, and the associated psychological response, is non-linear between the domains of gains and losses, as suggested by Prospect Theory (Kahneman and Tversky, 1979). To capture these non-linear effects, our model employs the widely cited volatility index, VIX, as the independent variable of interest, which aggregates executed near and next term out-of-the-money calls and puts across all S&P 500 options contracts. It is well documented that the VIX is asymmetrical in its response to changes in the underlying S\&P 500 index, rising more following downside volatility (Low, 2004). This asymmetrical response between the domains of gains and losses is similar to the emotional response predicted by Prospect Theory. 
+
+In addition to providing an aggregate view of the market’s current short-term volatility expectations, the VIX has additional properties that are of interest for this study, namely its presence in the news media and widespread recognition as the market’s fear gauge. Thus, from a psychological perspective, the VIX carries a pre-established negative connotation and is often cited alongside the major market indices. With the VIX, we capture not only market risk and turmoil, but also a general sense of uncertainty and fear about future macroeconomic conditions, which, we propose, drives psychological and physical malaise.
+
+Research demonstrates a significant, yet complicated, role for the news media in shaping economic perceptions. Now more than ever, we are confronted with 24-hour market coverage, push notifications on cell phones, and instant access to stock portfolios via mobile applications. Through this increasingly accessible and rapid media coverage, market signals reach a significant percentage of the general population and help shape sentiment regarding the economic outlook and confidence about one’s current and future socio-economic well-being (Procopio, Terrell, & Wu, 2010). Within this context, signals of increased uncertainty have a diminishing effect on one’s well-being, both economically and physically.
+
+Because most Americans do not actively trade stocks or derivatives, market signals do not typically represent the realization of gains and losses to capital income. Instead, market changes represent changes in wealth since capital gains and losses are only realized upon the sale of an asset. Following prior research on this topic, we limit the income effect that would result from a change in macroeconomic conditions by controlling for unemployment and per capita personal income. Doing so allows us to more effectively capture the mental and physical effects of market stress and uncertainty.
+
+During the recent stock market crashes, Americans reported large declines in self-reported well-being (Deaton, 2011), exhibited increased symptoms of depression and poor mental well-being (McInerney, Mellor, & Nicholas, 2012), and experienced a spike in hospitalizations for psychological disorders (Engelberg & Parsons, 2013). Similarly, we anticipate significant and important changes to self-reported general well-being during periods of market turmoil and uncertainty. By using survey data from the Behavioral Risk Factor Surveillance System (BRFSS) between 2013 and 2017, we estimate the relationship between expected S&P 500 volatility and overall well-being.
+
+From a sensory perspective, uncertainty plays a major role in how the nervous system interprets and perceives the physical world, and how external signals affect to the realm of the mind where we interpret information. Because we are only ever presented with an incomplete potion of the world at a given time, our sensory nervous system must make sense of noisy signals during the best of times. Therefore, it may be argued that a central purpose of the nervous system is to estimate the state of the world from noisy and incomplete data (Vilares and Kording, 2012). As signal noise increases during uncertain economic and financial periods, our physical and mental systems are abnormally stressed, causing both physical and mental harm.
+
+To demonstrate this effect, key models of anxiety-related psychopathology describe anxiety and fear as having three key components: physiological (i.e., autonomic nervous system activation), cognitive (i.e., interpretation of the environmental and physiological stimuli) and behavioral (i.e., the selected response to the stimuli). Research in this field suggests that with respect to the experience of anxiety, the most threatening stimuli are consequentially threatening, in that threatening stimuli (e.g., losing money) are threatening as a function of anticipated consequences (e.g., decreased welfare and utility) and patterns of reinforcement, rather than being inherently threatening (Carleton, 2014). To frame this concept in an economic sense, increases in market uncertainty are threatening as a function of the anticipated consequences of a poor economy. It is this relationship, the correlation between anticipated economic conditions and contemporaneous well-being indicators, that we assess in this paper. From a methodological standpoint, we follow prior literature regarding additional control variables and find that our results demonstrate a robustness to demographic characteristics (e.g. gender, race), income and employment status, area and time fixed effects, state-specific-year-by-month linear time trends, and several additional factors that may influence survey responses. Furthermore, as an additional robustness check, we assess the relationship of interest using directional changes in the S&P 500. We find that our results are consistent with those found when using the S&P 500 Volatility Index, or VIX. As far as we are aware, this is the first study to measure the relationship between individuals’ self-report well-being and the market’s fear gauge, VIX.
+
+
+# 2. Data and Theoretical Framework
+
+### 2.1 Data
+
+Our measure of well-being outcome comes from the Behavioral Risk Factor Surveillance System (BRFSS), maintained by the Center for Disease Control and Prevention (CDC) to monitor health and behavioral risk in the U.S. Using the BRFSS data from 2013-2017, we construct the measure of each individual’s well-being using an indicator for general life-satisfaction in the BRFSS survey. This variable is recorded from the very first general health question under Health Status section, which asks, "In general, how satisfied are you with your life?" with the answers ranging from "Very satisfied"," Satisfied", "Dissatisfied" to "Very dissatisfied". We recode this variable to a binary outcome, in which "Very satisfied" and "Satisfied" are grouped to 1, and "Dissatisfied" and "Very dissatisfied" are grouped to 0. We get rid of respondents who answer, "Don’t know/Not Sure", "Refused", and missing data. Given that the BRFSS survey is not consistent with the questions and the variable codes, especially before 2013, it is very difficult to match all the same variables historically. In addition, each year's dataset asks different questions, which populate different variables. Depending on the year, the number of variables can range from 180 to 300. Therefore, we only match variables that are consistent over the entire sample periods, resulting in roughly 150 final variables and 2,771,648 observations, before recoded. To further prepare the data, we only keep variables that are being analyzed in this study and eliminate all NAs from this subset. Moreover, we also get rid of observations from respondents that did not complete the survey, producing a temporary dataset with 534,158 observations. This is the temporary dataset before every single variable being analyzed being recoded. For demographic variables, given the nature of the BRFSS survey, all of them are categorical variables. Recoding for all variables including $age$, $gender$, $income$, $education-status$, $marital-status$, $number-of-children$, $employment-status$, $race$ are performed consistently, where missing data, "don't know," and "refused" are eliminated. For detail descriptions and recoding process, see Appendix. 
+
+As discussed, our main variable of interests is the Chicago Board Options Exchange (CBOE) Volatility Index, or VIX. VIX has been referred to as the ‘investor fear gauge’ (Whaley (2000)), since high levels of VIX coincided with high degrees of market turmoil. The VIX index was originally designed to measure the market’s expectation of 30-day volatility implied by at-the-money S&P 100 Index (OEX Index) option prices. The popularity of the VIX Index made it soon become the premier benchmark for U.S. stock market volatility. The new VIX Index is taken from the S&P 500 Index (SPXSM). The idea was to base on the core index for U.S. equities, and estimates expected volatility by aggregating the weighted prices of SPX puts and calls over a wide range of strike prices. Daily adjusted returns for the VIX will used as the main variable of interest in this analysis. The VIX model for market performance is presented in Panel A.
+
+In Panel B, we use daily adjusted returns for S&P 500, or just the S&P, as our main independent variable of interest instead of the VIX. S&P 500 is a stock market index that measures the stock performance of 500 large companies listed on stock exchanges in the United States. It is one of the most commonly followed equity indices, and many consider it to be one of the best representations of the U.S. stock market. Both the VIX and S&P 500 data is extracted from Yahoo Finance! Since stock market only has observations 5 out of 7 days of the week (except some holidays), matching the daily returns of the VIX and S&P500 to BRFSS historical survey data (which covers almost every day of the year including the weekends) resulted in the loss of a lot of observations. In addition, after recoding all the demographics, precisely and carefully getting rid of all NAs, and removing incomplete survey respondents, this analysis ended up with 52,246 observations.
+
+### 2.2 Theoretical Point of Views
+
+#### Can measures of well-being be interpreted as utility?
+
+In response to Stevenson, Wolfers (2008), "Economic growth and subjective Well-being: reassessing the Easterlin Paradox", Becker and Rayo assert that this paper not only provides convincing evidence that self-reported happiness and measures of life satisfaction are positively correlated with income, both in rich and poor countries, but also provides an interesting take on the relationship between utility and reported happiness or life satisfaction. They also conclude that, although there are grey areas in connecting self-reported life satisfaction to utility, it is quite acceptable to view happiness and life satisfaction as “noisy measures of utility.” However, while they agree that there are connections between the two dimensions, "reported happiness and life satisfaction are no more measures of utility than are other dimensions of well-being, such as health or consumption of material goods." Prior literature has shown that happiness levels are very consistent with reported happiness, whether it is self-reported or reported by a trusted third party. Studies have also shown that we, as human beings, behave consistently with survey reports as well. For instance, we try to avoid bad situations that may result in a reduction in self-reported happiness.  
+ 
+At the same time, Becker and Rayo suggest an alternative interpretation of life-satisfaction and happiness data, in which these measures can be interpreted as a commodity in the utility function. In many perspectives, Becker and Rayo implicitly assert that just like owning a house or being healthy, happiness and life-satisfaction indeed describe the same commodity in the utility function. In addition, they take an extra step to show that there are ways to use the consumer utility maximization theory to test whether well-being can be used as utility. In other words, it is possible to test whether happiness data is in fact a commodity in the utility function. While discussion on whether happiness is identical with utility still needs more research, it is important to accept that life-satisfaction and happiness constitute useful measures in consumer utility maximization theory.  
+ 
+Given these reasons, while we do not necessarily take life-satisfaction or happiness as our measures of utility, we are convinced that using self-reported health could be a reasonable approach to measure utility, a commodity within a utility function, or at least a "noisy" measure of utility.  
+
+#### Can the VIX be interpreted as anticipatory index?
+
+In the neo classical model, people derive their utility from the consumption of physical goods, such as houses, food, health, leisure, etc. People also derive their utility from their beliefs. For instance, being excited for a trip or worrying about health are anticipatory emotions that are derived from beliefs; believing food taste better if it was made from quality ingredients is belief about consumables; avoiding negative information about oneself is belief about self, etc. There are some examples of belief-based preferences. Regarding consumption, people also have beliefs about their future consumption, which, importantly, can cause experienced utility in the present. This is called anticipatory utility. The belief of diminished future wealth or a more pessimistic future can cause pain now. Similarly, belief of a more optimistic future regarding employment status or wealth can bring contemporaneous enjoyment.  
+ 
+VIX, or the Volatility Index was originally designed to measure the market’s expectation of 30-day volatility implied by at-the-money S&P 100 Index (OEX Index) option prices. Thus, by definition, it is a forward-looking index, and arguably one of the best measures to make prediction about the future economy. It is also a measure of uncertainty about the future, since large changes in asset prices generally result from contemporaneous uncertainty about the future health of the economy. Regarding the anticipatory model, considering the VIX as a future belief index is reasonable, and thus we hypothesize that changes in this index can influence present enjoyment or well-being. 
+ 
+This concept was proven in 1987 when Loewenstein first started to look at time discounting, which is the first implication of the anticipatory model. This paper examines a different implication of the model, namely preferences for information. Anticipatory utility is built from beliefs about the future. This information can be expressed in the VIX, where it could provide necessary information about whether the economy is expected to be better or worse in the near future. In other words, just like anticipation from the kiss or from having to clean up the hamster cages in Loewenstein model, anticipation about the future economy should have similar mechanism. For instance, similar to anticipation from the kiss, anticipation from a bright future economy should have both consumption and anticipation benefits. Here, these benefits translate to a better total instantaneous well-being, where self-reported well-being at this current moment is the consumption utility. 
+
+#### Neo-classical vs Anticipatory Theory?
+
+Consider a $T-period$ model, where the agent decides in period $0$ when to consume. Let $x_t$ be consumption at time t. $0 \leq \delta \leq 1$ is the discount factor. Utility from consumption in period $t$ is $u(x_t)$, the total discount utility in neo-classical model of preferences overtime is presented by: $U_0(x)= \sum_{t=0}^T \delta^t u(x_t)$. In anticipatory model, utility from anticipation in period $t$ is $\alpha \sum_{i=t+1}^T \delta^{i-t}u(x_i)$, where $\alpha > 0$. The total instantaneous utility at $t$ is presented by: $u(x_t) + \alpha \sum_{i=t+1}^T \delta^{i-t}u(x_i)$. And the total anticipatory utility over consumption is: $U_t=\sum_{j=t}^T \delta^{j-t}[u(x_j)+\alpha \sum_{i=j+1}^T \delta^{i-j}u(x_i)]$. 
+  
+The Neo-classical model only gives credit to physical goods, from which one’s utility can derive. We clearly shy away from the neo-classical model, and by adopting the anticipatory model we assume the VIX to be the consumption for beliefs. Therefore, the effect of beliefs on instantaneous utility is presented by $u(x_t)$. In addition, to better present our hypothesis, we adapt an extended model by Caplin and Leahy (2001). This model is an add-on to the previous model regarding the role for information since it is difficult to talk about a future that is uncertain.  
+ 
+There is uncertainty over the outcome of future events, and thus agents may not want to know information since it could alter the beliefs, which eventually results in different decision-makings. A simplified Caplin and Leahy model assumes two periods. The decision maker may receive information in period 1 and the outcome is realized in period 2. Let $x$ be random variable over support S and with distribution $f(x)$, the consumption utility over $x$ by decision maker is presented by $u(x)$. The decision maker also has anticipatory utility in period 1, $b(x)$, over beliefs of $x$, and $a(b(x))$ is anticipatory utility. If there is no time discounting, the total expected utility in period 1 is: $U_1=a(b(x)) +\sum_{x \in S} b(x)u(x)$. Without information, the decision maker has prior belief $f(x)$ and with information, the decision maker has posterior belief $g(x)$. The decision maker only wants information if: $E_{f_x}[a(g(x)) + \sum_{x \in S} g(x)u(x)]>a(f(x)) + \sum_{x \in S} f(x)u(x)$. Given the equation, the decision maker only wants information if and only if: $E_{f_x}[a(g(x))] > a(f(x))$. Under classical model, $a(b(x))$ does not exist, and thus with or without beliefs, the classical decision maker should not be affected. 
+  
+To summarize the model, under a simplified two-period setup, a classical agent is completely indifferent to receiving future information, whether the information is negative or positive. This implies that information on the VIX which is the forward-looking information should not influence the agent’s utility, or agent’s reported health under the classical model. In other words, even in our data where it is applicable for both stockholders and non-stockholders, the classical model would predict that that even stockholders who frequently receive market news should not be affected by this information. Our paper proves otherwise. 
+
+#### Mechanism of Market Uncertainty and Individuals' Well-beings
+
+We propose three different explanations for the impact of market uncertainty, recorded using the VIX, on individuals' well-beings. 
+
+1. The first explanation is straight forward, with the effects of uncertainty explained through the mechanisms of the anticipatory theoretical framework. Market uncertainty imposes stress on life-satisfaction and behaviors, thus decreasing reported life-satisfaction. The effect of market performance on different behavioral measures has been studied in many previous research efforts. For instance, Kalcheva, McLemore, Sias 2017 showed that the VIX has an prominent impact on different impulsive behaviors such as drinking and smoking; Schwandt 2014 shows evidence of market performance under the S&P500 on physical health, mental health and survival rates; Schwandt, Hannes 2018 updated on Schwandt 2014 to estimate the same effect during boom and bust markets in the U.S. and found that the effect of market performance is much stronger during bust periods. The stress that people experience during periods of poor market performance can be explained through uncertainty about their jobs, uncertainty about their future incomes, and uncertainty about their wealth, and thus impose strong negative effects on different aspects of life such as health outcomes and behavioral outcomes. Through the anticipatory theoretical framework, future market uncertainty should have an effect on individuals' contemporaneous life satisfaction. Therefore, this effect should have instantaneous effect and anticipatory effect on utility, measured by well-being. Our paper shows just that.
+
+2. There is a possibility that market uncertainty, measured by the VIX, will only effect stockholders in the current period due to trading activity and therefore there is no anticipatory effect. In other words, through this explanation the effect of the VIX on well-being is only explained through traders whose well-beings are motivated by money made from trading activity. If this is the case, the effect of market uncertainty should not have an effect on their behaviors. Given this explanation, we propose another empirical framework to test whether the VIX affect different behaviors of the respondents. If we find that there is no effect on behavior, then any observed effects of the VIX on well-being are likely resulting from changes in income and wealth levels of market participants, not through changes in anticipatory utility. However, if there exist significant effects of the VIX on respondents' behaviors, we can confirm that the VIX does indeed affect well-being with the sample population, and not necessarily only the well-being of traders. In other words, if this is the case, we are convinced that our first explanation through the framework of anticipatory model is plausible.
+
+3. There is also another possibility that the respondents are reporting their life satisfaction biasedly. They may be inclined to over report their well-being in the expectation that their well-being will improve. While they may wish to report a false sense of well-being for a myriad of reasons, previous research has shown that reported well-being and health in survey data are laregly consistent with individuals' true states of beings. However, if this third explanation is true, or there are reporting errors coming from the survey, then we should not expect to find any significant effect of the VIX on any other health outcomes. This means that the VIX should not have an effect on behavioral factors, such as smoking and drinking. In other words, if we find that market uncertainty has no effect on behavioral factors then survey reporting errors are a plausible explanation for an observed signficance in the relationship between the VIX and well-being. However, if there exists a significant effect of market uncertainty on these behavioral factors, then we are convinced that our anticipatory utility framework offers a plausible explanation.
+
+
+# 3. Empirical framework & Descriptive Statistics
+
+## 3.1 Empirical framework
+
+Our baseline regression specification to examine the relation between stock market performance and individuals’ well-being is:
+
+$$ (Model-1): Well-being_{i,s,t}=\beta_1MarketPerformance_t + \beta_XX_{i,s,t}+\tau_t+\gamma_s+\rho_{s,t}+\epsilon_{i,s,t}$$
+
+$$ (Model-2): ImpulsiveBehaviors_{i,s,t}=\beta_1MarketPerformance_t + \beta_XX_{i,s,t}+\tau_t+\gamma_s+\rho_{s,t}+\epsilon_{i,s,t}$$
+
+
+In model 1, the dependent variable is a measure of well-being. In this analysis, $Well-being_{i,s,t}$ is measured in reported General life satisfaction from the American general population.^[see Descriptive Statistics for detailed deconstruction for well-being]n These surveys span from 2013 to 2017 and are made by an individual $i$ in state $s$ on day $t$. $MarketPerformance_t$ is the percent change of the VIX, or the Implied Volatility Index, between two periods. To establish a strong relationship between market performance and well-being, we include an additional variable of interest, the S&P500, as our robustness check. The set of control variables, which may influence well-being, is suggested by previous work. ^[see, e.g., Engelberg and Parsons, 2016; Cotti, Dunn, and Tefft, 2015; Davalos, Fang, and French, 2011; Fiuzat, Shaw, Thomas, Felker and O’Connor, 2010; Ruhm, 2005; Ruhm and Black, 2002] Particularly, $X_{i,s,t}$  is a matrix of individual-level demographic data including $age$, $gender$, $income$, $education-status$, $marital-status$, $number-of-children$, $employment-status$, $race$. In addition, $\tau_t$ are indicator variables for calendar months, $\gamma_s$ are state fixed effects, and $\rho_{s,t}$ are state-specific-year-by-month time trends. In model 2, $ImpulsiveBehaviors_{i,s,t}$ takes two dependent variables of interest, smoking and rate of drinking, where smoking indicates respondents who are and aren't current smokers and drinking indicates number of drinks in the last 30 days before the survey interview.
+
+$\tau_t$ is a vector of month fixed effects, which accounts for the effect of seasonality on well-being behaviors. We also control for state fixed effects, $\gamma_s$, which would account for permanent differences across states that may affect well-being and its behaviors. These controls account for lifestyles patterns, and state infrastructures on life-satisfaction changes. We further control for confounding factors that may trend linearly by adding a vector of state-specific linear time trends denoted by $\rho_{s,t}$. In addition, adding state-specific linear time trends help account for unobserved factors that vary within states over time, such as social norms related to well-being behaviors. These trends also help us control for other state level time-varying factors such as changes in health care delivery services that closely follow tax revenues. The $\epsilon_{i,s,t}$ is an idiosyncratic random error term.
+
+## 3.2 Descriptive Statistics
+
+Our data is presented in the most interpretable format. All variables and sub-categories are put into two different columns based on our main variable of interest, Well-being. The first column is 0, which presents respondents who reported "Dissatisfied" and "Very dissatisfied" while the second column, which is 1, presents respondents who reported "Satisfied", and "Very satisfied. This practice is done by previous works (Horn, Maclean, Strain 2016). While one may argue on the reliability of these subjective questions, previous works (Apouey and Clark 2015) suggests that they, in fact, capture not only an overall assessment of well-being but also combination of mental and physical health. In addition, Benjamins et al. 2004; Miilunpalo et al. 1997; Jylhä 2009 have shown that these measures can predict various health outcomes such as mortality and healthcare utilization. Thus, it is fair to conclude that the self-reported well-being measures from health surveys in our data plausibly correlate with objective health. Particularly, these self-reported measures from reliable sources such as the BRFSS have been used in many economics studies. ^[ see Maclean 2013; Apouey and Clark 2015; Maclean et al. 2015; Lenhart 2015; Bockerman and Ilmakunnas 2009; Gravelle and Sutton 2009; Lindeboom and van Doorslaer 2004; Cottini and Lucifora 2013] Although, some previous studies suggests there may exist some reporting errors (Baker, Stabile, and Deri 2004) which can affect our estimates, as described above, we try our best to minimize these errors by getting rid of incomplete respondents, only including variables that are in the main Panel, and getting rid of observations that are vaguely reported. ^[Depending on the questions, these are respondents that answer "Don't Know" or "Refused"]
+
+In addition, our self-reported measures are particularly useful for a study of the short-run effects of market sentiments. It seems unlikely that more severe or objective measures of poor well-being conditions (e.g., mortality, chronic conditions, hospitalizations) will respond in the short run to a change in market performance (and the associated income and time cost changes). Thus, our analysis of self-reported well-being, which captures how a person evaluates their well-being at a point in time, is potentially more responsive, and therefore more suitable, for our study objectives than more severe or objective measures. 
+
+To provide a proper view of the dataset, we show the follwoing chart, which represents the number of respondents that answered the survey throughout 2013-2017. Although there is a disproportion in number of participants who respond to the survey in the beginning of the year (January and February) compared to other months, our set of time control variables capture seasonality in our model analysis. 
+
+
+```{r, include=FALSE, echo=FALSE}
+count.obs = BRFSS_FINANCE_data %>% count(yearmonth)
+count.obs$yearmonth = as.yearmon(count.obs$yearmonth)
+```
+
+```{r,fig4, out.width = '70%', echo=FALSE, ,fig.align='center',fig.cap= 'Number of People Interviewed'}
+# Number of respondents
+plot(as.zoo(count.obs$yearmonth),as.zoo(count.obs$n),
+     type='l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "# Respondents",
+     xlab = "Date",
+     main = "Number of People Interviewed")
+```
+
+
+As discussed in the prior section, $MarketPerformance_t$ is the log returns of the VIX or the S&P 500  over the specified time frame, i.e. daily, weekly, bimonthly, and monthly returns. In performing this operation, we not only get an interpretable value (returns), but we also impose stationarity on each series. This allows us to derive the expected value of the VIX at time \emph{t}, $E[VIX_t]$. As shown in the graphs below, all $MarketPerformance_t$ series appear stationary, especially regarding the first moment. However, because market volatility tends to cluster into two distinct regimes, low volatility and high volatility, the S&P 500 returns exhibit non-constant variance over the full time series. We do not observe the same variance characteristics for the VIX, which appears to possess variance properties that are time-invariant, thus adhering more closely to the assumptions of our generalized linear estimation model. This fact provides additional empirical justification for considering the VIX as our primary variable of interest. Nevertheless, all return series, including all S&P 500 series, pass standard stationarity tests at the 5% level, as shown in the table below.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'SPY ans VIX Data'}
+plot(returns.lag$date,as.zoo(returns.lag$SPY.Adjusted),
+     type = 'l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Price",
+     xlab = "Date",
+     main = "Daily SPY Price Series")
+
+plot(returns.lag$date,as.zoo(returns.lag$VIX.Adjusted),
+     type = 'l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "VIX Implied Annual Volatility",
+     xlab = "Date",
+     main = "VIX Daily Series")
+```
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'SPY ans VIX Returns Data'}
+plot(returns.lag$date,as.zoo(returns.lag$SPY.rets),
+     type = 'l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Log Returns",
+     xlab = "Date",
+     main = "Daily SPY Returns")
+
+plot(returns.lag$date,as.zoo(returns.lag$VIX.rets),
+     type = 'l',
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Log Returns",
+     xlab = "Date",
+     main = "Daily VIX Returns")
+```
+
+Shown below are Descriptive Statistics based on General Well-being. As presented, there is a larger number of respondents who report "Satisfied" and "Very satisfied" (N = 44,300) compared to those who report "Dissatisfied" and "Very dissatisfied" (N = 2,355). To put this in perspective, we show charts based on the variables for each group of our variable of interest.
+
+\captionsetup[table]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}{llll}
+\caption*{
+\large Descriptive Statistics\\ 
+\small By General Health\\ 
+} \\ 
+\toprule
+Characteristic & Statistic & 0, N = 2355 & 1, N = 44300 \\ 
+\midrule
+\textbf{Age} &  &  &  \\ 
+\quad 18to24  & n / N (\%) & 137 / 2355 (5.8\%) & 2822 / 44300 (6.4\%) \\ 
+\quad 25to34  & n / N (\%) & 262 / 2355 (11\%) & 4691 / 44300 (11\%) \\ 
+\quad 35to44  & n / N (\%) & 320 / 2355 (14\%) & 5463 / 44300 (12\%) \\ 
+\quad 45to54  & n / N (\%) & 524 / 2355 (22\%) & 7486 / 44300 (17\%) \\ 
+\quad 55to64  & n / N (\%) & 644 / 2355 (27\%) & 9838 / 44300 (22\%) \\ 
+\quad 65older  & n / N (\%) & 468 / 2355 (20\%) & 14000 / 44300 (32\%) \\ 
+\textbf{Gender} &  &  &  \\ 
+\quad female  & n / N (\%) & 1379 / 2355 (59\%) & 25153 / 44300 (57\%) \\ 
+\quad male  & n / N (\%) & 976 / 2355 (41\%) & 19147 / 44300 (43\%) \\ 
+\textbf{Income} &  &  &  \\ 
+\quad 50more  & n / N (\%) & 400 / 2355 (17\%) & 19894 / 44300 (45\%) \\ 
+\quad 15to25K  & n / N (\%) & 535 / 2355 (23\%) & 5617 / 44300 (13\%) \\ 
+\quad 25to35K  & n / N (\%) & 254 / 2355 (11\%) & 4096 / 44300 (9.2\%) \\ 
+\quad 35to50K  & n / N (\%) & 229 / 2355 (9.7\%) & 5779 / 44300 (13\%) \\ 
+\quad le15K  & n / N (\%) & 601 / 2355 (26\%) & 2951 / 44300 (6.7\%) \\ 
+\quad others  & n / N (\%) & 336 / 2355 (14\%) & 5963 / 44300 (13\%) \\ 
+\textbf{Education} &  &  &  \\ 
+\quad COLgrad  & n / N (\%) & 575 / 2355 (24\%) & 16703 / 44300 (38\%) \\ 
+\quad attendCOL  & n / N (\%) & 779 / 2355 (33\%) & 13460 / 44300 (30\%) \\ 
+\quad HSgrad  & n / N (\%) & 732 / 2355 (31\%) & 11638 / 44300 (26\%) \\ 
+\quad K  & n / N (\%) & 269 / 2355 (11\%) & 2499 / 44300 (5.6\%) \\ 
+\textbf{Marital Status} &  &  &  \\ 
+\quad married  & n / N (\%) & 636 / 2355 (27\%) & 25004 / 44300 (56\%) \\ 
+\quad divorced  & n / N (\%) & 623 / 2355 (26\%) & 5534 / 44300 (12\%) \\ 
+\quad membermarriedcoup  & n / N (\%) & 77 / 2355 (3.3\%) & 1160 / 44300 (2.6\%) \\ 
+\quad nevermarried  & n / N (\%) & 647 / 2355 (27\%) & 7226 / 44300 (16\%) \\ 
+\quad separated  & n / N (\%) & 118 / 2355 (5.0\%) & 580 / 44300 (1.3\%) \\ 
+\quad widowed  & n / N (\%) & 254 / 2355 (11\%) & 4796 / 44300 (11\%) \\ 
+\textbf{Number of Children} &  &  &  \\ 
+\quad nochildren  & n / N (\%) & 1812 / 2355 (77\%) & 32063 / 44300 (72\%) \\ 
+\quad 1children  & n / N (\%) & 248 / 2355 (11\%) & 4787 / 44300 (11\%) \\ 
+\quad 2children  & n / N (\%) & 181 / 2355 (7.7\%) & 4482 / 44300 (10\%) \\ 
+\quad 3children  & n / N (\%) & 67 / 2355 (2.8\%) & 1966 / 44300 (4.4\%) \\ 
+\quad 4morechildren  & n / N (\%) & 47 / 2355 (2.0\%) & 1002 / 44300 (2.3\%) \\ 
+\textbf{Employment Status} &  &  &  \\ 
+\quad wagesemployed  & n / N (\%) & 695 / 2355 (30\%) & 20849 / 44300 (47\%) \\ 
+\quad homemaker  & n / N (\%) & 80 / 2355 (3.4\%) & 1954 / 44300 (4.4\%) \\ 
+\quad noworkless1  & n / N (\%) & 132 / 2355 (5.6\%) & 794 / 44300 (1.8\%) \\ 
+\quad noworkmore1  & n / N (\%) & 176 / 2355 (7.5\%) & 831 / 44300 (1.9\%) \\ 
+\quad retired  & n / N (\%) & 404 / 2355 (17\%) & 12535 / 44300 (28\%) \\ 
+\quad selfemployed  & n / N (\%) & 130 / 2355 (5.5\%) & 3734 / 44300 (8.4\%) \\ 
+\quad student  & n / N (\%) & 49 / 2355 (2.1\%) & 1245 / 44300 (2.8\%) \\ 
+\quad unable  & n / N (\%) & 689 / 2355 (29\%) & 2358 / 44300 (5.3\%) \\ 
+\textbf{Race} &  &  &  \\ 
+\quad white  & n / N (\%) & 1973 / 2355 (84\%) & 39465 / 44300 (89\%) \\ 
+\quad asian  & n / N (\%) & 30 / 2355 (1.3\%) & 673 / 44300 (1.5\%) \\ 
+\quad black  & n / N (\%) & 242 / 2355 (10\%) & 2883 / 44300 (6.5\%) \\ 
+\quad native  & n / N (\%) & 74 / 2355 (3.1\%) & 608 / 44300 (1.4\%) \\ 
+\quad other  & n / N (\%) & 34 / 2355 (1.4\%) & 625 / 44300 (1.4\%) \\ 
+\quad pacific  & n / N (\%) & 2 / 2355 (<0.1\%) & 46 / 44300 (0.1\%) \\ 
+\hline 
+\multicolumn{4}{l}{\textit{Note: This table does not include State Descriptive Statistics}}\\
+\bottomrule
+\end{longtable}}
+
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Demographics - Age and Race' }
+BRFSS_FINANCE_data$well_being.graph <- ifelse(BRFSS_FINANCE_data$well_being==1,"Satisfied", "Not Satisfied")
+#Bar-plot
+age.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(calculated_age)))
+age.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Age Brackets") 
+
+race.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(calculated_race)))
+race.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Race") 
+
+
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'Demographics - Education and Income'}
+education.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(calculated_education)))
+education.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Education") 
+
+income.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(calculated_income)))
+income.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Income") 
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'Demographics - Gender and Marital-Status'}
+gender.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(gender)))
+gender.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Gender") 
+
+marital.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(marital_status)))
+marital.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Marital Status") 
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Demographics - Employment-Status and Number-of-Children' }
+employment.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(employment_status)))
+employment.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Employment Status") 
+
+chidren.plot <- ggplot(BRFSS_FINANCE_data, aes(x = factor(well_being.graph), fill = factor(number_of_children)))
+chidren.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Number of Children") 
+
+```
+
+
+# 4. Methodology and Empirical Results
+## 4.1 Methodology
+
+The analysis is proceeded with the generalized linear probability model (logistics). All the regressions are weighted using the BRFSS sampling weights. As described above, controlling for a set of demographics variables is extremely useful in generating precise estimates, given different demographics in our survey. In addition, rather than using adjusted closing price data for S&P500 and VIX as many previous works, we want to set our main variables of interest in a stationary form so that not only we do not have to treat for unit-root problems within out independent variables but also we do not have to worry about the fact that the upward performance trends of the S&P500 would bias our results. In addition, by controlling for State Fixed-Effects, Monthly Fixed-Effects, Yearly Fixed-Effects, and State-Year-by-Month linear time trends, we aim to get to the most precise estimates possible. Respectively, these additional controls account for the impact of seasonality that may exist in some of the behaviors such as physical activity (Ruhm 2005), permanent differences across states that may affect health and health behaviors, such as lifestyles patterns, state infrastructures on health care, and confounding factors that may trend linearly by adding a vector of state-specific linear time trends, denoted by $\rho_{s,t}$. As mentioned above, adding state-specific linear time trends help account for unobserved factors that vary within states over time, such as social norms related to health behaviors. These trends also help us control for other state level time-varying factors such as changes in health care delivery services that closely follow tax revenues.
+
+We face quite a difficult task when there is a huge imbalance in classification for our main dependent variable, general well-being. After re-coding the data class 0 for respondents who report "Dissatisfied" and "Very Dissatisfied" and class 1 for respondents who report "Satisfied" and "Very Satisfied", our dependent variable was catagorized with 2,530 observations of 0 and 51,716 observations of 1. In such cases, when the binary response variable is imbalanced in the data so the proportion of class 1 heavily dominates the class 0 proportion, the logistic model does not perform well for detection of the outcome with low proportion. In other words, the reporting Specificity of the model would be very low, which means the probability of detection of class 1 cases would be unsatisfyingly low. Thus, they result in biased predictions and misleading accuracy measures. there are several methods availabe to tackle imbalanced classification problems, however they are not easy to perform in a large dataset such as ours. TO combat the issue in this analysis, we impose two different methods, then compare these results to see how robust our models are. The first method is the combination of both under-sampling and oversampling where we under-sample class 1 and over-sample class 0 to produce a perfect proportion of 50/50 for class 1 and class 0. The problem with this first model is that the data generated from oversampling have a certain amount of repeated observations and the data generated from under-sampling is deprived of important information in the original data. This leads to possible inaccuracies in the resulting performance. The second method is to simply impose under-sampling for class 1, in which we would have to randomly cut the sample of class 1 to get to the same amount of observations as class 0. The problem with this second method is that we would lose a significant information from the sample of class 1, although it keeps all the information in class 0. This method leaves just enough observations for us to analyze the data. However, by imposing the two methods and by properly comparing the two results, we should yield estimates in the middle range of biases, which produce arguably the best and most accurate estimates. Both of these techniques are commonly used in previous literature using imbalanced classification logistic models, as they would improve the prediction accuracy significantly. Each sampling method has its own advantages and disadvantages. In this paper, we perform a robust analysis using both sampling methods. 
+
+Panel A below presents the results of the VIX on reported well-being. We estimate logistic regressions to establish our first \textbf{Hypothesis} - increases in the VIX, i.e. when the market is under stress or uncertainty, is negatively associated with reported well-being. Running on three different data samples for different sampling methods, we find evidence that there are significant negative effects linking market performance to well-being. Specifically, running logistic regressions on general well-being outcome predicting 1, or being satisfied, we find significant negative effects on all three different regressions, signaling the probability of the VIX increasing and having better well-being will decrease compared to bad well-being. 
+
+On the other hand, we would expect the opposite effect in Panel B, which uses the S&P 500 as the independent variable of interest. While increases in VIX returns signal market turmoil, increases in S&P 500 returns signal market improvement. We then estimate logistic regressions to establish our second \textbf{Hypothesis} - increases in S&P 500 returns, i.e. when the market is performing better, is positively associated with general well-being. Running on three different data samples for three different sampling methods, we find evidence that there are significant positive effects linking market performance to well-being. Specifically, running logistic regressions on general well-being outcome predicting better well-being, we find significant positive effects for all three regressions, signaling the probability of the S&P 500 increasing and having better life satisfaction will increase compared to bad life-satisfaction. Estimations from Logistic regression are non-interpretable and thus we continue to estimate the odd ratios of these regressions for better interpretation. 
+
+In model 2, we perform a different econometrics approach for the two main outcomes, which include a binary outcome for smoking, and a censored continuous outcome for rate of drinking. We refer this variable as alcohol consumption for the rest of the analysis. After re-coding the data class 0 for respondents who report being non-smokers and class 1 for respondents who report being smokers, our dependent binary variable was heavily unballanced. As explained above, in such cases when the binary response variable is imbalanced in the sample data so that the proportion of class 1 heavily dominates the class 0 proportion, then logistic models do not perform well for detection of the outcome with low proportion. In other words, the reporting Specificity of the model would be very low, which means the probability of detection of class 1 cases would be unsatisfyingly low. Thus, to tackle imbalanced classification problems, we impose different sampling methods to achieve our estimates. For Continuous Outcomes, this paper also faces an issue, in which there is, comparably, a large number of respondents who reports hainvg zero drinks in the past 30 days. To tackle this issue, we employ different count models ^[See Goodness of Fit for model selections].
+
+
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'After Sampling: Demographics - Age and Race' }
+aftersampling.descriptives <- data_balanced_both
+aftersampling.descriptives$well_being.graph <- ifelse(aftersampling.descriptives$well_being==1,"Satisfied", "Not Satisfied")
+#Bar-plot
+age.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(calculated_age)))
+age.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Age Brackets") 
+
+race.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(calculated_race)))
+race.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Race") 
+
+
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'After Sampling: Demographics - Education and Income'}
+education.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(calculated_education)))
+education.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Education") 
+
+income.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(calculated_income)))
+income.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Income") 
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'After Sampling: Demographics - Gender and Marital-Status'}
+gender.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(gender)))
+gender.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Gender") 
+
+marital.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(marital_status)))
+marital.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Marital Status") 
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'After Sampling: Demographics - Employment-Status and Number-of-Children' }
+employment.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(employment_status)))
+employment.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Employment Status") 
+
+chidren.plot <- ggplot(aftersampling.descriptives, aes(x = factor(well_being.graph), fill = factor(number_of_children)))
+chidren.plot + geom_bar(position="dodge") + labs(x = "Self-Reported General Well-being", y = "Count") + scale_fill_brewer(palette="Accent",name = "Number of Children") 
+
+```
+
+
+## 4.2 Empirical Results
+
+### Model 1: Estimating the relationship between the VIX and Life Satisfaction
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{llll} 
+\caption*{ PANEL A: Regression Results for VIX Model\\ 
+\small \textit{Dependent variable: General Well-being} \\ 
+} \\ 
+\toprule \centering
+ & Under and Over Sampling & Oversampling & Undersampling \\ 
+\\[-1.8ex] & (1) & (2) & (3)\\ 
+\hline 
+\midrule 
+ VIX.rets & $-$0.520$^{***}$ & $-$0.393$^{***}$ & $-$0.520$^{***}$ \\ 
+  & (0.019) & (0.014) & (0.060) \\ 
+    
+ calculated\_age25to34 & $-$0.385$^{***}$ & $-$0.323$^{***}$ & $-$0.672$^{***}$ \\ 
+  & (0.006) & (0.004) & (0.019) \\ 
+    
+ calculated\_age35to44 & $-$0.590$^{***}$ & $-$0.524$^{***}$ & $-$0.751$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.021) \\ 
+    
+ calculated\_age45to54 & $-$0.440$^{***}$ & $-$0.371$^{***}$ & $-$0.814$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.020) \\ 
+    
+ calculated\_age55to64 & $-$0.409$^{***}$ & $-$0.340$^{***}$ & $-$0.560$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.021) \\ 
+    
+ calculated\_age65older & 0.171$^{***}$ & 0.180$^{***}$ & $-$0.131$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.024) \\ 
+    
+ gendermale & $-$0.065$^{***}$ & $-$0.032$^{***}$ & $-$0.145$^{***}$ \\ 
+  & (0.003) & (0.002) & (0.009) \\ 
+    
+ calculated\_income15to25K & $-$1.128$^{***}$ & $-$1.040$^{***}$ & $-$1.032$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.014) \\ 
+    
+ calculated\_income25to35K & $-$0.950$^{***}$ & $-$0.890$^{***}$ & $-$0.759$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.015) \\ 
+    
+ calculated\_income35to50K & $-$0.299$^{***}$ & $-$0.372$^{***}$ & $-$0.223$^{***}$ \\ 
+  & (0.005) & (0.003) & (0.015) \\ 
+    
+ calculated\_incomele15K & $-$1.242$^{***}$ & $-$1.222$^{***}$ & $-$1.199$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.017) \\ 
+    
+ calculated\_incomeothers & $-$0.627$^{***}$ & $-$0.578$^{***}$ & $-$0.401$^{***}$ \\ 
+  & (0.005) & (0.003) & (0.015) \\ 
+    
+ calculated\_educationattendCOL & $-$0.160$^{***}$ & $-$0.205$^{***}$ & $-$0.160$^{***}$ \\ 
+  & (0.003) & (0.003) & (0.011) \\ 
+    
+ calculated\_educationHSgrad & $-$0.110$^{***}$ & $-$0.127$^{***}$ & $-$0.114$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.012) \\ 
+    
+ calculated\_educationK & $-$0.005 & $-$0.167$^{***}$ & $-$0.179$^{***}$ \\ 
+  & (0.006) & (0.004) & (0.019) \\ 
+    
+ marital\_statusdivorced & $-$0.899$^{***}$ & $-$0.869$^{***}$ & $-$0.804$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.013) \\ 
+    
+ marital\_statusmembermarriedcoup & $-$0.388$^{***}$ & $-$0.479$^{***}$ & $-$0.878$^{***}$ \\ 
+  & (0.008) & (0.006) & (0.027) \\ 
+    
+ marital\_statusnevermarried & $-$0.854$^{***}$ & $-$0.846$^{***}$ & $-$0.864$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.014) \\ 
+    
+ marital\_statusseparated & $-$1.739$^{***}$ & $-$1.661$^{***}$ & $-$1.184$^{***}$ \\ 
+  & (0.008) & (0.006) & (0.024) \\ 
+    
+ marital\_statuswidowed & $-$0.400$^{***}$ & $-$0.359$^{***}$ & $-$0.317$^{***}$ \\ 
+  & (0.006) & (0.004) & (0.017) \\ 
+    
+ number\_of\_children1children & 0.026$^{***}$ & 0.008$^{***}$ & 0.040$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.014) \\ 
+    
+ number\_of\_children2children & 0.091$^{***}$ & 0.080$^{***}$ & 0.160$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.016) \\ 
+    
+ number\_of\_children3children & 0.191$^{***}$ & 0.232$^{***}$ & 0.580$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.022) \\ 
+    
+ number\_of\_children4morechildren & 0.190$^{***}$ & 0.224$^{***}$ & 0.315$^{***}$ \\ 
+  & (0.009) & (0.006) & (0.029) \\ 
+    
+ employment\_statushomemaker & $-$0.499$^{***}$ & $-$0.529$^{***}$ & $-$0.526$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.022) \\ 
+    
+ employment\_statusnoworkless1 & $-$1.123$^{***}$ & $-$1.257$^{***}$ & $-$1.303$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.024) \\ 
+    
+ employment\_statusnoworkmore1 & $-$1.486$^{***}$ & $-$1.495$^{***}$ & $-$1.963$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.028) \\ 
+    
+ employment\_statusretired & $-$0.226$^{***}$ & $-$0.241$^{***}$ & $-$0.119$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.017) \\ 
+    
+ employment\_statusselfemployed & $-$0.147$^{***}$ & $-$0.146$^{***}$ & $-$0.187$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.017) \\ 
+    
+ employment\_statusstudent & 0.187$^{***}$ & 0.134$^{***}$ & $-$0.188$^{***}$ \\ 
+  & (0.007) & (0.006) & (0.025) \\ 
+    
+ employment\_statusunable & $-$1.665$^{***}$ & $-$1.752$^{***}$ & $-$1.473$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.015) \\ 
+    
+ calculated\_raceasian & 0.023$^{**}$ & $-$0.071$^{***}$ & $-$0.021 \\ 
+  & (0.011) & (0.008) & (0.033) \\ 
+    
+ calculated\_raceblack & 0.009$^{**}$ & $-$0.050$^{***}$ & $-$0.125$^{***}$ \\ 
+  & (0.005) & (0.003) & (0.015) \\ 
+    
+ calculated\_racenative & $-$0.340$^{***}$ & $-$0.215$^{***}$ & $-$0.210$^{***}$ \\ 
+  & (0.011) & (0.008) & (0.035) \\ 
+    
+ calculated\_raceother & 0.533$^{***}$ & 0.412$^{***}$ & 0.340$^{***}$ \\ 
+  & (0.011) & (0.008) & (0.034) \\ 
+    
+ calculated\_racepacific & 0.490$^{***}$ & 0.757$^{***}$ & 0.045 \\ 
+  & (0.037) & (0.030) & (0.167) \\ 
+    
+ Constant & $-$2.839$^{***}$ & $-$0.363$^{***}$ & $-$1.683$^{***}$ \\ 
+  & (0.120) & (0.085) & (0.435) \\ 
+   
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes & Yes \\ 
+State FE & Yes & Yes & Yes \\ 
+State-specific Time Trends & Yes & Yes & Yes \\ 
+Sample Weights & Yes & Yes & Yes\\ 
+\hline \\[-1.8ex] 
+Observations & 47,522 & 90,222 & 4,822 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{4}{l}{Note: Panel consists of the 2013-2017 survey sample waves of BRFSS. BRFSS sample weights}\\
+\multicolumn{4}{l}{applied. All models estimated with a Logistic Regression. See Appendix for detailed variable}\\
+\multicolumn{4}{l}{definition, data source, and construction.}\\
+\multicolumn{4}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+Panel A shows the effects of the VIX on well-being outcomes. Holding all else constant, an additional increase in the VIX is associated with an increase in the odds ratio of reporting better well-being, relative to poor well-being. Respectively, these effects persist with the same negative effects and similar magnitudes across different sampling methods. This means that as the market is in under-stress or in a state of uncertainty, it is more likely for the respondents from the sample to fall into the categories representing dissatisfaction, compared to the categories representing satisfaction. Given the standard errors of the VIX, we are confident to reject the null hypothesis, concluding there is a negative association between the VIX and reported well-being. In addition, the 95% confidence interval lies within the negative zone of the effect, which also confirms that this effect is negatively correlated. 
+
+### Model 2: Estimating the relationship between the VIX and Impulsive Behaviors.
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{llll} 
+\caption*{ Regression Results for Impulsive Behaviors\\ 
+\small \textit{Dependent variable: Smoking and Drinking} \\ 
+} \\ 
+\toprule \centering
+ & Current Smoker & Alcohol Consumption \\ 
+\\[-1.8ex] & \textit{logistic} & \textit{negative-binomial} \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline 
+\midrule 
+ VIX.rets & 0.219$^{***}$ & 0.211$^{***}$ \\ 
+  & (0.018) & (0.016) \\ 
+  
+ calculated\_age25to34 & 0.752$^{***}$ & 0.068$^{***}$ \\ 
+  & (0.006) & (0.006) \\ 
+  
+ calculated\_age35to44 & 0.821$^{***}$ & 0.004 \\ 
+  & (0.006) & (0.006) \\ 
+  
+ calculated\_age45to54 & 0.671$^{***}$ & 0.005 \\ 
+  & (0.006) & (0.006) \\ 
+  
+ calculated\_age55to64 & 0.264$^{***}$ & $-$0.072$^{***}$ \\ 
+  & (0.006) & (0.006) \\ 
+  
+ calculated\_age65older & $-$0.231$^{***}$ & $-$0.129$^{***}$ \\ 
+  & (0.007) & (0.007) \\ 
+  
+ gendermale & 0.172$^{***}$ & 0.495$^{***}$ \\ 
+  & (0.003) & (0.002) \\ 
+  
+ calculated\_income15to25K & 0.708$^{***}$ & $-$0.429$^{***}$ \\ 
+  & (0.004) & (0.004) \\ 
+  
+ calculated\_income25to35K & 0.566$^{***}$ & $-$0.405$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ calculated\_income35to50K & 0.415$^{***}$ & $-$0.284$^{***}$ \\ 
+  & (0.004) & (0.004) \\ 
+  
+ calculated\_incomele15K & 0.894$^{***}$ & $-$0.453$^{***}$ \\ 
+  & (0.005) & (0.005) \\ 
+  
+ calculated\_incomeothers & 0.181$^{***}$ & $-$0.373$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ calculated\_educationattendCOL & 0.833$^{***}$ & $-$0.207$^{***}$ \\ 
+  & (0.003) & (0.003) \\ 
+  
+ calculated\_educationHSgrad & 1.029$^{***}$ & $-$0.438$^{***}$ \\ 
+  & (0.004) & (0.003) \\ 
+  
+ calculated\_educationK & 1.443$^{***}$ & $-$0.672$^{***}$ \\ 
+  & (0.006) & (0.006) \\ 
+  
+ marital\_statusdivorced & 0.804$^{***}$ & 0.082$^{***}$ \\ 
+  & (0.004) & (0.004) \\ 
+  
+ marital\_statusmembermarriedcoup & 0.945$^{***}$ & 0.237$^{***}$ \\ 
+  & (0.007) & (0.007) \\ 
+  
+ marital\_statusnevermarried & 0.406$^{***}$ & 0.009$^{**}$ \\ 
+  & (0.004) & (0.004) \\ 
+  
+ marital\_statusseparated & 0.561$^{***}$ & 0.266$^{***}$ \\ 
+  & (0.009) & (0.009) \\ 
+  
+ marital\_statuswidowed & 0.120$^{***}$ & $-$0.041$^{***}$ \\ 
+  & (0.005) & (0.005) \\ 
+  
+ number\_of\_children1children & $-$0.021$^{***}$ & $-$0.262$^{***}$ \\ 
+  & (0.004) & (0.004) \\ 
+  
+ number\_of\_children2children & $-$0.078$^{***}$ & $-$0.289$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ number\_of\_children3children & $-$0.162$^{***}$ & $-$0.409$^{***}$ \\ 
+  & (0.006) & (0.006) \\ 
+  
+ number\_of\_children4morechildren & $-$0.096$^{***}$ & $-$0.422$^{***}$ \\ 
+  & (0.009) & (0.008) \\ 
+  
+ employment\_statushomemaker & $-$0.258$^{***}$ & $-$0.208$^{***}$ \\ 
+  & (0.007) & (0.006) \\ 
+  
+ employment\_statusnoworkless1 & 0.470$^{***}$ & $-$0.076$^{***}$ \\ 
+  & (0.008) & (0.008) \\ 
+  
+ employment\_statusnoworkmore1 & 0.508$^{***}$ & $-$0.071$^{***}$ \\ 
+  & (0.008) & (0.008) \\ 
+  
+ employment\_statusretired & $-$0.088$^{***}$ & $-$0.020$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ employment\_statusselfemployed & $-$0.173$^{***}$ & 0.173$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ employment\_statusstudent & $-$0.775$^{***}$ & $-$0.303$^{***}$ \\ 
+  & (0.008) & (0.007) \\ 
+  
+ employment\_statusunable & 0.419$^{***}$ & $-$0.913$^{***}$ \\ 
+  & (0.005) & (0.005) \\ 
+  
+ calculated\_raceasian & $-$0.572$^{***}$ & $-$0.954$^{***}$ \\ 
+  & (0.011) & (0.009) \\ 
+  
+ calculated\_raceblack & $-$0.679$^{***}$ & $-$0.199$^{***}$ \\ 
+  & (0.005) & (0.004) \\ 
+  
+ calculated\_racenative & 0.625$^{***}$ & $-$0.155$^{***}$ \\ 
+  & (0.011) & (0.010) \\ 
+  
+ calculated\_raceother & $-$0.705$^{***}$ & $-$0.508$^{***}$ \\ 
+  & (0.010) & (0.009) \\ 
+  
+ calculated\_racepacific & 0.543$^{***}$ & $-$0.302$^{***}$ \\ 
+  & (0.040) & (0.028) \\ 
+
+ Constant & 0.801$^{***}$ & 0.771$^{***}$ \\ 
+  & (0.113) & (0.100) \\ 
+  
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes  \\ 
+State FE & Yes & Yes  \\ 
+State-specific Time Trends & Yes & Yes  \\ 
+Sample Weights & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 46,655 & 47,522 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{3}{l}{Note: Panel consists of the 2013-2017 survey sample waves of BRFSS. BRFSS}\\
+\multicolumn{3}{l}{sample weights applied. All models estimated with a Logistic Regression. }\\
+\multicolumn{3}{l}{See Appendix fordetailed variable definition, data source, and construction.}\\
+\multicolumn{3}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+These results indicate the rejection of the null hypothesis and conclude that there are positive association between the VIX and impulsive behaviors. Specifically, when the market is under-stress, alcohol consumption increases by an expected log count of 0.211 and it also appears that the likelihood of smoking increases by an expected log likelihood of 0.21. All of these estimates are significant at the 1% level, holding all else constant. The estimates fit very nicely into our main model of anticipatory framework in which we have shown that future market uncertainty does indeed have effects on contemporaneous behaviors. In other words, we privide evidence against the notion that the VIX only affects the well-being individuals who benefit from stockholding, but doesn not affect their behaviors.
+
+
+## 4.3 Goodness of Fit
+
+```{r, include=FALSE, echo=FALSE}
+#model 
+test.lm1.vix.both = glm(well_being ~  VIX.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name +state_name*(as.numeric(yearmonth)) + imonth + iyear, weights=xstrwt, family=binomial(link=logit),    data = trainingData)
+sum_test.lm1.vix.both=summary(test.lm1.vix.both)
+sum_test.lm1.vix.both
+
+
+# predicted <- plogis(predict(test.lm4.vix, testData))
+predicted <- predict(test.lm1.vix.both, testData, type="response")
+optCutOff <- optimalCutoff(testData$well_being, predicted)[1]
+misClassError(testData$well_being, predicted, threshold = optCutOff)
+plotROC(testData$well_being, predicted)  #0.77, which is pretty good
+sensitivity(testData$well_being, predicted, threshold = optCutOff) #sensitivity is low because false negative is too high
+specificity(testData$well_being, predicted, threshold = optCutOff) #specificity is high because false positive is too low
+confusionMatrix(testData$well_being, predicted, threshold = optCutOff)
+
+```
+
+To assess the accuracy of the predictions generated by our models, we calculated a variety of goodness of fit test, including Sensitivity, Specificity, Positive Predictive Value, Negative Predictive Value, and most importantly the Concordance of the models. Specificity is the percentage of 0’s (actuals) correctly predicted while Sensitivity (or True Positive Rate) is the percentage of 1’s (actuals) correctly predicted by the model. Specificity can also be calculated as (1 - False Positive Rate). Ideally, the model-calculated-probability-scores of all actual Positive’s, (Ones) should be greater than the model-calculated-probability-scores of ALL the Negatives (Zeroes). Such a model is said to be perfectly concordant and a highly reliable one, in which this phenomenon can be measured by Concordance and Discordance. In simpler words, of all combinations of 1-0 pairs (actuals), Concordance is the percentage of pairs whose scores of actual positives are greater than the scores of actual negatives. For a perfect model, this will be 100%. Although yielding a 100% concordance is nearly impossible for any model, the higher the concordance the better. 
+
+In addition, we also plot the ROC Curve (Receiver Operating Characteristics Curve) to show the ability of the model to classify the difference between class 0 and class 1. Receiver Operating Characteristics Curve traces the percentage of true positives accurately predicted by a given logit model as the prediction probability cutoff is lowered from 1 to 0. For a good model, as the cutoff is lowered, it should mark more of actual 1’s as positives and lesser of actual 0’s as 1’s. Therefore, for a good model, the curve should rise fast, indicating that the TPR (Y-Axis) increases faster than the FPR (X-Axis) as the cutoff score decreases. The greater the area under the ROC curve, better the predictive ability of the model. In simpler terms, the closer the ROC value is to 1, or 100%, the better the model. 
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'ROC Curves VIX Model'}
+plotROC(testData$well_being, predicted) 
+```
+
+
+\begin{table}[!htbp] \centering
+\caption{Confusion Matrix - VIX Daily Returns} 
+  \label{}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Confusion Matrix                    & \multicolumn{3}{c|}{\textbf{Actuals}}                  & \multirow{2}{*}{N = 33,234} \\ \cline{1-4}
+\multirow{3}{*}{\textbf{Predicted}} & Classification & 0                 & 1                 &                            \\ \cline{2-5} 
+                                    & 0              & 4895             & 1826              & NPV = 73\%                 \\ \cline{2-5} 
+                                    & 1              & 2227              & 5340             & PPV = 71\%                 \\ \hline
+\multicolumn{2}{|c|}{N = 33,234}                      & Specificity: 69\% & Sensitivity: 75\% & \textbf{Concordance: 78\%}        \\ \hline
+\end{tabular}
+\end{table}
+
+The plot above represents the ROC curve and the Confusion Matrix for VIX model using daily returns. As explained above, our model is fitted with a Concordance of 78%, indicating a quality model. In addition, with Specificity and Sensitivity ranging from 69% to 75% from the Confusion Matrix, we are confident that the performance of the model on the test data is exceptional. Generally, there are trade-offs between sensitivity and specificity, in which re-sampling the data to improve sensitivity can significantly reduce the specificity level. Therefore, having the standard estimates of the Specificity and Sensitivity as we do shows that our model is not only robust, but also accurate (as shown in the ROC curves).
+
+For our count model on alcohol consumption, we impose the vuong test on the nagative binomial and the Poisson model and conclude that the negative binomial model is a significant improvement over the Poisson model.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Model Fits - Alcohol Consumption'}
+rootogram(model.glm.drinking)
+rootogram(model.glm.nb.drinking)
+```
+
+
+## 4.5 Robustness Check
+
+As discussed, we expect S&P 500 returns to exhibt the opposite effect on well-being compared to the VIX, which is what our results in Panel B demonstrate. 
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lllll} 
+\caption*{ PANEL B: Regression Results for SPY Model\\ 
+\small \textit{Dependent variable: General Well-being} \\ 
+} \\ 
+\toprule \centering
+ & Under and Over Sampling & Oversampling & Undersampling \\ 
+\\[-1.8ex] & (1) & (2) & (3)\\ 
+\hline 
+\midrule 
+ SPY.rets & 4.323$^{***}$ & 5.110$^{***}$ & $-$1.661 \\ 
+  & (0.204) & (0.149) & (5.180) \\ 
+    
+ calculated\_age25to34 & $-$0.383$^{***}$ & $-$0.325$^{***}$ & $-$0.666$^{***}$ \\ 
+  & (0.006) & (0.004) & (0.156) \\ 
+    
+ calculated\_age35to44 & $-$0.589$^{***}$ & $-$0.527$^{***}$ & $-$0.747$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.166) \\ 
+    
+ calculated\_age45to54 & $-$0.438$^{***}$ & $-$0.372$^{***}$ & $-$0.812$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.164) \\ 
+    
+ calculated\_age55to64 & $-$0.410$^{***}$ & $-$0.343$^{***}$ & $-$0.560$^{***}$ \\ 
+  & (0.006) & (0.005) & (0.167) \\ 
+    
+ calculated\_age65older & 0.170$^{***}$ & 0.178$^{***}$ & $-$0.129 \\ 
+  & (0.007) & (0.005) & (0.194) \\ 
+    
+ gendermale & $-$0.066$^{***}$ & $-$0.032$^{***}$ & $-$0.149$^{**}$ \\ 
+  & (0.003) & (0.002) & (0.073) \\ 
+    
+ calculated\_income15to25K & $-$1.127$^{***}$ & $-$1.039$^{***}$ & $-$1.031$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.115) \\ 
+    
+ calculated\_income25to35K & $-$0.951$^{***}$ & $-$0.892$^{***}$ & $-$0.751$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.124) \\ 
+    
+ calculated\_income35to50K & $-$0.301$^{***}$ & $-$0.373$^{***}$ & $-$0.221$^{*}$ \\ 
+  & (0.005) & (0.003) & (0.118) \\ 
+    
+ calculated\_incomele15K & $-$1.242$^{***}$ & $-$1.220$^{***}$ & $-$1.200$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.137) \\ 
+    
+ calculated\_incomeothers & $-$0.626$^{***}$ & $-$0.577$^{***}$ & $-$0.403$^{***}$ \\ 
+  & (0.005) & (0.003) & (0.120) \\ 
+    
+ calculated\_educationattendCOL & $-$0.159$^{***}$ & $-$0.205$^{***}$ & $-$0.156$^{*}$ \\ 
+  & (0.003) & (0.003) & (0.090) \\ 
+    
+ calculated\_educationHSgrad & $-$0.109$^{***}$ & $-$0.127$^{***}$ & $-$0.112 \\ 
+  & (0.004) & (0.003) & (0.095) \\ 
+    
+ calculated\_educationK & $-$0.003 & $-$0.167$^{***}$ & $-$0.173 \\ 
+  & (0.006) & (0.004) & (0.150) \\ 
+    
+ marital\_statusdivorced & $-$0.896$^{***}$ & $-$0.867$^{***}$ & $-$0.802$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.102) \\ 
+    
+ marital\_statusmembermarriedcoup & $-$0.391$^{***}$ & $-$0.481$^{***}$ & $-$0.880$^{***}$ \\ 
+  & (0.008) & (0.006) & (0.222) \\ 
+    
+ marital\_statusnevermarried & $-$0.853$^{***}$ & $-$0.846$^{***}$ & $-$0.861$^{***}$ \\ 
+  & (0.004) & (0.003) & (0.112) \\ 
+    
+ marital\_statusseparated & $-$1.737$^{***}$ & $-$1.660$^{***}$ & $-$1.179$^{***}$ \\ 
+  & (0.008) & (0.006) & (0.196) \\ 
+    
+ marital\_statuswidowed & $-$0.399$^{***}$ & $-$0.359$^{***}$ & $-$0.317$^{**}$ \\ 
+  & (0.006) & (0.004) & (0.139) \\ 
+    
+ number\_of\_children1children & 0.027$^{***}$ & 0.008$^{**}$ & 0.036 \\ 
+  & (0.004) & (0.003) & (0.112) \\ 
+    
+ number\_of\_children2children & 0.091$^{***}$ & 0.081$^{***}$ & 0.157 \\ 
+  & (0.005) & (0.004) & (0.127) \\ 
+    
+ number\_of\_children3children & 0.188$^{***}$ & 0.231$^{***}$ & 0.586$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.175) \\ 
+    
+ number\_of\_children4morechildren & 0.189$^{***}$ & 0.222$^{***}$ & 0.311 \\ 
+  & (0.009) & (0.006) & (0.234) \\ 
+    
+ employment\_statushomemaker & $-$0.499$^{***}$ & $-$0.530$^{***}$ & $-$0.525$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.179) \\ 
+    
+ employment\_statusnoworkless1 & $-$1.127$^{***}$ & $-$1.261$^{***}$ & $-$1.302$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.192) \\ 
+    
+ employment\_statusnoworkmore1 & $-$1.486$^{***}$ & $-$1.497$^{***}$ & $-$1.959$^{***}$ \\ 
+  & (0.007) & (0.005) & (0.230) \\ 
+    
+ employment\_statusretired & $-$0.225$^{***}$ & $-$0.242$^{***}$ & $-$0.116 \\ 
+  & (0.005) & (0.004) & (0.134) \\ 
+    
+ employment\_statusselfemployed & $-$0.146$^{***}$ & $-$0.147$^{***}$ & $-$0.186 \\ 
+  & (0.005) & (0.004) & (0.137) \\ 
+    
+ employment\_statusstudent & 0.186$^{***}$ & 0.132$^{***}$ & $-$0.185 \\ 
+  & (0.007) & (0.006) & (0.201) \\ 
+    
+ employment\_statusunable & $-$1.667$^{***}$ & $-$1.754$^{***}$ & $-$1.471$^{***}$ \\ 
+  & (0.005) & (0.004) & (0.118) \\ 
+    
+ calculated\_raceasian & 0.021$^{*}$ & $-$0.074$^{***}$ & $-$0.025 \\ 
+  & (0.011) & (0.008) & (0.269) \\ 
+    
+ calculated\_raceblack & 0.008$^{*}$ & $-$0.052$^{***}$ & $-$0.130 \\ 
+  & (0.005) & (0.003) & (0.118) \\ 
+    
+ calculated\_racenative & $-$0.339$^{***}$ & $-$0.212$^{***}$ & $-$0.212 \\ 
+  & (0.011) & (0.008) & (0.279) \\ 
+    
+ calculated\_raceother & 0.527$^{***}$ & 0.409$^{***}$ & 0.333 \\ 
+  & (0.011) & (0.008) & (0.276) \\ 
+    
+ calculated\_racepacific & 0.487$^{***}$ & 0.752$^{***}$ & 0.073 \\ 
+  & (0.037) & (0.030) & (1.351) \\ 
+    
+ Constant & $-$2.778$^{***}$ & $-$0.271$^{***}$ & $-$1.624 \\ 
+  & (0.120) & (0.085) & (3.508) \\
+    
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes & Yes  \\ 
+State FE & Yes & Yes & Yes \\ 
+State-specific Time Trends & Yes & Yes & Yes \\ 
+Sample Weights & Yes & Yes & Yes  \\ 
+\hline \\[-1.8ex] 
+Observations & 47,522 & 90,222 & 4,822 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{4}{l}{Note: Panel consists of the 2013-2017 survey sample waves of BRFSS. BRFSS sample weights}\\
+\multicolumn{4}{l}{applied. All models estimated with a Logistic Regression. See Appendix for detailed variable}\\
+\multicolumn{4}{l}{definition, data source, and construction.}\\
+\multicolumn{4}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+
+
+```{r, include=FALSE, echo=FALSE}
+#model 
+test.lm1.spy.both = glm(well_being ~  SPY.rets + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race +state_name +state_name*(as.numeric(yearmonth)) + imonth + iyear, weights=xstrwt, family=binomial(link=logit),    data = trainingData)
+sum_test.lm1.spy.both=summary(test.lm1.spy.both)
+sum_test.lm1.spy.both
+
+
+# predicted <- plogis(predict(test.lm4.vix, testData))
+predicted.spy <- predict(test.lm1.spy.both, testData, type="response")
+optCutOff.spy <- optimalCutoff(testData$well_being, predicted.spy)[1]
+misClassError(testData$well_being, predicted.spy, threshold = optCutOff.spy)
+plotROC(testData$well_being, predicted.spy)  #0.77, which is pretty good
+sensitivity(testData$well_being, predicted.spy, threshold = optCutOff.spy) #sensitivity is low because false negative is too high
+specificity(testData$well_being, predicted.spy, threshold = optCutOff.spy) #specificity is high because false positive is too low
+confusionMatrix(testData$well_being, predicted.spy, threshold = optCutOff.spy)
+
+```
+
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'ROC Curves SPY Model'}
+plotROC(testData$well_being, predicted.spy)  #0.77, which is pretty good
+```
+
+
+\begin{table}[!htbp] \centering
+\caption{Confusion Matrix - SPY Daily Returns} 
+  \label{}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Confusion Matrix                    & \multicolumn{3}{c|}{\textbf{Actuals}}                  & \multirow{2}{*}{N = 33,234} \\ \cline{1-4}
+\multirow{3}{*}{\textbf{Predicted}} & Classification & 0                 & 1                 &                            \\ \cline{2-5} 
+                                    & 0              & 4993             & 1931              & NPV = 72\%                 \\ \cline{2-5} 
+                                    & 1              & 2129              & 5235             & PPV = 71\%                 \\ \hline
+\multicolumn{2}{|c|}{N = 33,234}                      & Specificity: 70\% & Sensitivity: 73\% & \textbf{Concordance: 78\%}        \\ \hline
+\end{tabular}
+\end{table}
+
+# 5. Conclusion
+
+This study explores the impact of stock market returns on self-reported well-being. Our results show clear patterns, similar to previous research, in which self-reported well-being is worsened during periods of market turmoil and uncertainty. Using market volatility, or the VIX, we find evidence that self-reported well-being is more likely to be reported in the category of “Satisfied” and “Very Satisfied” compared to the category of “Dissatisfied” and “Very Dissatisfied”  when the implied volatility index declines, or when the market performance indicates a relative decline in uncertainty. This study is novel in that we employ expected volatility as our primary variable of interest, as opposed to other mainstream stock market indicators, such as the S&P 500 or the Dow Jones Industrial Average, and thus we assess the relationship between forward-looking volatility expectations and individual well-being metrics. Furthermore, since the future economic conditions are pertinent for both non-stockholders or stockholders, it is expected that human responses are widespread and not simply restricted to individuals actively participating in the market. In sum, with various tests and robustness checks, our results strongly support our hypothesis on the VIX and confirm previous evidence on mainstream market indicators, such as the Dow Jones. 
+
+Previous research has shown that the effect mechanism between financial markets and well-being is derived from several possible factors. Earlier research (Brenner & Mooney, 1983; Catalano & Dooley, 1983) suggests that the level of stress due to market conditions may lead to self-medication. Risky health behaviors can also be the result of market downturns. Behaviors such as smoking, overeating, and binge drinking are more likely to occur when market performance is poorer (Colman & Dave, 2011; Cotti & Tefft, 2011; 23 Ruhm & Black, 2002; Ruhm, 2005). In addition, Cotti, Dunn, Tefft 2013 found a diminished income effect when assessing the impact of the Dow Jones on health, suggesting that market and economic stress plays a role in one’s inclination to participate in risky health behaviors. Therefore, our findings help explain why behavioral biases are more severe when expected market volatility is high (Kumar, 2009). 
+
+
+
+
+
+\newpage
+### Appendix
+
+In this analysis, we refer general health variable to $general\_health\_uncoded$. For demographic variables, given the nature of the BRFSS survey, all of them are categorical variables. $gender$ is recoded from "sex" in BRFSS from 2013-2017. The question asked "What is your sex? or What was your sex at birth? Was it…" We recoded this variable with 1 being "Male", 0 being "Female" and got rid of "Don’t know/Not Sure", and "Refused". Variable $number\_of\_children$ is recoded from a calculated variable asking, "Number of children in household." This is a categorical variable with options "No children in household", "One child in household", "Two child in household", "Three child in household", "Four child in household" and "Five or more children in household". Variable $marital\_status$ is recoded from section "Demographics", under label "Marital Status." This variable is a categorical variable with "Married", "Divorced", "Widowed", "Separated", "Never married", and "A member of an unmarried couple". We got rid of options "Refused", and missing data for this variable. Variable $employment\_status$ is also under "Demographics" section. The question asked "Question: Are you currently…?" and the answers ranging from "Employed for wages", "Self-employed", "Out of work for 1 year or more", "Out of work for less than 1 year", "A homemaker", "A student", "Retired", "Unable to work." Options "Refused" and “BLANK” (missing data) are eliminated from the analysis. Variable $calculated\_race$ is a calculated race variable with 6 categories "White", "Black or African American", "American Indian or Alaskan Native", "Asian", "Native Hawaiian or other Pacific Islander" and "Other race." I got rid of "No preferred race", "Don’t know/Not sure", "Refused" and missing data. Variable $calculated\_education$ represents education status with 4 main categories "Did not graduate High School", "Graduated High School", "Attended College or Technical School" and "Graduated from College or Technical School." We also got rid of "Don’t know/Not sure/Missing" value. Variable $calculated\_income$ represents income brackets from "Less than $\$15,000$", "$\$15,000$ to less than $\$25,000$", "$\$25,000$ to less than $\$35,000$", "$\$35,000$ to less than $\$50,000$", and "$\$50,000$ or more." Category "Don’t know/Not sure/Missing" is eliminated. Variable $calculated\_age$ represent calculated age variable with categories "Age 18 to 24", "Age 25 to 34", "Age 35 to 44", "Age 45 to 54", "Age 55 to 64", "Age 65 or older."  Missing data is also eliminated. 
+
+
+### Reference
+
+Apouey, Benedicte, and Andrew E. Clark. “Winning Big but Feeling No Better? The Effect of Lottery Prizes on Physical and Mental Health.” Health Economics 24, no. 5 (2015): 516–38. https://doi.org/10.1002/hec.3035.
+
+Baker, Michael, Mark Stabile, and Catherine Deri. “What Do Self-Reported, Objective, Measures of Health Measure?” Journal of Human Resources XXXIX, no. 4 (October 2, 2004): 1067–93. https://doi.org/10.3368/jhr.XXXIX.4.1067.
+
+Benjamin, Emelia J., Martin G. Larson, Michelle J. Keyes, Gary F. Mitchell, Ramachandran S. Vasan, John F. Keaney, Birgitta T. Lehman, Shuxia Fan, Ewa Osypiuk, and Joseph A. Vita. “Clinical Correlates and Heritability of Flow-Mediated Dilation in the Community: The Framingham Heart Study.” Circulation 109, no. 5 (February 10, 2004): 613–19. https://doi.org/10.1161/01.CIR.0000112565.60887.1E.
+
+Böckerman, Petri, and Pekka Ilmakunnas. “Unemployment and Self-Assessed Health: Evidence from Panel Data.” Health Economics 18, no. 2 (2009): 161–79. https://doi.org/10.1002/hec.1361.
+
+Brenner, M. Harvey, and Anne Mooney. “Unemployment and Health in the Context of Economic Change.” Social Science & Medicine 17, no. 16 (1983): 1125–38. https://doi.org/10.1016/0277-9536(83)90005-9.
+
+Carleton, R. Nicholas. “The Intolerance of Uncertainty Construct in the Context of Anxiety Disorders: Theoretical and Practical Perspectives.” Expert Review of Neurotherapeutics 12, no. 8 (August 1, 2012): 937–47. https://doi.org/10.1586/ern.12.82.
+
+Catalano, Ralph A., and David Dooley. “Health Effects of Economic Instability: A Test of Economic Stress Hypothesis.” Journal of Health and Social Behavior 24, no. 1 (1983): 46–60. https://doi.org/10.2307/2136302.
+
+Cotti, Chad, Richard A. Dunn, and Nathan Tefft. “The Dow Is Killing Me: Risky Health Behaviors and the Stock Market.” Health Economics 24, no. 7 (2015): 803–21. https://doi.org/10.1002/hec.3062.
+
+Cotti, Chad, and Nathan Tefft. “Decomposing the Relationship between Macroeconomic Conditions and Fatal Car Crashes during the Great Recession: Alcohol- and Non-Alcohol-Related Accidents in: The B.E. Journal of Economic Analysis & Policy Volume 11 Issue 1 (2011).” Accessed March 30, 2020. https://www.degruyter.com/view/journals/bejeap/11/1/article-bejeap.2011.11.1.2860.xml.xml.
+
+Cottini, Elena, and Claudio Lucifora. “Mental Health and Working Conditions in Europe.” ILR Review 66, no. 4 (July 1, 2013): 958–88. https://doi.org/10.1177/001979391306600409.
+
+Dávalos, María E., Hai Fang, and Michael T. French. “Easing the Pain of an Economic Downturn: Macroeconomic Conditions and Excessive Alcohol Consumption.” Health Economics 21, no. 11 (November 2012): 1318–35. https://doi.org/10.1002/hec.1788.
+
+Dave, Dhaval M, Jennifer Tennant, and Gregory J Colman. “Isolating the Effect of Major Depression on Obesity: Role of Selection Bias.” Working Paper. Working Paper Series. National Bureau of Economic Research, May 2011. https://doi.org/10.3386/w17068.
+
+Deaton, Angus S. “The Financial Crisis and the Well-Being of Americans.” Working Paper. Working Paper Series. National Bureau of Economic Research, June 2011. https://doi.org/10.3386/w17128.
+
+Engelberg, Joseph, and Christopher A. Parsons. “Worrying about the Stock Market: Evidence from Hospital Admissions.” The Journal of Finance 71, no. 3 (2016): 1227–50. https://doi.org/10.1111/jofi.12386.
+
+Fiuzat, Mona, Linda K. Shaw, Laine Thomas, G. Michael Felker, and Christopher M. O’Connor. “United States Stock Market Performance and Acute Myocardial Infarction Rates in 2008-2009 (from the Duke Databank for Cardiovascular Disease).” The American Journal of Cardiology 106, no. 11 (December 1, 2010): 1545–49. https://doi.org/10.1016/j.amjcard.2010.07.027.
+
+Goidel, Kirby, Stephen Procopio, Dek Terrell, and H. Denis Wu. “Sources of Economic News and Economic Expectations.” American Politics Research 38, no. 4 (July 1, 2010): 759–77. https://doi.org/10.1177/1532673X09355671.
+
+Gravelle, Hugh, and Matt Sutton. “Income, Relative Income, and Self-Reported Health in Britain 1979–2000.” Health Economics 18, no. 2 (2009): 125–45. https://doi.org/10.1002/hec.1354.
+
+Horn, Brady P., Johanna Catherine Maclean, and Michael R. Strain. “Do Minimum Wage Increases Influence Worker Health?” Economic Inquiry 55, no. 4 (2017): 1986–2007. https://doi.org/10.1111/ecin.12453.
+
+Jylhä, Marja. “What Is Self-Rated Health and Why Does It Predict Mortality? Towards a Unified Conceptual Model.” Social Science & Medicine (1982) 69, no. 3 (August 2009): 307–16. https://doi.org/10.1016/j.socscimed.2009.05.013.
+
+Kahneman, Daniel, and Amos Tversky. “Prospect Theory: An Analysis of Decision under Risk.” Econometrica 47, no. 2 (1979): 263–91. https://doi.org/10.2307/1914185.
+
+Kumar, Alok. “Who Gambles in the Stock Market? - KUMAR - 2009 - The Journal of Finance - Wiley Online Library,” 2009. https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-6261.2009.01483.x.
+
+Lenhart, Amanda, Aaron Smith, Monica Anderson, Maeve Duggan, and Andrew Perrin. “Teens, Technology and Friendships,” 2015. https://www.semanticscholar.org/paper/Teens%2C-technology-and-friendships-Lenhart-Smith/f34b35eef23822a5466c7f75270ad37b59072c2b.
+
+Lindeboom, Maarten, and Eddy van Doorslaer. “Cut-Point Shift and Index Shift in Self-Reported Health.” Journal of Health Economics 23, no. 6 (November 1, 2004): 1083–99. https://doi.org/10.1016/j.jhealeco.2004.01.002.
+
+MacLean, Paul S., Rena R. Wing, Terry Davidson, Leonard Epstein, Bret Goodpaster, Kevin D. Hall, Barry E. Levin, et al. “NIH Working Group Report: Innovative Research to Improve Maintenance of Weight Loss.” Obesity (Silver Spring, Md.) 23, no. 1 (January 2015): 7–15. https://doi.org/10.1002/oby.20967.
+
+MacLean, Richard. “Organizational Design: Benchmarking.” Environmental Quality Management 22, no. 3 (2013): 95–108. https://doi.org/10.1002/tqem.21339.
+
+McInerney, Melissa, Jennifer M. Mellor, and Lauren Hersch Nicholas. “Recession Depression: Mental Health Effects of the 2008 Stock Market Crash.” CESifo Working Paper Series. CESifo Working Paper Series. CESifo Group Munich, 2013. https://ideas.repec.org/p/ces/ceswps/_4263.html.
+
+Miilunpalo, S., I. Vuori, P. Oja, M. Pasanen, and H. Urponen. “Self-Rated Health Status as a Health Measure: The Predictive Value of Self-Reported Health Status on the Use of Physician Services and on Mortality in the Working-Age Population.” Journal of Clinical Epidemiology 50, no. 5 (May 1997): 517–28. https://doi.org/10.1016/s0895-4356(97)00045-0.
+
+Ruhm, Christopher, and William E. Black. “Does Drinking Really Decrease in Bad Times?” Journal of Health Economics 21, no. 4 (2002): 659–78.
+
+Ruhm, Christopher J. “Healthy Living in Hard Times.” Journal of Health Economics 24, no. 2 (March 2005): 341–63. https://doi.org/10.1016/j.jhealeco.2004.09.007.
+
+Vilares, Iris, James D. Howard, Hugo L. Fernandes, Jay A. Gottfried, and Konrad P. Kording. “Differential Representations of Prior and Likelihood Uncertainty in the Human Brain.” Current Biology: CB 22, no. 18 (September 25, 2012): 1641–48. https://doi.org/10.1016/j.cub.2012.07.010.
+
+Vilares, Iris, and Konrad Kording. “Bayesian Models: The Structure of the World, Uncertainty, Behavior, and the Brain.” Annals of the New York Academy of Sciences 1224, no. 1 (April 2011): 22–39. https://doi.org/10.1111/j.1749-6632.2011.05965.x.
+
+

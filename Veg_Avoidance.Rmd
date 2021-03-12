@@ -1,0 +1,1447 @@
+---
+title: "The Price of Moral Values Motivated Beliefs, Selective Search, and Food Consumption"
+author: "Minh Pham, Joshua Tasoff, Emiliano Huet-Vaughn, Eva Vivalt"
+date: \today
+output: pdf_document
+geometry: "left=1.0cm,right=1.0cm,top=1cm,bottom=2cm"
+longtable: true
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float, placeins}
+- \floatplacement{figure}{H}
+fontsize: 11.85pt
+linestretch: 1.2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=60),tidy=TRUE, warning = F,message = F)
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(readr)
+library(MASS)
+library(readxl)
+library(ggplot2)
+library(stargazer)
+library(ggpubr)
+library(reshape2)
+library(RColorBrewer)
+library(likert)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(gridExtra)
+library(patchwork)
+library(hrbrthemes)
+library(lmtest)
+library(sandwich)
+```
+
+\abstract{}
+
+
+# 1 Introduction
+
+The purpose of this study is to understand how people obtain or avoid information that induces or mitigates cognitive dissonance. We also then wish to examine how information imposes psychic costs on behavior. The experiment is meant to inform us on the “meat paradox”: that people strongly care about the treatment of animals yet still financially support a food industry that causes widespread animal suffering. We hypothesize that information avoidance is an important component of this paradox and the research may ultimately help policy makers to design policy that better improves farmed animal welfare.
+
+# 2 Literature Review
+
+### 2.1 Information Avoidance and Moral Values
+
+\begin{itemize}
+
+\item Rabin (1994) relies on a psychological phenomenon of cognitive dissonance to explain how individuals would convince themselves that immoral activities could be moral activities. Relatively, individuals would avoid information if it increases the cost of belief distortion.
+
+\item Rabin (1995) developed a model to separate moral dispositions and preferences. This paper suggests that if moral dispositions are internal constraints, individual will be keen to avoid and interpret information in a way to serve the purpose of fulfilling these constraints. This model brings distinction to the traditional model on moral dispositions that economists have built previously. In regard to our paper, participants will avoid information in order to do activity and when information is costly, possible for participants to pay more for information.
+  
+\item Similarly, important papers that show information avoidance are present: Benabou \& Tirole (2011) on Identity, Morals, and Taboos-Beliefs as Assets and Yariv (2005) - I’ll See It When I Believe It - A Simple Model of Cognitive Consistency
+
+\end{itemize}
+
+### 2.2 Vegetarian
+
+\begin{itemize}
+
+\item  Bastian \& Loughnan (2016) suggests that although people consider intelligence a key factor in determining animals’ moral status, they disregard this information when it is self-relevant and show that intelligence plays a major role in the moral concern afforded to animals. In addition, by manipulating the intelligence of three animals—pigs, tapirs, and a fictional animal, they find that only for pigs does this information not influence moral standing. Moreover, they also show that people believe that learning about pig intelligence will lead to high levels of moral concern, yet when they themselves learn about pig intelligence, moral concern remains low.
+
+\item  Amiot \& Bastian (2015) built a meta-analysis to review the current state of research on human-animal relations. This paper recognizes the place that animals occupy in human societies, and illustrates how the relationship between human and animal can have important consequences for humans and animals alike.
+
+\item  Le Yaouanq, Yves (2019) investigate the relationship between individuals’ consumption of meat and their perception of the well-being of animals raised for consumption. 
+
+\item Albrecht et al. (2017) studies the relationship between animal welfare and human ethics. They have subjects choose between intensive farming and organic living conditions for a laying hen. The organic living condition is costly, but guarantees better food, daylight, and more space to the hen while the intensive farming condition only provide limited living space for animals and keeps away the soil and daylight. Therefore subjects have to trade off a selfish benefit (money) against the welfare of a hen. They found that 37\% of subjects are willing to pay up to the highest amount allowed, 25 euros or more, to put a living hen into better conditions (organic farming) than intensive farming facilities, and the average willingness-to-pay equals 14 euros. This suggests that the existed concern for animal welfare among consumers does not match their decision in the grocery store. 
+
+\item  Loughnan, Bastian, Haslam (2014)  examine characteristics of the eaters (people), the eaten (animals), and the eating (the behavior). People who value masculinity, enjoy meat and do not see it as a moral issue, and find dominance and inequality acceptable are most likely to consume animals. Perceiving animals as highly dissimilar to humans and as lacking mental attributes, such as the capacity for pain, also supports meat-eating.
+
+\end{itemize}
+
+# 3 Experiment Design
+
+### 3.1 Sample and Setting
+
+Participants will be recruited from the CNS Experimental Subjects list, which mainly include undergraduate and graduate students in the Claremont Colleges. This study targets to recruit approximately 500 participants divided into 4 groups. Each participant will be excluded if she has any food allergies. The risks are minimal. One of the possible videos shows graphic content of animals being harmed in factory farms. Some may find this video disturbing. However, the videos are publicly available to all ages on YouTube. Subjects may eat food items at the end of the experiment and some may find the food items unappetizing. Additionally, subjects may find the experiment boring. The risks do not rise above the risks that a typical individual faces in a typical day.
+
+### 3.2  Experimental Procedure
+
+The data will be collected at the experimental economics lab on the campus of Pomona College. Participants are randomly divided into four groups using Qualtrics. Each group will answer the same set of questions each group, will be given different videos to watch. The study will go as follow:
+
+\begin{itemize}
+
+\item Stage 1: Attitude Elicitation 1 
+
+Participants will start the study with \$7. They will then be asked to answer a set of questions on their views regarding how animals are treated in farms.
+
+\item Stage 2: Value Elicitation for Food Items 1 
+
+Participants will automatically get another \$5 when they start the first food choice segment of the experiment. We will elicit participants valuations for eating various food items. To ensure that participants take the task seriously, we will use the Becker-DeGroot-Marschack (BDM) procedure which gives participants real monetary stakes to truthfully state their valuations. (The BDM procedure is a workhorse method in experimental economics.)
+
+\item Stage 3: Value Elicitation for Video 1 
+
+We will elicit participants valuations of two different videos using the BDM method. The first video shows how animals are treated badly in factory farms (FF video), and the second video shows how animals are treated humanely in large-scale farms (CM video). Those who do not receive a video get a screensaver for the duration of the video display.
+
+\item Stage 4: Video Watching 1 
+
+There are four experimental conditions that participants are randomized into at this point. Participants do not know which condition they are in.
+
+\begin{itemize}
+
+\item Control Condition: they will get the screen saver.
+
+\item Factory Farm (FF) Condition: they will watch the FF video.
+
+\item Counter-Message (CM) Condition: they will watch the FF video.
+
+\item Incentive Compatible (IC) Condition: participants will be getting videos based on their choices and chance according to the BDM method.
+
+\end{itemize}
+
+\item Stage 5: Value Elicitation for Video 2 
+
+Watching a video may influence participants valuation for additional information. We repeat Stage 3 again for a subsequent viewing of the videos the individuals have not yet seen.
+
+\item Stage 6: Video Watching 2 
+
+\begin{itemize}
+
+\item Control Condition: they will get the screen saver again.
+
+\item Factory Farm (FF) Condition: they will get the screen saver.
+
+\item Counter-Message (CM) Condition: they will watch the CM video.
+
+\item Incentive Compatible (IC) Condition: will be getting videos based on their choices and chance according to the BDM method.
+
+\end{itemize}
+
+\item Stage 7: Value Elicitation for Food Items 2 
+
+To reassess how information affected people’s evaluations of the food items we conduct the same procedure as in Stage 2.
+
+\item Stage 8: Attitude Elicitation 2
+
+\end{itemize}
+
+To measure the effect of information on people’s attitudes we reconduct the survey from Stage 1. Participants will be automatically rewarded another $5 when they get to this stage. They will also get an additional \$5 when they get to the Video stage. They will end the experiment by answering demographic questions. After that, depending on how they answer all the previous questions, they will be rewarded with their money and their food.
+
+
+### 3.3 Experimental Design
+
+
+\FloatBarrier
+\begin{table}[H] \centering 
+\begin{tabular}{lccc} \hline     
+\multicolumn{4}{l}{Consent}                                                                                                                                                 \\ \hline        
+\multicolumn{4}{l}{Instructions}                                                                                                                                                    \\ \hline     
+\multicolumn{4}{l}{Survey \#1:}                                                                                                                                                     \\
+\multicolumn{4}{l}{- Current Diet}                                                                                                                                                  \\
+\multicolumn{4}{l}{- Values Elicitation}                                                                                                                                            \\ \hline     
+\multicolumn{4}{l}{BDM Food Preference \#1:}                                                                                                                                        \\
+\multicolumn{4}{l}{- Instructions}                                                                                                                                                  \\
+\multicolumn{4}{l}{- Elicitation}                                                                                                                                                   \\ \hline     
+\multicolumn{4}{l}{Videos:}                                                                                                                                                         \\
+\multicolumn{4}{l}{- Explanations of all the videos}                                                                                                                                \\
+\multicolumn{4}{l}{- WTP}                                                                                                                                                           \\ \hline     
+\multicolumn{4}{l}{Group Assignment = Randomization}                                                                                                                                \\ \hline \hline     
+\multicolumn{1}{|c|}{Control (30\%)} & \multicolumn{1}{c|}{FF (30\%)}    & \multicolumn{1}{c|}{FF+CM (30\%)} & \multicolumn{1}{c|}{IC (10\%)}                                       \\ \hline
+\multicolumn{1}{|c|}{Blank Screen}   & \multicolumn{1}{c|}{FF Video}     & \multicolumn{1}{c|}{FF Video}     & \multicolumn{1}{c|}{Implement BDM} \\ \hline \hline     
+\multicolumn{4}{l}{WTP for videos again}                                                                                                                                            \\ \hline
+\multicolumn{1}{|c|}{Blank Screen}   & \multicolumn{1}{c|}{Blank Screen} & \multicolumn{1}{c|}{CM Video}     & \multicolumn{1}{c|}{Implement BDM} \\ \hline \hline     
+\multicolumn{4}{l}{BMD Food Preference \#2}                                                                                                                                         \\ \hline     
+\multicolumn{4}{l}{Survey \#2:}                                                                                                                                                     \\ \hline     
+\multicolumn{4}{l}{Background}                                                                                                                                                      \\ \hline     
+\multicolumn{4}{l}{Values Elicitation}                                                                                                                                              \\ \hline     
+Food Assignment                      & \multicolumn{1}{l}{}              & \multicolumn{1}{l}{}              & \multicolumn{1}{l}{}    \\ \hline                                                 
+\end{tabular}
+\end{table}
+
+# 4 Empirical Strategy and Hypotheses
+
+### 4.1 Recorded and Constructed Variables
+
+Initially, all the main variables for elicitation are recorded as follow:
+
+\begin{itemize}
+
+\item  First Values Elicitation, which includes 10 questions on a 7-point likert scale about how concerned they are about farmed animals and how concerned they are about farmers, will be recorded from $V0\_1$ to $V0\_10$. Similarly, the second Values Elicitation will be recorded from $V1\_1$ to $V1\_10$.
+
+\item First Food Elicitation and Second Food Elicitation, which each includes 4 main food items chicken nugget, vegetarian chicken nugget, spam cube and vegetarian spam cube, with 2 options for each item 1 piece and 3 pieces, will be recorded as $WTPt\_item1$,  $WTPt\_item3$, and $WTRt\_item1$,  $WTRt\_item3$, where $t=0$ is the first food elicitation, $t=2$ is the second food elicitation, and $item$ is the food items (either 1 or 3 pieces) . The domain for WTP (when a participant is willing to pay to eat the food item) is from 0 to 6 dollars and the domain for $WTR$ (when a participant only eats the food item if he/she is being paid) is also from 0 to 6 dollars. 
+
+\item First Video Elicitation and Second Video Elicitation, which each includes 2 videos regarding Factory Farm ($FF$) video, and Counter-Message of Factory Farm ($CM$) video, will be recorded as $WTPt\_FF$ and $WTRt\_CM$. The domain for WTP (when a participant is willing to pay to watch the video) and WTR (when a participant only watches the video if he/she is being paid) is from 0 to 6 dollars.
+
+\end{itemize}
+
+Then, we constructed these variables into 4 main variables of interest: 
+
+\begin{itemize}
+
+\item Moral Value Index ($MVI$) using the Value Elicitation with 10 questions on a 7-point likert scale will be added by the score assigned from 0 to 7, then these scores will be standardized for this analysis. This paper may use different approaches as well. For instance, a second method that may be used would be to standardize each question, then average and standardize them again. In simple terms, we would set the mean or median response as 0 and create units for the standardized scale for each question as deciles or quintiles from this median/mean. A third option would be to perform a factor analysis on the 10 questions and take the principal factor.
+
+\item All $WTRt\_item$ will be contructed as $WTPt\_item$ but in negative numbers. The domain, thus, for $WTPt\_item$ will be from -6 to 6.
+
+\item Food per-unit valuations will be constructed using the average food item value at time t, followed by: $WTPt\_item\_avg = \frac{3WTPt\_item1 + WTPt\_item3}{6}$.
+
+\item All $WTRt\_video$ will be contructed as $WTPt\_video$ but in negative numbers. The domain, thus, for $WTPt\_item$ will be from -6 to 6. Information Aversion will be then constructed under $WTPt\_video$ with the domain from -6 to 6. 
+
+\item Vegetarian variable, $Vegeterian$, will be constructed when the participants report their fraction of eating vegetarian is 100%, or $veg\_fraction=1$/ 
+
+\end{itemize}
+
+
+### 4.2 Hypotheses and Empirical Strategies
+
+This paper proposes 4 main hypotheses.
+
+\begin{itemize}
+
+\item Hypothesis 1 on Information Aversion:
+
+- Some fraction of subjects will have information aversion for the FF video.\\
+
+- Comparing meat eaters to vegetarian eaters using logistic regression: 
+
+$$WTPt\_video_i=\alpha+\beta Vegeterian_i + \chi FFCondition_i + \delta CMCondition_i + \epsilon_i$$
+
+
+\item Hypotheses 2a \& 3a regarding the efficacy of FF and CM videos on meat: FF video decreases value for meat and the reverse effect on CM video, excluding vegetarians.
+
+- Comparing the differences across different groups, control vs. FF vs. CM, between the First Food Elicitation and the Second Food Elicitation for tasty food (nuggets), unappetizing food (spams), and both.
+
+$$WTP1\_item\_avg-WTP0\_item\_avg<0$$\\
+
+- Perform difference in difference analysis, controlling for decrease in appetite for tasty food items
+
+$$(WTP1\_nugget\_avg-WTP0\_nugget\_avg)-(WTP1\_vegnugget\_avg-WTP0\_vegnugget\_avg)<0$$
+and both food items:
+
+\begin{multline*} \tiny
+\frac{(WTP1\_nugget\_avg+WTP1\_spam\_avg)-(WTP0\_nugget\_avg+WTP0\_spam\_avg)}{2}\\
+- \frac{(WTP1\_vegnugget\_avg+WTP1\_vegspam\_avg)-(WTP0\_vegnugget\_avg+WTP0\_vegspam\_avg)}{2}<0
+\end{multline*}
+
+- Difference Regression, where $i$ is individual, $m$ is item:
+
+\begin{multline*} \tiny
+ (WTP1\_item\_avg_{im}-WTP0\_item\_avg_{im})=\alpha+\beta FFcondition_i+\delta CMcondition_i+\phi Meat_m\\
++ \gamma FFcondition_iMeat_m+\eta CMcondition_iMeat_m+\epsilon_i
+\end{multline*}
+
+
+\item Hypothesis 2b \& 3b regarding the efficacy of FF and CM videos on moral values. FF video decreases moral value for meat. CM reverses some of this effect. (Exclude vegetarians)
+
+- Comparing the differences across different groups, control vs. FF vs. CM, between the First and Second Value Elicitation questions, or $MVI1 - MVI0$
+
+- Perform Regression for each MVI question:
+
+$$MVI1_i=\alpha + \beta MVI0_i + \chi FFCondition_i + \delta CMCondition_i + \epsilon_i$$
+
+
+\item Hypothesis 4 regarding Selective Search: the valuation of the counter-message video for omnivores, excluding vegetarians, increases after viewing the factory farm video. 
+
+- The difference between participants' willingness to pay for CM video, $WTP1\_CM - WTP0\_CM$, is larger in the FF and CM groups compared to the control.\\
+
+- Difference Regression: 
+
+$$WTP1\_CM_i - WTP0\_CM_i=\alpha+\beta FFcondition_i+ \delta CMCondition_i+\epsilon_i$$
+\end{itemize}
+
+
+# 5 Results
+
+### 5.1 General Analysis
+
+```{r,include=FALSE, echo=FALSE}
+
+avoiddata <- read.csv("~/Desktop/infoavoiddata.csv")
+
+avoiddata$condition <-  ifelse( avoiddata$condition_number ==1 , 1, ifelse(avoiddata$condition_number==2, 1, ifelse(avoiddata$condition_number==3,1, ifelse(avoiddata$condition_number==4,2, ifelse(avoiddata$condition_number==5,2, ifelse(avoiddata$condition_number==6,2, ifelse(avoiddata$condition_number==7,3, ifelse(avoiddata$condition_number==8,3, ifelse(avoiddata$condition_number==9,3, ifelse(avoiddata$condition_number==10,4, NA))))))))))
+
+avoiddata_withoutic <- avoiddata %>% filter(condition <4)
+avoiddata_withoutvegetarian <- avoiddata_withoutic %>% filter(veg_fraction < 100)
+
+avoiddata_withoutic$condition=as.factor(recode(avoiddata_withoutic$condition,'1'='Control Group', '2' ="FF Group", '3' = "FFCM Group",.missing='NA',.default = 'NA'))
+avoiddata_withoutic$vegetarian <- ifelse(avoiddata_withoutic$veg_fraction < 100, "Not Vegetarian", "Vegetarian")
+
+
+avoiddata_withoutic_condition1 <- avoiddata_withoutic %>% filter(condition=='Control Group')
+avoiddata_withoutic_condition2 <- avoiddata_withoutic %>% filter(condition=="FF Group")
+avoiddata_withoutic_condition3 <- avoiddata_withoutic %>% filter(condition=="FFCM Group")
+
+#Food Recode
+avoiddata_withoutic$WTR0_nugget1 <- avoiddata_withoutic$WTR0_nugget1*(-1)
+avoiddata_withoutic$WTR0_nugget3 <- avoiddata_withoutic$WTR0_nugget3*(-1)
+avoiddata_withoutic$WTR0_vegnugget1 <- avoiddata_withoutic$WTR0_vegnugget1*(-1)
+avoiddata_withoutic$WTR0_vegnugget3 <- avoiddata_withoutic$WTR0_vegnugget3*(-1)
+avoiddata_withoutic$WTR0_spam1 <- avoiddata_withoutic$WTR0_spam1*(-1)
+avoiddata_withoutic$WTR0_spam3 <- avoiddata_withoutic$WTR0_spam3*(-1)
+avoiddata_withoutic$WTR0_vegspam1 <- avoiddata_withoutic$WTR0_vegspam1*(-1)
+avoiddata_withoutic$WTR0_vegspam3 <- avoiddata_withoutic$WTR0_vegspam3*(-1)
+
+avoiddata_withoutic$WTR1_nugget1 <- avoiddata_withoutic$WTR1_nugget1*(-1)
+avoiddata_withoutic$WTR1_nugget3 <- avoiddata_withoutic$WTR1_nugget3*(-1)
+avoiddata_withoutic$WTR1_vegnugget1 <- avoiddata_withoutic$WTR1_vegnugget1*(-1)
+avoiddata_withoutic$WTR1_vegnugget3 <- avoiddata_withoutic$WTR1_vegnugget3*(-1)
+avoiddata_withoutic$WTR1_spam1 <- avoiddata_withoutic$WTR1_spam1*(-1)
+avoiddata_withoutic$WTR1_spam3 <- avoiddata_withoutic$WTR1_spam3*(-1)
+avoiddata_withoutic$WTR1_vegspam1 <- avoiddata_withoutic$WTR1_vegspam1*(-1)
+avoiddata_withoutic$WTR1_vegspam3 <- avoiddata_withoutic$WTR1_vegspam3*(-1)
+
+avoiddata_withoutic$WTP0_nugget1 = ifelse(!(is.na(avoiddata_withoutic$WTP0_nugget1)), avoiddata_withoutic$WTP0_nugget1,avoiddata_withoutic$WTR0_nugget1)
+avoiddata_withoutic$WTP0_nugget3 = ifelse(!(is.na(avoiddata_withoutic$WTP0_nugget3)), avoiddata_withoutic$WTP0_nugget3,avoiddata_withoutic$WTR0_nugget3)
+avoiddata_withoutic$WTP0_vegnugget1 = ifelse(!(is.na(avoiddata_withoutic$WTP0_vegnugget1)), avoiddata_withoutic$WTP0_vegnugget1,avoiddata_withoutic$WTR0_vegnugget1)
+avoiddata_withoutic$WTP0_vegnugget3 = ifelse(!(is.na(avoiddata_withoutic$WTP0_vegnugget3)), avoiddata_withoutic$WTP0_vegnugget3,avoiddata_withoutic$WTR0_vegnugget3)
+avoiddata_withoutic$WTP0_spam1 = ifelse(!(is.na(avoiddata_withoutic$WTP0_spam1)), avoiddata_withoutic$WTP0_spam1,avoiddata_withoutic$WTR0_spam1)
+avoiddata_withoutic$WTP0_spam3 = ifelse(!(is.na(avoiddata_withoutic$WTP0_spam3)), avoiddata_withoutic$WTP0_spam3,avoiddata_withoutic$WTR0_spam3)
+avoiddata_withoutic$WTP0_vegspam1 = ifelse(!(is.na(avoiddata_withoutic$WTP0_vegspam1)), avoiddata_withoutic$WTP0_vegspam1,avoiddata_withoutic$WTR0_vegspam1)
+avoiddata_withoutic$WTP0_vegspam3 = ifelse(!(is.na(avoiddata_withoutic$WTP0_vegspam3)), avoiddata_withoutic$WTP0_vegspam3,avoiddata_withoutic$WTR0_vegspam3)
+
+avoiddata_withoutic$WTP1_nugget1 = ifelse(!(is.na(avoiddata_withoutic$WTP1_nugget1)), avoiddata_withoutic$WTP1_nugget1,avoiddata_withoutic$WTR1_nugget1)
+avoiddata_withoutic$WTP1_nugget3 = ifelse(!(is.na(avoiddata_withoutic$WTP1_nugget3)), avoiddata_withoutic$WTP1_nugget3,avoiddata_withoutic$WTR1_nugget3)
+avoiddata_withoutic$WTP1_vegnugget1 = ifelse(!(is.na(avoiddata_withoutic$WTP1_vegnugget1)), avoiddata_withoutic$WTP1_vegnugget1,avoiddata_withoutic$WTR1_vegnugget1)
+avoiddata_withoutic$WTP1_vegnugget3 = ifelse(!(is.na(avoiddata_withoutic$WTP1_vegnugget3)), avoiddata_withoutic$WTP1_vegnugget3,avoiddata_withoutic$WTR1_vegnugget3)
+avoiddata_withoutic$WTP1_spam1 = ifelse(!(is.na(avoiddata_withoutic$WTP1_spam1)), avoiddata_withoutic$WTP1_spam1,avoiddata_withoutic$WTR1_spam1)
+avoiddata_withoutic$WTP1_spam3 = ifelse(!(is.na(avoiddata_withoutic$WTP1_spam3)), avoiddata_withoutic$WTP1_spam3,avoiddata_withoutic$WTR1_spam3)
+avoiddata_withoutic$WTP1_vegspam1 = ifelse(!(is.na(avoiddata_withoutic$WTP1_vegspam1)), avoiddata_withoutic$WTP1_vegspam1,avoiddata_withoutic$WTR1_vegspam1)
+avoiddata_withoutic$WTP1_vegspam3 = ifelse(!(is.na(avoiddata_withoutic$WTP1_vegspam3)), avoiddata_withoutic$WTP1_vegspam3,avoiddata_withoutic$WTR1_vegspam3)
+
+#Video Recode
+avoiddata_withoutic$WTR0_CM <- avoiddata_withoutic$WTR0_CM*(-1)
+avoiddata_withoutic$WTR0_FF <- avoiddata_withoutic$WTR0_FF*(-1)
+avoiddata_withoutic$WTR1_CM <- avoiddata_withoutic$WTR1_CM*(-1)
+avoiddata_withoutic$WTR1_FF <- avoiddata_withoutic$WTR1_FF*(-1)
+avoiddata_withoutic$WTP0_CM = ifelse(!(is.na(avoiddata_withoutic$WTP0_CM)), avoiddata_withoutic$WTP0_CM,avoiddata_withoutic$WTR0_CM)
+avoiddata_withoutic$WTP0_FF = ifelse(!(is.na(avoiddata_withoutic$WTP0_FF)), avoiddata_withoutic$WTP0_FF,avoiddata_withoutic$WTR0_FF)
+avoiddata_withoutic$WTP1_CM = ifelse(!(is.na(avoiddata_withoutic$WTP1_CM)), avoiddata_withoutic$WTP1_CM,avoiddata_withoutic$WTR1_CM)
+avoiddata_withoutic$WTP1_FF = ifelse(!(is.na(avoiddata_withoutic$WTP1_FF)), avoiddata_withoutic$WTP1_FF,avoiddata_withoutic$WTR1_FF)
+
+checkdata <- avoiddata_withoutic %>% select(starts_with("WTP"))
+```
+
+Our initial data for analysis consists of 80 observations, of which, 27 (33.75%) are in the Control Group, 31 (38.75%) are in FFandCM Group, and 22 (27.5%) are in the FF Group. Among the 80 participants, on 5 of them (6.25%) are Vegetarian, the rest (93.75%) are not vegetarian. Vegetarian is defined as the fraction of vegetarian diets is at 100%. ^[The experiment is temporarily interrupted due to COVID-19 outbreak. There are additional 5 participants in the IC Group that are excluded for the analysis]
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+#Bar-plot
+ggplot(avoiddata_withoutic, aes(x = factor(condition), fill = factor(condition))) + geom_bar(position="dodge") + labs(title = "Proportion of Participants Across 3 Conditions", x = "Participants", y = "Count") + scale_fill_brewer(palette="Accent",name = "Conditions") + geom_text(stat='count', aes(label=..count..), vjust=-0.25)
+
+ggplot(avoiddata_withoutic, aes(x = factor(vegetarian), fill = factor(vegetarian))) + geom_bar(position="dodge") + labs(title = "Proportion of Vegeterian Participants", x = "Participants", y = "Count") + scale_fill_brewer(palette="Accent",name = "Conditions") + geom_text(stat='count', aes(label=..count..), vjust=-0.25)
+```
+
+##### Count Responses for Each Food Items in the Survey
+
+Graphs down below capture the responses for each food item from the first food elicitation and second food elicitation. Among all groups, count responses for control group stays pretty consistent for pretty much every food item. For tasty meat items including one and three chicken nuggets, there is a huge decline in demand for the nuggets for FF Group and FFCM Group. This indicates that by watching intensive animal farm video, many respondents flip from wanting to eat meat and to not wanting to eat meat. For untasteful meat item including one and three spam cubes, there exhibit similar responses although the demand for these items generally are much less compared to chicken nuggets. 
+
+For tasty vegetarian option including one and three vegan nuggets, there exists the opposite effect compared to meat. The demand for vegetarian nuggets increases significantly for FF and FFCM Group. Meanwhile, the demand for untasteful vegetarian option including one and three wheat gluten (vegetarian spams) although does increases but much less compared to the tasty option. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+#Bar-plot
+subsetnugget1_0 <- avoiddata_withoutic %>% filter(nugget1=="Yes")
+subsetnugget1_1 <- avoiddata_withoutic %>% filter(nugget1_1=="Yes")
+
+graph.nugget1_0 <- ggplot(subsetnugget1_0, aes(x = factor(nugget1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "1 Nugget Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.nugget1_1 <- ggplot(subsetnugget1_1, aes(x = factor(nugget1_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "1 Nugget Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.nugget1_0 + graph.nugget1_1
+
+subsetnugget3_0 <- avoiddata_withoutic %>% filter(nugget3=="Yes")
+subsetnugget3_1 <- avoiddata_withoutic %>% filter(nugget3_1=="Yes")
+
+graph.nugget3_0 <- ggplot(subsetnugget3_0, aes(x = factor(nugget3), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "3 Nugget Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.nugget3_1 <- ggplot(subsetnugget3_1, aes(x = factor(nugget3_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "3 Nugget Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.nugget3_0 + graph.nugget3_1
+```
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+#Bar-plot
+subsetvegnugget1_0 <- avoiddata_withoutic %>% filter(vegnugget1=="Yes")
+subsetvegnugget1_1 <- avoiddata_withoutic %>% filter(vegnugget1_1=="Yes")
+
+graph.vegnugget1_0 <- ggplot(subsetvegnugget1_0, aes(x = factor(vegnugget1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "1 Veg Nugget Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.vegnugget1_1 <- ggplot(subsetvegnugget1_1, aes(x = factor(vegnugget1_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "1 Veg Nugget Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.vegnugget1_0 + graph.vegnugget1_1
+
+subsetvegnugget3_0 <- avoiddata_withoutic %>% filter(vegnugget3=="Yes")
+subsetvegnugget3_1 <- avoiddata_withoutic %>% filter(vegnugget3_1=="Yes")
+
+graph.vegnugget3_0 <- ggplot(subsetvegnugget3_0, aes(x = factor(vegnugget3), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "3 Veg Nugget Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.vegnugget3_1 <- ggplot(subsetvegnugget3_1, aes(x = factor(vegnugget3_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "3 Veg Nugget Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.vegnugget3_0 + graph.vegnugget3_1
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+#Bar-plot
+subsetspam1_0 <- avoiddata_withoutic %>% filter(spam1=="Yes")
+subsetspam1_1 <- avoiddata_withoutic %>% filter(spam1_1=="Yes")
+
+graph.spam1_0 <- ggplot(subsetspam1_0, aes(x = factor(spam1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "1 Spam Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.spam1_1 <- ggplot(subsetspam1_1, aes(x = factor(spam1_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "1 Spam Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.spam1_0 + graph.spam1_1
+
+subsetspam3_0 <- avoiddata_withoutic %>% filter(spam3=="Yes")
+subsetspam3_1 <- avoiddata_withoutic %>% filter(spam3_1=="Yes")
+
+graph.spam3_0 <- ggplot(subsetspam3_0, aes(x = factor(spam3), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "3 Spam Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.spam3_1 <- ggplot(subsetspam3_1, aes(x = factor(spam3_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "3 Spam Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) 
+
+graph.spam3_0 + graph.spam3_1
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE}
+#Bar-plot
+subsetvegspam1_0 <- avoiddata_withoutic %>% filter(vegspam1=="Yes")
+subsetvegspam1_1 <- avoiddata_withoutic %>% filter(vegspam1_1=="Yes")
+
+graph.vegspam1_0 <- ggplot(subsetvegspam1_0, aes(x = factor(vegspam1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "1 Veg Spam Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.vegspam1_1 <- ggplot(subsetvegspam1_1, aes(x = factor(vegspam1_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "1 Veg Spam Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.vegspam1_0 + graph.vegspam1_1
+
+subsetvegspam3_0 <- avoiddata_withoutic %>% filter(vegspam3=="Yes")
+subsetvegspam3_1 <- avoiddata_withoutic %>% filter(vegspam3_1=="Yes")
+
+graph.vegspam3_0 <- ggplot(subsetvegspam3_0, aes(x = factor(vegspam3), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "3 Veg Spam Responses Before", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.vegspam3_1 <- ggplot(subsetvegspam3_1, aes(x = factor(vegspam3_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "3 Veg Spam Responses After", y = "Proportion") + scale_fill_brewer(palette="Paired",name = "Conditions") + ylim(0, 30)
+
+graph.vegspam3_0 + graph.vegspam3_1
+```
+
+In responses to the FF video, for participants who are in Control Group, which they receive 2 blank videos, it is pretty consistent in the amount of people saying "No" to watch the Factory Farm video the first time and also say "No" to watch the Factory Farm video the second time. For participants who are in the FF Group and the FF+CM Group, which they both receive Factory Farm video as their first video, participants who say "Yes" before watching the FF video and then receive the FF video all say "No" to wanting to watch the video again although they don't know if they would actually get the FF video the second time. This indicates that there is a huge significant drop (to 0) for people who watched the video of animal being tortured want to watch it again. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+subsetFF_0 <- avoiddata_withoutic %>% filter(FF_0=="Yes")
+subsetFF_1 <- avoiddata_withoutic %>% filter(FF_1=="Yes")
+
+graph.FF_0 <- ggplot(subsetFF_0, aes(x = factor(FF_0), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "FF Video Responses Before", y = "Proportion") + scale_fill_brewer(palette="Oranges",name = "Conditions") + ylim(0, 30) 
+
+graph.FF_1 <- ggplot(subsetFF_1, aes(x = factor(FF_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "FF Video Responses After", y = "Proportion") + scale_fill_brewer(palette="Oranges",name = "Conditions") + ylim(0, 30)
+
+graph.FF_0 + graph.FF_1 + theme(legend.position = "bottom")
+```
+
+On the other hand, in responses to the CM video, for the Control Group, which the respondents receive two blank videos, there is a slight decrease in the amount of people who say "No" to watch the CM video after the blank video was shown. For the FF Group and the FF+CM Group, which they both receive the FF video for the first video, there is a small increase in the amount of people wanting to watch the CM video after being shown the FF video. This indicates that there is an increase in the amount of people who watched the video of animal being tortured want to watch another video of animal being treated right. 
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+subsetCM_0 <- avoiddata_withoutic %>% filter(CM_0=="Yes")
+subsetCM_1 <- avoiddata_withoutic %>% filter(CM_1=="Yes")
+
+graph.CM_0 <- ggplot(subsetCM_0, aes(x = factor(CM_0), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "First Elicitation", x = "CM Video Responses Before", y = "Proportion") + scale_fill_brewer(palette="PuOr",name = "Conditions") + ylim(0, 30) + theme(legend.position = "none")
+
+graph.CM_1 <- ggplot(subsetCM_1, aes(x = factor(CM_1), fill = factor(condition))) + geom_bar(position="dodge", aes(y = ((..count..)/nrow(avoiddata_withoutic))*100)) + labs(title = "Second Elicitation", x = "CM Video Responses After", y = "Proportion") + scale_fill_brewer(palette="PuOr",name = "Conditions") + ylim(0, 30) 
+
+graph.CM_0 + graph.CM_1 
+```
+
+### 5.2 TESTING HYPOTHESIS:
+
+Data are not sufficient to perform statistical analysis, therefore, this analysis will exhibit simple comparison results.
+
+A. Hypothesis 1: Information Aversion.
+
+```{r,include=FALSE, echo=FALSE}
+class(avoiddata_withoutic$vegetarian)
+avoiddata_withoutic$WTP0_FF
+# lm.h1.ff0 <- lm(WTP0_FF ~ vegetarian, data=avoiddata_withoutic)
+# sum.lm.h1.ff0 <- summary(lm.h1.ff0)
+
+lm.h1.ff1 <- lm(WTP1_FF ~ vegetarian + condition, data=avoiddata_withoutic)
+sum.lm.h1.ff1 <- summary(lm.h1.ff1)
+
+# lm.h1.cm0 <- lm(WTP0_CM ~ vegetarian, data=avoiddata_withoutic)
+# sum.lm.h1.cm0 <- summary(lm.h1.cm0)
+
+lm.h1.cm1 <- lm(WTP1_CM ~ vegetarian + condition, data=avoiddata_withoutic)
+sum.lm.h1.cm1 <- summary(lm.h1.cm1)
+
+lm.h1=stargazer(lm.h1.ff1,lm.h1.cm1, type="latex", column.labels = c("FF 2nd Elic.", "CM 2nd Elic."), title="Regression Results w/o Demographics")
+
+```
+
+We hypothesize that vegetarians exert information avoidance and do not want to watch the factory farm video. This means that being vegetarian has a negative relationship on the willingness to pay for FF video. This impact is expected to be more than the impact for non-vegetarian.
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lll} 
+\caption*{Regression Results w/o Demographics\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & WTP1\_FF & WTP1\_CM \\ 
+ & FF 2nd Elic. & CM 2nd Elic. \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline
+\midrule 
+ vegetarianVegetarian & $-$0.446 & $-$0.014 \\ 
+  & (1.107) & (1.543) \\ 
+ conditionFF Group & $-$4.127$^{***}$ & 0.146 \\ 
+  & (0.685) & (0.955) \\ 
+ conditionFFCM Group & $-$3.602$^{***}$ & $-$1.351 \\ 
+  & (0.620) & (0.864) \\ 
+ Constant & $-$1.557$^{***}$ & 0.696 \\ 
+  & (0.455) & (0.634) \\ 
+\hline \\[-1.8ex] 
+Observations & 80 & 80 \\ 
+R$^{2}$ & 0.389 & 0.045 \\ 
+Adjusted R$^{2}$ & 0.365 & 0.007 \\ 
+Residual Std. Error (df = 76) & 2.354 & 3.281 \\ 
+F Statistic (df = 3; 76) & 16.152$^{***}$ & 1.186 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+B. Hypotheses 2a & 3a regarding the efficacy of FF and CM videos on meat. 
+ 
+##### Average WTP For each Food Item: First vs. Second Food Elicitation
+
+Graphs down below are direct comparison in distribution for each food item from first elicitation and second food elicitation. Across all groups and all items, Control Group stays very consistently the same between first and second food elicitation. For nuggets, average WTPs reduce significantly in the FF and FFCM Group. FFCM Group reduces a little bit less compared to the FF Group, which is expected. This indicates that FF Group wants to be paid more to much eat the nuggets the second time after watching factory farm video compared to other groups.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$WTP0_nuggetaverage <- (3*avoiddata_withoutic$WTP0_nugget1 + avoiddata_withoutic$WTP0_nugget3)/6
+avoiddata_withoutic$WTP1_nuggetaverage <- (3*avoiddata_withoutic$WTP1_nugget1 + avoiddata_withoutic$WTP1_nugget3)/6
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=WTP0_nuggetaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Nugget Before", subtitle = "Density", x="WTP", y="Density") + xlim(-6,6) +ylim(0,0.7)
+ggplot(avoiddata_withoutic, aes(x=WTP1_nuggetaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Nugget After", subtitle = "Density", x="WTP", y="Density")  + xlim(-6,6) +ylim(0,0.7)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_nuggetaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Nugget Before", subtitle = "Box Plot", x="Condition", y="WTP Nugget Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_nuggetaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Nugget After", subtitle = "Box Plot", x="Condition", y="WTP Nugget After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.nug_0 <- ggplot(avoiddata_withoutic, aes(WTP0_nuggetaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Nugget Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.nug_1 <- ggplot(avoiddata_withoutic, aes(WTP1_nuggetaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Nugget After", x="WTP", y="F(WTP)")
+cdf.nug_0 + cdf.nug_1
+
+```
+
+```{r,include=FALSE, echo=FALSE}
+#Define Meat
+avoiddata_withoutic$WTPdiff.nugget <- avoiddata_withoutic$WTP1_nuggetaverage - avoiddata_withoutic$WTP0_nuggetaverage
+# avoiddata_withoutic$meat.nugget0 <- ifelse(avoiddata_withoutic$WTP0_nuggetaverage >= 0 , 1, ifelse(avoiddata_withoutic$WTP0_nuggetaverage<0, 0, NA))
+# avoiddata_withoutic$meat.nugget1 <- ifelse(avoiddata_withoutic$WTP1_nuggetaverage >= 0 , 1, ifelse(avoiddata_withoutic$WTP1_nuggetaverage<0, 0, NA))
+# 
+# avoiddata_withoutic$binarydif.meatdemand_nugget <- avoiddata_withoutic$meat.nugget1 - avoiddata_withoutic$meat.nugget0
+# avoiddata_withoutic$meatdemand_nugget <- ifelse(avoiddata_withoutic$binarydif.meatdemand_nugget == 0 , 1, ifelse(avoiddata_withoutic$binarydif.meatdemand_nugget<0, 0, NA))
+
+lm.h2.nugget <- lm(WTPdiff.nugget ~ condition, data=avoiddata_withoutic)
+sum.lm.h2.nugget <- summary(lm.h2.nugget)
+``` 
+
+However, the average WTPs for wheat gluten do not seem to change much for both FF and FFCM Group. The modest increases, which are expected, are not too significant although the variation in WTP becomes much broader.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$WTP0_vegnuggetaverage <- (3*avoiddata_withoutic$WTP0_vegnugget1 + avoiddata_withoutic$WTP0_vegnugget3)/6
+avoiddata_withoutic$WTP1_vegnuggetaverage <- (3*avoiddata_withoutic$WTP1_vegnugget1 + avoiddata_withoutic$WTP1_vegnugget3)/6
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=WTP0_vegnuggetaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Veg Nugget Before", subtitle = "Density", x="WTP Veg Nugget Before", y="Density") + xlim(-6,6) +ylim(0,0.6)
+ggplot(avoiddata_withoutic, aes(x=WTP1_vegnuggetaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Veg Nugget After", subtitle = "Density", x="WTP Veg Nugget After", y="Density") + xlim(-6,6)+ylim(0,0.6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_vegnuggetaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Veg Nugget Before", subtitle = "Box Plot", x="Condition", y="WTP Veg Nugget Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_vegnuggetaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Veg Nugget After", subtitle = "Box Plot", x="Condition", y="WTP Veg Nugget After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.vegnug_0 <- ggplot(avoiddata_withoutic, aes(WTP0_vegnuggetaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Veg Nugget Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.vegnug_1 <- ggplot(avoiddata_withoutic, aes(WTP1_vegnuggetaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Veg Nugget After", x="WTP", y="F(WTP)")
+cdf.vegnug_0 + cdf.vegnug_1
+```
+
+```{r,include=FALSE, echo=FALSE}
+avoiddata_withoutic$WTPdiff.vegnugget <- avoiddata_withoutic$WTP1_vegnuggetaverage - avoiddata_withoutic$WTP0_vegnuggetaverage
+# avoiddata_withoutic$vegdemand_vegnugget <- ifelse(avoiddata_withoutic$WTPdiff.vegnugget >= 0 , 1, ifelse(avoiddata_withoutic$WTPdiff.vegnugget<0, 0, NA))
+
+lm.h2.vegnugget <- lm(WTPdiff.vegnugget ~ condition , data=avoiddata_withoutic)
+sum.lm.h2.vegnugget <- summary(lm.h2.vegnugget)
+
+results.lm.h2.nugget=stargazer(lm.h2.nugget,lm.h2.vegnugget, type="latex", column.labels = c("Avg Diff. WTP Nugget", "Avg Diff. WTP Veg Nugget"), title="Regression Results w/o Demographics - Nugget 1st vs 2nd Elicitation")
+```
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lll} 
+\caption*{Regression Results w/o Demographics - Nugget 1st vs 2nd Elicitation\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & Avg WTPdiff.nugget & Avg WTPdiff.vegnugget \\ 
+ & Diff. WTP Nugget & Diff. WTP Veg Nugget \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline
+\midrule 
+ conditionFF Group & $-$1.364$^{***}$ & 0.134 \\ 
+  & (0.341) & (0.352) \\ 
+  & & \\ 
+ conditionFFCM Group & $-$0.944$^{***}$ & $-$0.053 \\ 
+  & (0.313) & (0.322) \\ 
+  & & \\ 
+ Constant & $-$0.023 & 0.096 \\ 
+  & (0.229) & (0.236) \\ 
+  & & \\ 
+\hline \\[-1.8ex] 
+Observations & 80 & 80 \\ 
+R$^{2}$ & 0.185 & 0.004 \\ 
+Adjusted R$^{2}$ & 0.164 & $-$0.022 \\ 
+Residual Std. Error (df = 77) & 1.188 & 1.224 \\ 
+F Statistic (df = 2; 77) & 8.733$^{***}$ & 0.155 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+For untasteful meat item, spam, there are not much changes in the FFCM Group and the Control Group. However, there is a significant decline in average WTP for the FF Group. This indicates that respondents who watch the factory farm video want to be paid much more to eat spam in the second food elicitation compared to the first food elicitation. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$WTP0_spamaverage <- (3*avoiddata_withoutic$WTP0_spam1 + avoiddata_withoutic$WTP0_spam3)/6
+avoiddata_withoutic$WTP1_spamaverage <- (3*avoiddata_withoutic$WTP1_spam1 + avoiddata_withoutic$WTP1_spam3)/6
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=WTP0_spamaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Spam Before", subtitle = "Density", x="WTP Spam Before", y="Density") + xlim(-6,6) +ylim(0,0.5)
+ggplot(avoiddata_withoutic, aes(x=WTP1_spamaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Spam After", subtitle = "Density", x="WTP Spam After", y="Density") + xlim(-6,6)+ylim(0,0.5)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_spamaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Spam Before", subtitle = "Box Plot", x="Condition", y="WTP Spam Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_spamaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Spam After", subtitle = "Box Plot", x="Condition", y="WTP Spam After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.spam_0 <- ggplot(avoiddata_withoutic, aes(WTP0_spamaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Spam Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.spam_1 <- ggplot(avoiddata_withoutic, aes(WTP1_spamaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Spam After", x="WTP", y="F(WTP)")
+cdf.spam_0 + cdf.spam_1
+```
+
+For untasteful and vegetarian option, wheat gluten, the average WTPs do not change much across all groups.  
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$WTP0_vegspamaverage <- (3*avoiddata_withoutic$WTP0_vegspam1 + avoiddata_withoutic$WTP0_vegspam3)/6
+avoiddata_withoutic$WTP1_vegspamaverage <- (3*avoiddata_withoutic$WTP1_vegspam1 + avoiddata_withoutic$WTP1_vegspam3)/6
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=WTP0_vegspamaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Veg Spam Before", subtitle = "Density", x="WTP Veg Spam Before", y="Density") + xlim(-6,6) +ylim(0,0.3)
+ggplot(avoiddata_withoutic, aes(x=WTP1_vegspamaverage, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Veg Spam After", subtitle = "Density", x="WTP Veg Spam After", y="Density") + xlim(-6,6) +ylim(0,0.3)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_vegspamaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Veg Spam Before", subtitle = "Box Plot", x="Condition", y="WTP Veg Nugget Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_vegspamaverage, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Veg Spam After", subtitle = "Box Plot", x="Condition", y="WTP Veg Nugget After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.vegspam_0 <- ggplot(avoiddata_withoutic, aes(WTP0_vegspamaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Veg Spam Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.vegspam_1 <- ggplot(avoiddata_withoutic, aes(WTP1_vegspamaverage, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "CDF Plot \n WTP Veg Spam After", x="WTP", y="F(WTP)")
+cdf.vegspam_0 + cdf.vegspam_1
+```
+
+```{r,include=FALSE, echo=FALSE}
+avoiddata_withoutic$WTPdiff.spam <- avoiddata_withoutic$WTP1_spamaverage - avoiddata_withoutic$WTP0_spamaverage
+avoiddata_withoutic$demand_spam <- ifelse(avoiddata_withoutic$WTPdiff.spam >= 0 , 1, ifelse(avoiddata_withoutic$WTPdiff.spam<0, 0, NA))
+
+avoiddata_withoutic$WTPdiff.vegspam <- avoiddata_withoutic$WTP1_vegspamaverage - avoiddata_withoutic$WTP0_vegspamaverage
+avoiddata_withoutic$demand_vegspam <- ifelse(avoiddata_withoutic$WTPdiff.vegspam >= 0 , 1, ifelse(avoiddata_withoutic$WTPdiff.vegspam<0, 0, NA))
+
+lm.h2.spam <- lm(WTPdiff.spam ~ condition, data=avoiddata_withoutic)
+sum.lm.h2.spam <- summary(lm.h2.spam)
+
+lm.h2.vegspam <- lm(WTPdiff.vegspam ~ condition, data=avoiddata_withoutic)
+sum.lm.h2.vegspam <- summary(lm.h2.vegspam)
+
+results.lm.h2.spam=stargazer(lm.h2.spam,lm.h2.vegspam, type="latex", column.labels = c("Avg Diff. WTP Spam", "Avg Diff. WTP Veg Spam"), title="Regression Results w/o Demographics - Spam 1st vs 2nd Elicitation")
+```
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lll} 
+\caption*{Regression Results w/o Demographics - Spam 1st vs 2nd Elicitation\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & WTPdiff.spam & WTPdiff.vegspam \\ 
+ & Avg Diff. WTP Spam & Avg Diff. WTP Veg Spam \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline
+\midrule 
+ conditionFF Group & $-$0.705$^{**}$ & 0.083 \\ 
+  & (0.317) & (0.146) \\ 
+  & & \\ 
+ conditionFFCM Group & $-$0.471 & $-$0.080 \\ 
+  & (0.291) & (0.134) \\ 
+  & & \\ 
+ Constant & $-$0.073 & $-$0.001 \\ 
+  & (0.212) & (0.098) \\ 
+  & & \\ 
+\hline \\[-1.8ex] 
+Observations & 80 & 80 \\ 
+R$^{2}$ & 0.065 & 0.017 \\ 
+Adjusted R$^{2}$ & 0.040 & $-$0.008 \\ 
+Residual Std. Error (df = 77) & 1.104 & 0.508 \\ 
+F Statistic (df = 2; 77) & 2.662$^{*}$ & 0.667 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+##### Average WTP For Meat Item: First vs. Second Food Elicitation
+
+When combing all meat item including spams and nuggets, there is a huge decline in average WTPs for meat items for FF and FFCM Group. The effect is much prominent in the FF Group. This indicates that respondents who only watch the FF video want to be paid much more to eat meat after watching factory farm video, compared to FFCM and Control Group respectively. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$food_0_average <- (((3*avoiddata_withoutic$WTP0_nugget1 + avoiddata_withoutic$WTP0_nugget3)/6) + ((3*avoiddata_withoutic$WTP0_spam1 + avoiddata_withoutic$WTP0_spam3)/6))/2
+
+avoiddata_withoutic$food_1_average  <- (((3*avoiddata_withoutic$WTP1_nugget1 + avoiddata_withoutic$WTP1_nugget3)/6) + ((3*avoiddata_withoutic$WTP1_spam1 + avoiddata_withoutic$WTP1_spam3)/6))/2
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=food_0_average, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Meat Before", subtitle = "Density", x="WTP Meat Before", y="Density") + xlim(-6,6) +ylim(0,0.5)
+ggplot(avoiddata_withoutic, aes(x=food_1_average, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Meat After", subtitle = "Density", x="WTP Meat After", y="Density") + xlim(-6,6) +ylim(0,0.5)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=food_0_average, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Meat Before", subtitle = "Box Plot", x="Condition", y="WTP Meat Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=food_1_average, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Meat After", subtitle = "Box Plot", x="Condition", y="WTP Meat After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+cdf.meat_0 <- ggplot(avoiddata_withoutic, aes(food_0_average, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP Meat Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.meat_1 <- ggplot(avoiddata_withoutic, aes(food_1_average, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP Meat After", x="WTP", y="F(WTP)")
+cdf.meat_0 + cdf.meat_1
+```
+
+```{r,include=FALSE, echo=FALSE}
+avoiddata_withoutic$WTPdiff.meat <- avoiddata_withoutic$food_1_average - avoiddata_withoutic$food_0_average
+avoiddata_withoutic$demand_meat <- ifelse(avoiddata_withoutic$WTPdiff.meat >= 0 , 1, ifelse(avoiddata_withoutic$WTPdiff.meat<0, 0, NA))
+
+lm.h2.meat <- lm(WTPdiff.meat ~ condition, data=avoiddata_withoutic)
+sum.lm.h2.meat <- summary(lm.h2.meat)
+```
+
+
+##### Average WTP For Non-Meat Item: First vs. Second Food Elicitation
+
+For non-meat items including vegetarian nuggets and spams, the changes are not noticeable, visually. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$food_0_average_nonmeat <- (((3*avoiddata_withoutic$WTP0_vegnugget1 + avoiddata_withoutic$WTP0_vegnugget3)/6) + ((3*avoiddata_withoutic$WTP0_vegspam1 + avoiddata_withoutic$WTP0_vegspam3)/6))/2
+
+avoiddata_withoutic$food_1_average_nonmeat  <- (((3*avoiddata_withoutic$WTP1_vegnugget1 + avoiddata_withoutic$WTP1_vegnugget3)/6) + ((3*avoiddata_withoutic$WTP1_vegspam1 + avoiddata_withoutic$WTP1_vegspam3)/6))/2
+
+# Density plots
+ggplot(avoiddata_withoutic, aes(x=food_0_average_nonmeat, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Non-Meat Before", subtitle = "Density", x="WTP Non-Meat Before", y="Density") + xlim(-6,6) +ylim(0,0.4)
+ggplot(avoiddata_withoutic, aes(x=food_1_average_nonmeat, fill=condition)) + geom_density(alpha=.3) + labs(title = "Average WTP for Non-Meat After", subtitle = "Density", x="WTP Non-Meat After", y="Density") + xlim(-6,6) +ylim(0,0.4)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=food_0_average_nonmeat, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Non-Meat Before", subtitle = "Box Plot", x="Condition", y="WTP Non-Meat Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=food_1_average_nonmeat, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "Average WTP for Non-Meat After", subtitle = "Box Plot", x="Condition", y="WTP Non-Meat After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.nonmeat_0 <- ggplot(avoiddata_withoutic, aes(food_0_average_nonmeat, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP Non-Meat Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.nonmeat_1 <- ggplot(avoiddata_withoutic, aes(food_1_average_nonmeat, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP Non-Meat After", x="WTP", y="F(WTP)")
+cdf.nonmeat_0 + cdf.nonmeat_1
+```
+
+```{r,include=FALSE, echo=FALSE}
+avoiddata_withoutic$WTPdiff.nonmeat <- avoiddata_withoutic$food_1_average_nonmeat - avoiddata_withoutic$food_0_average_nonmeat
+avoiddata_withoutic$demand_nonmeat <- ifelse(avoiddata_withoutic$WTPdiff.nonmeat >= 0 , 1, ifelse(avoiddata_withoutic$WTPdiff.nonmeat<0, 0, NA))
+
+lm.h2.nonmeat <- lm(WTPdiff.nonmeat ~ condition, data=avoiddata_withoutic)
+sum.lm.h2.nonmeat <- summary(lm.h2.nonmeat)
+
+results.lm.h2.meatvsnonmeat=stargazer(lm.h2.meat,lm.h2.nonmeat, type="latex", column.labels = c("Avg Diff. WTP Meat", "Avg Diff. WTP Non-Meat"), title="Regression Results w/o Demographics - 1st vs 2nd Elicitation")
+
+results.lm.h2.all=stargazer(lm.h2.nugget,lm.h2.vegnugget, lm.h2.spam, lm.h2.vegspam, lm.h2.meat, lm.h2.nonmeat, type="latex", column.labels = c("Nugget", "Veg-Nugget", "Spam", "Veg-Spam", "Meat", "Non-Meat"), title="Regression Results w/o Demographics - Avg Diff. WTP")
+```
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lll} 
+\caption*{Regression Results w/o Demographics - Meat vs Non-Meat\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & WTPdiff.meat & WTPdiff.nonmeat \\ 
+ & Avg Diff. WTP Meat & Avg Diff. WTP Non-Meat \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline
+\midrule 
+ conditionFF Group & $-$1.035$^{***}$ & 0.109 \\ 
+  & (0.272) & (0.199) \\ 
+  & & \\ 
+ conditionFFCM Group & $-$0.708$^{***}$ & $-$0.067 \\ 
+  & (0.249) & (0.182) \\ 
+  & & \\ 
+ Constant & $-$0.048 & 0.048 \\ 
+  & (0.182) & (0.133) \\ 
+  & & \\ 
+\hline \\[-1.8ex] 
+Observations & 80 & 80 \\ 
+R$^{2}$ & 0.170 & 0.011 \\ 
+Adjusted R$^{2}$ & 0.148 & $-$0.015 \\ 
+Residual Std. Error (df = 77) & 0.946 & 0.692 \\ 
+F Statistic (df = 2; 77) & 7.875$^{***}$ & 0.413 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+
+
+
+C. Hypothesis 2b & 3b regarding the efficacy of FF and CM videos on moral values. 
+
+##### General Results from the Likert Scale Questions for All Groups
+
+All of questions in the likert scale are as follow: 
+
+\begin{itemize}
+
+\item Question 1: I believe that it is important to support American family farms
+
+\item Question 2: Supporting local and humanly raised meat is important for encouraging better farming practices
+
+\item Question 3: Cows are mostly treated well in farms in America
+
+\item Question 4: Pigs are mostly treated well in farms in America
+
+\item Question 5: Chickens are mostly treated well in farms in America
+
+\item Question 6: It is immoral to harm animals in the production of food when plant alternatives are available
+
+\item Question 7: I consider myself sympathetic to animal rights
+
+\item Question 8: Overall, I believe vegetarian diets are undesirable and worse than diets that include meat
+
+\item Question 9: The way meat (beef, chicken, pork, fish) is produced in America is morally wrong
+
+\item Question 10: Sustainable animal agriculture is necessary for good land stewardship
+
+\end{itemize}
+
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+V0.table <- avoiddata_withoutic %>% select(starts_with("V0_"))
+levels(V0.table$V0_1) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_2) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_3) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_4) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_5) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_6) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_7) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_8) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_9) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V0.table$V0_10) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+
+V1.table <- avoiddata_withoutic %>% select(starts_with("V1_"))
+levels(V1.table$V1_1) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_2) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_3) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_4) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_5) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_6) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_7) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_8) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_9) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(V1.table$V1_10) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+
+table_summary0 = likert(V0.table)
+table_summary1 = likert(V1.table)
+
+
+# reshape results
+results0 = melt(table_summary0$results, id.vars='Item')
+results1 = melt(table_summary1$results, id.vars='Item')
+
+# reorder results
+results0$Item = factor(results0$Item, levels=c("V0_10", "V0_9", "V0_8", "V0_7","V0_6","V0_5","V0_4","V0_3","V0_2","V0_1"))
+results1$Item = factor(results1$Item, levels=c("V1_10", "V1_9", "V1_8", "V1_7","V1_6","V1_5","V1_4","V1_3","V1_2","V1_1"))
+
+# some defaults
+ymin = 0
+text.size = 3
+
+ggplot(results0, aes(y=value, x=Item, group=Item)) + 
+  geom_bar(stat='identity', aes(fill=variable)) + 
+  ylim(c(-5,105)) + 
+  coord_flip() +
+  scale_fill_manual('Response', values=brewer.pal(7, "PuOr"), 
+              breaks=levels(results0$variable), 
+              labels=levels(results0$variable)) +
+  geom_text(data=table_summary0$results, y=ymin, aes(x=Item, 
+              label=paste(round(Agree), '%', sep='')), 
+              size=text.size, hjust=1) +
+  geom_text(data=table_summary0$results, y=100, aes(x=Item,
+              label=paste(round(Disagree), '%', sep='')), 
+              size=text.size, hjust=-.2) +
+  ylab('Percentage') + xlab('Questions') + 
+  labs(title = "First Value Elicitation Questions for All Groups", 
+       subtitle = "Responses in Percentage")
+
+ggplot(results1, aes(y=value, x=Item, group=Item)) + 
+  geom_bar(stat='identity', aes(fill=variable)) + 
+  ylim(c(-5,105)) + 
+  coord_flip() +
+  scale_fill_manual('Response', values=brewer.pal(7, "PuOr"), 
+              breaks=levels(results1$variable), 
+              labels=levels(results1$variable)) +
+  geom_text(data=table_summary1$results, y=ymin, aes(x=Item, 
+              label=paste(round(Agree), '%', sep='')), 
+              size=text.size, hjust=1) +
+  geom_text(data=table_summary1$results, y=100, aes(x=Item,
+              label=paste(round(Disagree), '%', sep='')), 
+              size=text.size, hjust=-.2) +
+  ylab('Percentage') + xlab('Questions') + 
+  labs(title = "Second Value Elicitation Questions for All Groups", 
+       subtitle = "Responses in Percentage") 
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+levels(avoiddata_withoutic$V0_1) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_2) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_3) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_4) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_5) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_6) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_7) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_8) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_9) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V0_10) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+
+avoiddata_withoutic$V0_1_new <- as.factor(recode(avoiddata_withoutic$V0_1, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_2_new <- as.factor(recode(avoiddata_withoutic$V0_2, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_3_new <- as.factor(recode(avoiddata_withoutic$V0_3, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_4_new <- as.factor(recode(avoiddata_withoutic$V0_4, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_5_new <- as.factor(recode(avoiddata_withoutic$V0_5, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_6_new <- as.factor(recode(avoiddata_withoutic$V0_6, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_7_new <- as.factor(recode(avoiddata_withoutic$V0_7, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_8_new <- as.factor(recode(avoiddata_withoutic$V0_8, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_9_new <- as.factor(recode(avoiddata_withoutic$V0_9, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V0_10_new <- as.factor(recode(avoiddata_withoutic$V0_10, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+
+levels(avoiddata_withoutic$V1_1) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_2) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_3) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_4) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_5) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_6) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_7) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_8) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_9) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+levels(avoiddata_withoutic$V1_10) <- c("Strongly Agree", "Agree", "Somewhat Agree", "Neither Agree nor Disagree","Somewhat Disagree", "Disagree","Strongly Disagree")
+
+avoiddata_withoutic$V1_1_new <- as.factor(recode(avoiddata_withoutic$V1_1, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_2_new <- as.factor(recode(avoiddata_withoutic$V1_2, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_3_new <- as.factor(recode(avoiddata_withoutic$V1_3, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_4_new <- as.factor(recode(avoiddata_withoutic$V1_4, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_5_new <- as.factor(recode(avoiddata_withoutic$V1_5, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_6_new <- as.factor(recode(avoiddata_withoutic$V1_6, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_7_new <- as.factor(recode(avoiddata_withoutic$V1_7, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_8_new <- as.factor(recode(avoiddata_withoutic$V1_8, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_9_new <- as.factor(recode(avoiddata_withoutic$V1_9, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+avoiddata_withoutic$V1_10_new <- as.factor(recode(avoiddata_withoutic$V1_10, "Strongly Disagree" = "-3", "Disagree" = "-2",  "Somewhat Disagree" = "-1", "Neither Agree nor Disagree" = "0","Somewhat Agree" =  "1","Agree" ="2" ,"Strongly Agree" = "3",.default = 'NA'))
+
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+avoiddata_withoutic$V0_1_new <- as.numeric(as.character(avoiddata_withoutic$V0_1_new))
+avoiddata_withoutic$V0_2_new <- as.numeric(as.character(avoiddata_withoutic$V0_2_new))
+avoiddata_withoutic$V0_3_new <- as.numeric(as.character(avoiddata_withoutic$V0_3_new))
+avoiddata_withoutic$V0_4_new <- as.numeric(as.character(avoiddata_withoutic$V0_4_new))
+avoiddata_withoutic$V0_5_new <- as.numeric(as.character(avoiddata_withoutic$V0_5_new))
+avoiddata_withoutic$V0_6_new <- as.numeric(as.character(avoiddata_withoutic$V0_6_new))
+avoiddata_withoutic$V0_7_new <- as.numeric(as.character(avoiddata_withoutic$V0_7_new))
+avoiddata_withoutic$V0_8_new <- as.numeric(as.character(avoiddata_withoutic$V0_8_new))
+avoiddata_withoutic$V0_9_new <- as.numeric(as.character(avoiddata_withoutic$V0_9_new))
+avoiddata_withoutic$V0_10_new <- as.numeric(as.character(avoiddata_withoutic$V0_10_new))
+
+avoiddata_withoutic$V1_1_new <- as.numeric(as.character(avoiddata_withoutic$V1_1_new))
+avoiddata_withoutic$V1_2_new <- as.numeric(as.character(avoiddata_withoutic$V1_2_new))
+avoiddata_withoutic$V1_3_new <- as.numeric(as.character(avoiddata_withoutic$V1_3_new))
+avoiddata_withoutic$V1_4_new <- as.numeric(as.character(avoiddata_withoutic$V1_4_new))
+avoiddata_withoutic$V1_5_new <- as.numeric(as.character(avoiddata_withoutic$V1_5_new))
+avoiddata_withoutic$V1_6_new <- as.numeric(as.character(avoiddata_withoutic$V1_6_new))
+avoiddata_withoutic$V1_7_new <- as.numeric(as.character(avoiddata_withoutic$V1_7_new))
+avoiddata_withoutic$V1_8_new <- as.numeric(as.character(avoiddata_withoutic$V1_8_new))
+avoiddata_withoutic$V1_9_new <- as.numeric(as.character(avoiddata_withoutic$V1_9_new))
+avoiddata_withoutic$V1_10_new <- as.numeric(as.character(avoiddata_withoutic$V1_10_new))
+```
+
+Looking at each two graphs together, there are more changes in response for some questions compared others. In addition, it is quite interesting to see the inconsistency in responses for the Control Group, which is not expected. Question 1 difference is the most for FFCM Group, then it comes FF and Control Group respectively. This indicates that the FFCM Group respondents has a big reduction in a belief that it is important to sport American family farms. The FFCM Group also exhibits an increase in the belief that pigs are mostly treated well in farms in America. Same trend applies to the belief that chickens are mostly treated well in farms in America. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+sum.V0_1_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_1_new = sum(V0_1_new))
+sum.V1_1_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_1_new = sum(V1_1_new))
+
+graph.sum.V0_1_new <- ggplot(sum.V0_1_new, aes(x= factor(condition), y= sumV0_1_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q1: I believe that it is important to sport \n American family farms", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(0,60)
+graph.sum.V1_1_new <- ggplot(sum.V1_1_new, aes(x= factor(condition), y= sumV1_1_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q1: I believe that it is important to sport \n American family farms", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(0,60)
+
+graph.sum.V0_1_new + graph.sum.V1_1_new 
+
+sum.V0_2_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_2_new = sum(V0_2_new))
+sum.V1_2_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_2_new = sum(V1_2_new))
+
+graph.sum.V0_2_new <- ggplot(sum.V0_2_new, aes(x= factor(condition), y= sumV0_2_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q2 2: Supporting local and humanly raised \n meat is important for encouraging better \n farming practices", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(0,60)
+graph.sum.V1_2_new <- ggplot(sum.V1_2_new, aes(x= factor(condition), y= sumV1_2_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q2: Supporting local and humanly raised \n meat is important for encouraging better \n farming practices", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(0,60)
+
+graph.sum.V0_2_new + graph.sum.V1_2_new 
+
+#diff
+sum.V_diff1 <- merge(sum.V0_1_new,sum.V1_1_new, by="condition")
+sum.V_diff1$diff1 <- sum.V_diff1$sumV1_1_new - sum.V_diff1$sumV0_1_new
+
+graph.sum.V_diff1 <- ggplot(sum.V_diff1, aes(x= factor(condition), y= diff1), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q1: I believe that it is important to sport \n American family farms", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-60,20)
+
+sum.V_diff2 <- merge(sum.V0_2_new,sum.V1_2_new, by="condition")
+sum.V_diff2$diff2 <- sum.V_diff2$sumV1_2_new - sum.V_diff2$sumV0_2_new
+
+graph.sum.V_diff2 <- ggplot(sum.V_diff2, aes(x= factor(condition), y= diff2), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q2: Supporting local and humanly raised \n meat is important for encouraging better \n farming practices", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-10,30)
+
+graph.sum.V_diff1 + graph.sum.V_diff2
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+sum.V0_3_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_3_new = sum(V0_3_new))
+sum.V1_3_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_3_new = sum(V1_3_new))
+
+graph.sum.V0_3_new <- ggplot(sum.V0_3_new, aes(x= factor(condition), y= sumV0_3_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q3: Cows are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-10,60)
+graph.sum.V1_3_new <- ggplot(sum.V1_3_new, aes(x= factor(condition), y= sumV1_3_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q3: Cows are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-10,60)
+
+graph.sum.V0_3_new + graph.sum.V1_3_new 
+
+sum.V0_4_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_4_new = sum(V0_4_new))
+sum.V1_4_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_4_new = sum(V1_4_new))
+
+graph.sum.V0_4_new <- ggplot(sum.V0_4_new, aes(x= factor(condition), y= sumV0_4_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q4: Pigs are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-10,60)
+graph.sum.V1_4_new <- ggplot(sum.V1_4_new, aes(x= factor(condition), y= sumV1_4_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q4: Pigs are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-10,60)
+
+graph.sum.V0_4_new + graph.sum.V1_4_new 
+
+#diff
+sum.V_diff3 <- merge(sum.V0_3_new,sum.V1_3_new, by="condition")
+sum.V_diff3$diff3 <- sum.V_diff3$sumV1_3_new - sum.V_diff3$sumV0_3_new
+
+graph.sum.V_diff3 <- ggplot(sum.V_diff3, aes(x= factor(condition), y= diff3), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q3: Cows are mostly treated well in \n farms in America", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+sum.V_diff4 <- merge(sum.V0_4_new,sum.V1_4_new, by="condition")
+sum.V_diff4$diff4 <- sum.V_diff4$sumV1_4_new - sum.V_diff4$sumV0_4_new
+
+graph.sum.V_diff4 <- ggplot(sum.V_diff4, aes(x= factor(condition), y= diff4), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q4: Pigs are mostly treated well in \n farms in America", x = "Condition", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+graph.sum.V_diff3 + graph.sum.V_diff4
+```
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+sum.V0_5_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_5_new = sum(V0_5_new))
+sum.V1_5_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_5_new = sum(V1_5_new))
+
+graph.sum.V0_5_new <- ggplot(sum.V0_5_new, aes(x= factor(condition), y= sumV0_5_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q5: Chickens are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_5_new <- ggplot(sum.V1_5_new, aes(x= factor(condition), y= sumV1_5_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q5: Chickens are mostly treated well in \n farms in America", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_5_new + graph.sum.V1_5_new 
+
+sum.V0_6_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_6_new = sum(V0_6_new))
+sum.V1_6_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_6_new = sum(V1_6_new))
+
+graph.sum.V0_6_new <- ggplot(sum.V0_6_new, aes(x= factor(condition), y= sumV0_6_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q6: It is immoral to harm animals in the \n production of food when plant alternatives \n are available", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_6_new <- ggplot(sum.V1_6_new, aes(x= factor(condition), y= sumV1_6_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q6: It is immoral to harm animals in the \n production of food when plant alternatives \n are available", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_6_new + graph.sum.V1_6_new 
+
+#diff
+sum.V_diff5 <- merge(sum.V0_5_new,sum.V1_5_new, by="condition")
+sum.V_diff5$diff5 <- sum.V_diff5$sumV1_5_new - sum.V_diff5$sumV0_5_new
+
+graph.sum.V_diff5 <- ggplot(sum.V_diff5, aes(x= factor(condition), y= diff5), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q5: Chickens are mostly treated well in \n farms in America", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+sum.V_diff6 <- merge(sum.V0_6_new,sum.V1_6_new, by="condition")
+sum.V_diff6$diff4 <- sum.V_diff6$sumV1_6_new - sum.V_diff6$sumV0_6_new
+
+graph.sum.V_diff6 <- ggplot(sum.V_diff6, aes(x= factor(condition), y= diff4), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q6: It is immoral to harm animals in the \n production of food when plant alternatives \n are available", x = "Condition", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+graph.sum.V_diff5 + graph.sum.V_diff6
+```
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+sum.V0_7_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_7_new = sum(V0_7_new))
+sum.V1_7_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_7_new = sum(V1_7_new))
+
+graph.sum.V0_7_new <- ggplot(sum.V0_7_new, aes(x= factor(condition), y= sumV0_7_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q7: I consider myself sympathetic to animal \n rights", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_7_new <- ggplot(sum.V1_7_new, aes(x= factor(condition), y= sumV1_7_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q7: I consider myself sympathetic to animal \n rights", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_7_new + graph.sum.V1_7_new 
+
+sum.V0_8_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_8_new = sum(V0_8_new))
+sum.V1_8_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_8_new = sum(V1_8_new))
+
+graph.sum.V0_8_new <- ggplot(sum.V0_8_new, aes(x= factor(condition), y= sumV0_8_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q8: Overall, I believe vegetarian diets are \n undesirable and worse than diets that include \n meat", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_8_new <- ggplot(sum.V1_8_new, aes(x= factor(condition), y= sumV1_8_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q8: Overall, I believe vegetarian diets are \n undesirable and worse than diets that include \n meat", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_8_new + graph.sum.V1_8_new 
+
+#diff
+sum.V_diff7 <- merge(sum.V0_7_new,sum.V1_7_new, by="condition")
+sum.V_diff7$diff7 <- sum.V_diff7$sumV1_7_new - sum.V_diff7$sumV0_7_new
+
+graph.sum.V_diff7 <- ggplot(sum.V_diff7, aes(x= factor(condition), y= diff7), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q7: I consider myself sympathetic to animal \n rights", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+sum.V_diff8 <- merge(sum.V0_8_new,sum.V1_8_new, by="condition")
+sum.V_diff8$diff8 <- sum.V_diff8$sumV1_8_new - sum.V_diff8$sumV0_8_new
+
+graph.sum.V_diff8 <- ggplot(sum.V_diff8, aes(x= factor(condition), y= diff8), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q8: Overall, I believe vegetarian diets are \n undesirable and worse than diets that include \n meat", x = "Condition", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+graph.sum.V_diff7 + graph.sum.V_diff8
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+sum.V0_9_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_9_new = sum(V0_9_new))
+sum.V1_9_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_9_new = sum(V1_9_new))
+
+graph.sum.V0_9_new <- ggplot(sum.V0_9_new, aes(x= factor(condition), y= sumV0_9_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q9: The way meat (beef, chicken, pork, fish) \n is produced in America is morally wrong", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_9_new <- ggplot(sum.V1_9_new, aes(x= factor(condition), y= sumV1_9_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q9: The way meat (beef, chicken, pork, fish) \n is produced in America is morally wrong", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_9_new + graph.sum.V1_9_new 
+
+sum.V0_10_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV0_10_new = sum(V0_10_new))
+sum.V1_10_new <- avoiddata_withoutic %>% group_by(condition) %>% summarize(sumV1_10_new = sum(V1_10_new))
+
+graph.sum.V0_10_new <- ggplot(sum.V0_10_new, aes(x= factor(condition), y= sumV0_10_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "First Elicitation", subtitle = "Q10: Sustainable animal agriculture is \n necessary for good land stewardship", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+graph.sum.V1_10_new <- ggplot(sum.V1_10_new, aes(x= factor(condition), y= sumV1_10_new), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Second Elicitation", subtitle = "Q10: Sustainable animal agriculture is \n necessary for good land stewardship", x = "Condition", y = "Sum of Likert Scale") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-15,60)
+
+graph.sum.V0_10_new + graph.sum.V1_10_new 
+
+#diff
+sum.V_diff9 <- merge(sum.V0_9_new,sum.V1_9_new, by="condition")
+sum.V_diff9$diff9 <- sum.V_diff9$sumV1_9_new - sum.V_diff9$sumV0_9_new
+
+graph.sum.V_diff9 <- ggplot(sum.V_diff9, aes(x= factor(condition), y= diff9), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q9: The way meat (beef, chicken, pork, fish) \n is produced in America is morally wrong", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+sum.V_diff10 <- merge(sum.V0_10_new,sum.V1_10_new, by="condition")
+sum.V_diff10$diff10 <- sum.V_diff10$sumV1_10_new - sum.V_diff10$sumV0_10_new
+
+graph.sum.V_diff10 <- ggplot(sum.V_diff10, aes(x= factor(condition), y= diff10), fill=condition) + geom_bar(stat="identity", position="dodge") + labs(title = "Difference Between Elicitation", subtitle = "Q10: Sustainable animal agriculture is \n necessary for good land stewardship", x = "Condition", x = "Condition", y = "Difference") + scale_fill_brewer(palette="Dark2",name = "Conditions") + ylim(-20,40)
+
+graph.sum.V_diff9 + graph.sum.V_diff10
+```
+
+```{r,include=FALSE, echo=FALSE}
+#Define MVI
+#method1
+avoiddata_withoutic$MVI0 <- avoiddata_withoutic$V0_1_new + avoiddata_withoutic$V0_2_new + avoiddata_withoutic$V0_3_new + avoiddata_withoutic$V0_4_new + avoiddata_withoutic$V0_5_new + avoiddata_withoutic$V0_6_new + avoiddata_withoutic$V0_7_new + avoiddata_withoutic$V0_8_new + avoiddata_withoutic$V0_9_new + avoiddata_withoutic$V0_10_new
+
+avoiddata_withoutic$MVI0.sd <- scale(avoiddata_withoutic$MVI0)
+
+avoiddata_withoutic$MVI1 <- avoiddata_withoutic$V1_1_new + avoiddata_withoutic$V1_2_new + avoiddata_withoutic$V1_3_new + avoiddata_withoutic$V1_4_new + avoiddata_withoutic$V1_5_new + avoiddata_withoutic$V1_6_new + avoiddata_withoutic$V1_7_new + avoiddata_withoutic$V1_8_new + avoiddata_withoutic$V1_9_new + avoiddata_withoutic$V1_10_new
+
+avoiddata_withoutic$MVI1.sd <- scale(avoiddata_withoutic$MVI1)
+hist(avoiddata_withoutic$MVI1.sd)
+
+avoiddata_withoutic$MVI.diff <- avoiddata_withoutic$MVI1.sd - avoiddata_withoutic$MVI0.sd
+
+lm.h3 <- lm(MVI.diff ~ condition, data=avoiddata_withoutic)
+coeftest(lm.h3, vcov = vcovHC(lm.h3, type="HC1"))
+sum.lm.h3 <- summary(lm.h3)
+
+#method 2
+avoiddata_withoutic$V0_1_frommean <- avoiddata_withoutic$V0_1_new - mean(avoiddata_withoutic$V0_1_new)
+avoiddata_withoutic$V0_2_frommean <- avoiddata_withoutic$V0_2_new - mean(avoiddata_withoutic$V0_2_new)
+avoiddata_withoutic$V0_3_frommean <- avoiddata_withoutic$V0_3_new - mean(avoiddata_withoutic$V0_3_new)
+avoiddata_withoutic$V0_4_frommean <- avoiddata_withoutic$V0_4_new - mean(avoiddata_withoutic$V0_4_new)
+avoiddata_withoutic$V0_5_frommean <- avoiddata_withoutic$V0_5_new - mean(avoiddata_withoutic$V0_5_new)
+avoiddata_withoutic$V0_6_frommean <- avoiddata_withoutic$V0_6_new - mean(avoiddata_withoutic$V0_6_new)
+avoiddata_withoutic$V0_7_frommean <- avoiddata_withoutic$V0_7_new - mean(avoiddata_withoutic$V0_7_new)
+avoiddata_withoutic$V0_8_frommean <- avoiddata_withoutic$V0_8_new - mean(avoiddata_withoutic$V0_8_new)
+avoiddata_withoutic$V0_9_frommean <- avoiddata_withoutic$V0_9_new - mean(avoiddata_withoutic$V0_9_new)
+avoiddata_withoutic$V0_10_frommean <- avoiddata_withoutic$V0_10_new - mean(avoiddata_withoutic$V0_10_new)
+
+avoiddata_withoutic$V1_1_frommean <- avoiddata_withoutic$V1_1_new - mean(avoiddata_withoutic$V1_1_new)
+avoiddata_withoutic$V1_2_frommean <- avoiddata_withoutic$V1_2_new - mean(avoiddata_withoutic$V1_2_new)
+avoiddata_withoutic$V1_3_frommean <- avoiddata_withoutic$V1_3_new - mean(avoiddata_withoutic$V1_3_new)
+avoiddata_withoutic$V1_4_frommean <- avoiddata_withoutic$V1_4_new - mean(avoiddata_withoutic$V1_4_new)
+avoiddata_withoutic$V1_5_frommean <- avoiddata_withoutic$V1_5_new - mean(avoiddata_withoutic$V1_5_new)
+avoiddata_withoutic$V1_6_frommean <- avoiddata_withoutic$V1_6_new - mean(avoiddata_withoutic$V1_6_new)
+avoiddata_withoutic$V1_7_frommean <- avoiddata_withoutic$V1_7_new - mean(avoiddata_withoutic$V1_7_new)
+avoiddata_withoutic$V1_8_frommean <- avoiddata_withoutic$V1_8_new - mean(avoiddata_withoutic$V1_8_new)
+avoiddata_withoutic$V1_9_frommean <- avoiddata_withoutic$V1_9_new - mean(avoiddata_withoutic$V1_9_new)
+avoiddata_withoutic$V1_10_frommean <- avoiddata_withoutic$V1_10_new - mean(avoiddata_withoutic$V1_10_new)
+
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_1_deciles = ntile(V0_1_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_2_deciles = ntile(V0_2_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_3_deciles = ntile(V0_3_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_4_deciles = ntile(V0_4_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_5_deciles = ntile(V0_5_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_6_deciles = ntile(V0_6_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_7_deciles = ntile(V0_7_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_8_deciles = ntile(V0_8_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_9_deciles = ntile(V0_9_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_10_deciles = ntile(V0_10_frommean, 10))
+
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_1_deciles = ntile(V1_1_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_2_deciles = ntile(V1_2_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_3_deciles = ntile(V1_3_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_4_deciles = ntile(V1_4_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_5_deciles = ntile(V1_5_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_6_deciles = ntile(V1_6_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_7_deciles = ntile(V1_7_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_8_deciles = ntile(V1_8_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_9_deciles = ntile(V1_9_frommean, 10))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_10_deciles = ntile(V1_10_frommean, 10))
+
+
+avoiddata_withoutic$MVI0_deciles <- avoiddata_withoutic$V0_1_deciles + avoiddata_withoutic$V0_2_deciles + avoiddata_withoutic$V0_3_deciles + avoiddata_withoutic$V0_4_deciles + avoiddata_withoutic$V0_5_deciles + avoiddata_withoutic$V0_6_deciles + avoiddata_withoutic$V0_7_deciles + avoiddata_withoutic$V0_8_deciles + avoiddata_withoutic$V0_9_deciles + avoiddata_withoutic$V0_10_deciles
+
+avoiddata_withoutic$MVI1_deciles <- avoiddata_withoutic$V1_1_deciles + avoiddata_withoutic$V1_2_deciles + avoiddata_withoutic$V1_3_deciles + avoiddata_withoutic$V1_4_deciles + avoiddata_withoutic$V1_5_deciles + avoiddata_withoutic$V1_6_deciles + avoiddata_withoutic$V1_7_deciles + avoiddata_withoutic$V1_8_deciles + avoiddata_withoutic$V1_9_deciles + avoiddata_withoutic$V1_10_deciles
+
+lm.h3.decile <- lm(MVI1_deciles ~ MVI0_deciles + condition, data=avoiddata_withoutic)
+sum.lm.h3.decile <- summary(lm.h3.decile)
+
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_1_quintiles = ntile(V0_1_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_2_quintiles = ntile(V0_2_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_3_quintiles = ntile(V0_3_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_4_quintiles = ntile(V0_4_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_5_quintiles = ntile(V0_5_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_6_quintiles = ntile(V0_6_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_7_quintiles = ntile(V0_7_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_8_quintiles = ntile(V0_8_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_9_quintiles = ntile(V0_9_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V0_10_quintiles = ntile(V0_10_frommean, 5))
+
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_1_quintiles = ntile(V1_1_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_2_quintiles = ntile(V1_2_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_3_quintiles = ntile(V1_3_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_4_quintiles = ntile(V1_4_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_5_quintiles = ntile(V1_5_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_6_quintiles = ntile(V1_6_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_7_quintiles = ntile(V1_7_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_8_quintiles = ntile(V1_8_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_9_quintiles = ntile(V1_9_frommean, 5))
+avoiddata_withoutic <- avoiddata_withoutic %>% mutate(V1_10_quintiles = ntile(V1_10_frommean, 5))
+
+
+avoiddata_withoutic$MVI0_quintiles <- avoiddata_withoutic$V0_1_quintiles + avoiddata_withoutic$V0_2_quintiles + avoiddata_withoutic$V0_3_quintiles + avoiddata_withoutic$V0_4_quintiles + avoiddata_withoutic$V0_5_quintiles + avoiddata_withoutic$V0_6_quintiles + avoiddata_withoutic$V0_7_quintiles + avoiddata_withoutic$V0_8_quintiles + avoiddata_withoutic$V0_9_quintiles + avoiddata_withoutic$V0_10_quintiles
+
+avoiddata_withoutic$MVI1_quintiles <- avoiddata_withoutic$V1_1_quintiles + avoiddata_withoutic$V1_2_quintiles + avoiddata_withoutic$V1_3_quintiles + avoiddata_withoutic$V1_4_quintiles + avoiddata_withoutic$V1_5_quintiles + avoiddata_withoutic$V1_6_quintiles + avoiddata_withoutic$V1_7_quintiles + avoiddata_withoutic$V1_8_quintiles + avoiddata_withoutic$V1_9_quintiles + avoiddata_withoutic$V1_10_quintiles
+
+lm.h3.quintile <- lm(MVI1_quintiles ~ MVI0_quintiles + condition, data=avoiddata_withoutic)
+sum.lm.h3.quintile <- summary(lm.h3.quintile)
+
+
+results.lm.h3=stargazer(lm.h3,lm.h3.decile, lm.h3.quintile, type="latex", column.labels = c("Standard Reg", "Decile Reg", "Quintile Reg"), title="Regression Results w/o Demographics - MVI")
+```
+
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{llll} 
+\caption*{Regression Results w/o Demographics - MVI\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-4} 
+\\[-1.8ex] & MVI1 & MVI1\_deciles & MVI1\_quintiles \\ 
+ & Standard Reg & Decile Reg & Quintile Reg \\ 
+\\[-1.8ex] & (1) & (2) & (3)\\ 
+\hline
+\midrule 
+ MVI0 & 0.593$^{***}$ &  &  \\ 
+  & (0.115) &  &  \\ 
+ MVI0\_deciles &  & 0.641$^{***}$ &  \\ 
+  &  & (0.097) &  \\ 
+ MVI0\_quintiles &  &  & 0.624$^{***}$ \\ 
+  &  &  & (0.102) \\ 
+ conditionFF Group & $-$4.090 & $-$9.156$^{**}$ & $-$4.583$^{**}$ \\ 
+  & (2.497) & (3.761) & (1.871) \\ 
+ conditionFFCM Group & 0.547 & 1.086 & 0.697 \\ 
+  & (2.298) & (3.454) & (1.725) \\ 
+ Constant & 4.100$^{**}$ & 21.847$^{***}$ & 12.270$^{***}$ \\ 
+  & (1.758) & (5.858) & (3.261) \\ 
+\hline \\[-1.8ex] 
+Observations & 80 & 80 & 80 \\ 
+R$^{2}$ & 0.295 & 0.440 & 0.411 \\ 
+Adjusted R$^{2}$ & 0.267 & 0.418 & 0.388 \\ 
+Residual Std. Error (df = 76) & 8.691 & 13.058 & 6.506 \\ 
+F Statistic (df = 3; 76) & 10.587$^{***}$ & 19.908$^{***}$ & 17.713$^{***}$ \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+
+D. Hypothesis 4: (Selective Search). The valuation of the counter-message video for omnivores (i.e. exclude vegetarians) increases after viewing the factory farm video. 
+
+##### WTP For Video: First Video Elicitation vs Second Video Elicitation
+
+Responses in WTPs for CM video change the most in the FF Group. This indicates that FF Group respondents, who only watch the FF video, want to pay more to watch Counter-Message video. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+ggplot(avoiddata_withoutic, aes(x=WTP0_CM, fill=condition)) + geom_density(alpha=.3) + labs(title = "WTP for CM Video Before", subtitle = "Density", x="WTP Before", y="Density") + xlim(-6,6) +ylim(0,0.18)
+ggplot(avoiddata_withoutic, aes(x=WTP1_CM, fill=condition)) + geom_density(alpha=.3) + labs(title = "WTP for CM Video After", subtitle = "Density", x="WTP After", y="Density") + xlim(-6,6) +ylim(0,0.18)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_CM, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "WTP for CM Video Before", subtitle = "Box Plot", x="Condition", y="WTP Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_CM, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "WTP for CM Video After", subtitle = "Box Plot", x="Condition", y="WTP After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.CM_0 <- ggplot(avoiddata_withoutic, aes(WTP0_CM, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP CM Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.CM_1 <- ggplot(avoiddata_withoutic, aes(WTP1_CM, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP CM After", x="WTP", y="F(WTP)")
+cdf.CM_0 + cdf.CM_1
+```
+
+Meanwhile, the WTPs for both FF and FFCM Group change significantly in response to watching the videos. Notably for FF Group, after watching the FF video, respondents WTPs diminish to almost -6, meaning they want to be paid the maximum 6 dollars to maybe watch the FF video the second time. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE }
+ggplot(avoiddata_withoutic, aes(x=WTP0_FF, fill=condition)) + geom_density(alpha=.3) + labs(title = "WTP for FF Video Before", subtitle = "Density", x="WTP Before", y="Density") + xlim(-6,6) +ylim(0,1)
+ggplot(avoiddata_withoutic, aes(x=WTP1_FF, fill=condition)) + geom_density(alpha=.3) + labs(title = "WTP for FF Video After", subtitle = "Density", x="WTP After", y="Density") + xlim(-6,6) +ylim(0,1)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP0_FF, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "WTP for FF Video Before", subtitle = "Box Plot", x="Condition", y="WTP Before") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+
+ggplot(avoiddata_withoutic, aes(x=condition, y=WTP1_FF, fill=condition)) + geom_boxplot() + guides(fill=FALSE) + coord_flip() + labs(title = "WTP for FF Video After", subtitle = "Box Plot", x="Condition", y="WTP After") + geom_hline(yintercept = 0, linetype="dashed", color = "red", size=2) + ylim(-6,6)
+
+cdf.FF_0 <- ggplot(avoiddata_withoutic, aes(WTP0_FF, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP FF Before", x="WTP", y="F(WTP)") + theme(legend.position = "none")
+cdf.FF_1 <- ggplot(avoiddata_withoutic, aes(WTP1_FF, colour=condition)) + stat_ecdf(geom = "step") + labs(title = "WTP FF After", x="WTP", y="F(WTP)")
+cdf.FF_0 + cdf.FF_1
+```
+
+```{r,include=FALSE, echo=FALSE}
+avoiddata_withoutvegetarian <- avoiddata_withoutic %>% filter(veg_fraction < 100)
+
+avoiddata_withoutvegetarian$WTPdiff.CM <- avoiddata_withoutvegetarian$WTP1_CM - avoiddata_withoutvegetarian$WTP0_CM
+avoiddata_withoutvegetarian$WTPdiff.FF <- avoiddata_withoutvegetarian$WTP1_FF - avoiddata_withoutvegetarian$WTP0_FF
+avoiddata_withoutvegetarian.dummy <- fastDummies::dummy_cols(avoiddata_withoutvegetarian, select_columns = "condition")
+avoiddata_withoutvegetarian.dummy$condition_FFGroup <- avoiddata_withoutvegetarian.dummy$`condition_FF Group`
+avoiddata_withoutvegetarian.dummy$condition_CMGroup <- avoiddata_withoutvegetarian.dummy$`condition_FFCM Group`
+avoiddata_withoutvegetarian.dummy$condition_ControlGroup <- avoiddata_withoutvegetarian.dummy$`condition_Control Group`
+
+avoiddata_withoutvegetarian.dummy$watchFFGroup <- ifelse(avoiddata_withoutvegetarian.dummy$condition_FFGroup == 1 | avoiddata_withoutvegetarian.dummy$condition_CMGroup == 1 , 1, ifelse(avoiddata_withoutvegetarian.dummy$condition_ControlGroup==1, 0, NA))
+
+# avoiddata_withoutvegetarian$demand_CM <- ifelse(avoiddata_withoutvegetarian$WTPdiff.CM >= 0 , 1, ifelse(avoiddata_withoutvegetarian$WTPdiff.CM<0, 0, NA))
+
+lm.h4.CM <- lm(WTPdiff.CM ~ watchFFGroup, data=avoiddata_withoutvegetarian.dummy)
+sum.lm.h4.CM <- summary(lm.h4.CM)
+
+lm.h4.FF <- lm(WTPdiff.FF ~ watchFFGroup, data=avoiddata_withoutvegetarian.dummy)
+sum.lm.h4.FF <- summary(lm.h4.FF)
+
+lm.h4.CM.panel <- lm(WTP1_CM ~ WTP0_CM + watchFFGroup, data=avoiddata_withoutvegetarian.dummy)
+sum.lm.h4.CM.panel <- summary(lm.h4.CM.panel)
+
+results.lm.h4=stargazer(lm.h4.CM, lm.h4.FF, type="latex", column.labels = c("Diff. WTP CM","Diff. WTP FF"), title="Regression Results w/o Demographics - Videos")
+
+```
+
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\footnotesize \begin{longtable}[c]{lll} 
+\caption*{Regression Results w/o Demographics - Videos\\ 
+} \\ 
+\toprule \centering
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3}  
+\\[-1.8ex] & WTPdiff.CM & WTPdiff.FF \\ 
+ & Diff. WTP CM & Diff. WTP FF \\ 
+\hline 
+\midrule 
+ watchFFGroup & $-$0.311 & $-$2.283$^{***}$ \\ 
+  & (0.783) & (0.594) \\ 
+  & & \\ 
+ Constant & 0.677 & 0.250 \\ 
+  & (0.633) & (0.480) \\ 
+  & & \\ 
+\hline \\[-1.8ex] 
+Observations & 75 & 75 \\ 
+R$^{2}$ & 0.002 & 0.168 \\ 
+Adjusted R$^{2}$ & $-$0.012 & 0.157 \\ 
+Residual Std. Error (df = 73) & 3.229 & 2.449 \\ 
+F Statistic (df = 1; 73) & 0.157 & 14.771$^{***}$ \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+
+
+# 6 Conclusion
+
+
+
+\newpage
+### References
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

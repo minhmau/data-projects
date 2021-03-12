@@ -1,0 +1,51 @@
+---
+title: "Air Quality"
+author: "Minh Pham"
+date: "1/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "")
+getwd()
+```
+
+
+
+```{r}
+library(maps)
+setwd("/Users/minhpham1609/Desktop/Air_Quality")
+dir.create("raw_data", showWarnings=F)
+dir.create("raw_data_downloads", showWarnings=F)
+available_datasets = list.files("raw_data")
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+# Data is taken from https://aqs.epa.gov/aqsweb/airdata/download_files.html
+# For each data set, the download link is when you right click and "Copy Link Address"
+# THIS IS ESSENTIALS! WE HAVE SO MANY COOL VARIABLES HERE. Note "42401" = SO2,"88101" = PM2.5 FRM/FEM Mass ,"88502" = PM2.5 non FRM/FEM Mass, "81102"= PM10 Mass,"SPEC"=PM2.5 Speciation ,"44201"=Ozone ,"42401"=SO2,"42101"= CO,"42602"=NO2 ,"WIND","TEMP","PRESS","RH_DP"=RH and Dewpoint
+# NOTE Toxics, Precursors, and Lead: "HAPS"=Hazardous air pollutants,"VOCS"=Volatile organic compounds,"LEAD"
+years = c(2013,2014,2015,2016,2017,2018)
+metrics = c("42401","88101","88502","81102","SPEC","44201","42401","42101","42602","WIND","TEMP","PRESS","RH_DP","HAPS","VOCS","LEAD")
+# if dataset isn't downloaded then download and unzip it
+for( year in years ){
+  
+  for( metric in metrics ){
+    
+    if(!paste("daily_",metric,"_",year,".csv",sep="") %in% available_datasets){
+        # extract the zip from the government website
+        download.file(
+            paste("https://aqs.epa.gov/aqsweb/airdata/daily_",metric,"_",year,".zip",sep=""),
+            paste("raw_data_downloads/daily_",metric,"_",year,".zip",sep=""))
+        
+        # extract the raw data and store it in the appropriate place
+        unzip(
+            paste("raw_data_downloads/daily_",metric,"_",year,".zip",sep=""),
+            exdir="raw_data")
+    }
+  }
+  
+}
+```

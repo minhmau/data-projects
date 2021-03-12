@@ -1,0 +1,102 @@
+---
+title: "Peer Review Three"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(shiny)
+
+dat<-read_csv("week3data.csv")
+
+dat$Party<-recode(dat$dem,`1`="Democrat",`0`="Republican")
+
+#####some data management functions are already included. You need to add the visualization functions.
+
+```
+
+
+Page 1
+======
+
+### Chart A
+
+
+```{r}
+dat1 <- dat %>%
+  drop_na() %>%
+  filter(year>1979) %>%
+  group_by(year,Party) %>%
+  summarise(passed=sum(all_pass))
+
+ggplot(data=dat1, mapping= aes(x=year, y=passed, fill=Party)) + geom_area() + scale_fill_manual(values=c("blue","red")) + labs(x="Year", y="All Bills Passed", title = "Number of Bills Passed Since 1980")
+
+
+
+```
+
+Page 2 {data-orientation=columns}
+======
+
+Column {data-width=500}
+-------
+
+### Chart B 
+
+```{r}
+dat2 <- dat%>%
+  drop_na()%>%
+  filter(congress==110)
+
+ggplotly(
+  ggplot(data = dat2, mapping=aes(x=votepct, y= all_pass, color=Party)) + geom_point() + geom_smooth(stat = "smooth") + scale_color_manual(values = c("blue", "red")) + labs(x="Vote Pct.", y= "All Pass", title = "Passage and Vote Pct., 110th Congress")
+)
+```
+
+Column {data-width=500}
+-------
+
+### Chart C
+
+```{r}
+ggplotly(
+  ggplot(data = dat2, mapping=aes(x=dwnom1, y= all_pass, color=Party)) + geom_point() + geom_smooth(method = "lm") + scale_color_manual(values = c("blue", "red")) + labs(x="DW Nominate.", y= "All Pass", title = "Passage and Ideology, 110th Congress")
+)
+```
+
+Page 3 {data-orientation=rows}
+======
+
+Input {.sidebar}
+------------------
+
+### Chart D
+
+```{r}
+
+#######HINT: for Chart D, you'll need to set the height of the renderPlot, using the height argument. Try a value of 750.
+
+dat3 <- dat %>%
+  group_by(st_name) %>%
+  filter(congress>=110) %>%
+  summarise(passed=sum(all_pass))
+
+attach(dat3)
+
+selectInput(inputId = "st_name", label = "State", choices = st_name, selected = st_name, multiple = TRUE)
+```
+
+Row {data-height=750}
+---------
+
+```{r}
+renderPlot(
+  ggplot(filter(dat3, st_name==input$st_name), mapping= aes(x=passed, y=st_name)) + geom_bar(stat = "identity") + labs(x="Total Bills Passed Per State", y="State Name", title = "Total Bills Passed by State Delegations, 110th Congress")
+)
+```

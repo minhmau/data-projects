@@ -1,0 +1,69 @@
+---
+title: "JohnsHopkinsRmarkdownPart1"
+author: "Minh Pham"
+date: "11/20/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*italics*
+**bold**
+`verbatim code` 
+
+
+# A
+## A.1
+### A.1.1
+
+* My bullets
+  + sub-item 1
+    - sub-sub-item 1
+    
+Number lists:
+
+1. Number 1
+
+2. Number 2
+
+[SEE](https://r4ds.had.co.nz/r-markdown.html)
+
+
+```{r, echo=FALSE}
+library(tidyverse)
+library(knitr)
+setwd("~/Desktop")
+dat <- read_csv("D1LYDGZLRAmS2AxmSxQJHw_244a6af25c32479990d299bf82de1a67_cces_sample_coursera.csv")
+
+dat <- drop_na(dat)
+
+kable(table(dat$gender), align="l")
+
+kable(summarise(dat, Mean=mean(dat$faminc_new), Median=median(
+  dat$faminc_new)), align="l", label="Summary Stats")
+```
+
+
+```{r}
+data(mtcars)
+qplot(x=mpg, data=mtcars, geom="histogram", bin=5, main="Histogram", xlab="Miles per Gallon")
+
+qplot(x=mpg, data=mtcars, geom="density", main="Histogram", xlab="Miles per Gallon")
+
+qplot(x=mpg, data=mtcars, geom="boxplot", main="Histogram", xlab="Miles per Gallon")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,2504 @@
+---
+title: "Artificial Intelligence Predicts Health Behavior"
+subtitle: 'Can Google Trends Predict the Number of Flu Shots in the US?'
+author: "Minh Pham"
+date: "3/30/2020"
+output: pdf_document
+geometry: "left=2.5cm,right=2.5cm,top=1cm,bottom=2cm"
+longtable: true
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+fontsize: 12pt
+linestretch: 1.2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+```
+
+```{r}
+#install.packages("gtrendsR")
+library(gtrendsR)
+library(reshape2)
+library(devtools)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(stargazer)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(ROSE)
+library(DataCombine)
+```
+
+```{r}
+google.trends.AL = gtrends(c("flu shot"), geo = c("US-AL"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.AL$geo="alabama"
+google.trends.AL$hits=google.trends.AL$hits * 77/100
+google.trends.AK = gtrends(c("flu shot"), geo = c("US-AK"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.AK$geo="alaska"
+google.trends.AK$hits=google.trends.AK$hits * 60/100
+google.trends.AZ = gtrends(c("flu shot"), geo = c("US-AZ"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.AZ$geo="arizona"
+google.trends.AZ$hits=google.trends.AZ$hits * 63/100
+google.trends.AR = gtrends(c("flu shot"), geo = c("US-AR"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.AR$geo="arkansas"
+google.trends.AR$hits=google.trends.AR$hits * 88/100
+google.trends.CA = gtrends(c("flu shot"), geo = c("US-CA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.CA$geo="california"
+google.trends.CA$hits=google.trends.CA$hits * 72/100
+google.trends.CO = gtrends(c("flu shot"), geo = c("US-CO"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.CO$geo="colorado"
+google.trends.CO$hits=google.trends.CO$hits * 71/100
+google.trends.CT = gtrends(c("flu shot"), geo = c("US-CT"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.CT$geo="connecticut"
+google.trends.CT$hits=google.trends.CT$hits * 89/100
+google.trends.DE = gtrends(c("flu shot"), geo = c("US-DE"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.DE$geo="delaware"
+google.trends.DE$hits=google.trends.DE$hits * 81/100
+google.trends.FL = gtrends(c("flu shot"), geo = c("US-FL"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.FL$geo="florida"
+google.trends.FL$hits=google.trends.FL$hits * 60/100
+google.trends.GA = gtrends(c("flu shot"), geo = c("US-GA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.GA$geo="georgia"
+google.trends.GA$hits[18]=0.5
+google.trends.GA$hits=as.numeric(google.trends.GA$hits)
+google.trends.GA$hits=google.trends.GA$hits * 67/100
+google.trends.HI = gtrends(c("flu shot"), geo = c("US-HI"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.HI$geo="hawaii"
+google.trends.HI$hits=google.trends.HI$hits * 54/100
+google.trends.ID = gtrends(c("flu shot"), geo = c("US-ID"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.ID$geo="idaho"
+google.trends.ID$hits=google.trends.ID$hits * 62/100
+google.trends.IL = gtrends(c("flu shot"), geo = c("US-IL"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.IL$geo="illinois"
+google.trends.IL$hits=google.trends.IL$hits * 73/100
+google.trends.IN = gtrends(c("flu shot"), geo = c("US-IN"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.IN$geo="indiana"
+google.trends.IN$hits=google.trends.IN$hits * 73/100
+google.trends.IA = gtrends(c("flu shot"), geo = c("US-IA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.IA$geo="iowa"
+google.trends.IA$hits=google.trends.IA$hits * 73/100
+google.trends.KS = gtrends(c("flu shot"), geo = c("US-KS"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.KS$geo="kansas"
+google.trends.KS$hits=google.trends.KS$hits * 70/100
+google.trends.KY = gtrends(c("flu shot"), geo = c("US-KY"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.KY$geo="kentucky"
+google.trends.KY$hits=google.trends.KY$hits * 77/100
+google.trends.LA = gtrends(c("flu shot"), geo = c("US-LA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.LA$geo="louisiana"
+google.trends.LA$hits=google.trends.LA$hits * 67/100
+google.trends.ME = gtrends(c("flu shot"), geo = c("US-ME"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.ME$geo="maine"
+google.trends.ME$hits=google.trends.ME$hits * 77/100
+google.trends.MD = gtrends(c("flu shot"), geo = c("US-MD"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MD$geo="maryland"
+google.trends.MD$hits=google.trends.MD$hits * 84/100
+google.trends.MA = gtrends(c("flu shot"), geo = c("US-MA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MA$geo="massachusetts"
+google.trends.MA$hits[29]=0.5
+google.trends.MA$hits=as.numeric(google.trends.MA$hits)
+google.trends.MA$hits=google.trends.MA$hits * 85/100
+google.trends.MI = gtrends(c("flu shot"), geo = c("US-MI"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MI$geo="michigan"
+google.trends.MI$hits=google.trends.MI$hits * 76/100
+google.trends.MN = gtrends(c("flu shot"), geo = c("US-MN"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MN$geo="minnesota"
+google.trends.MN$hits=google.trends.MN$hits * 81/100
+google.trends.MS = gtrends(c("flu shot"), geo = c("US-MS"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MS$geo="mississippi"
+google.trends.MS$hits=google.trends.MS$hits * 75/100
+google.trends.MO = gtrends(c("flu shot"), geo = c("US-MO"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MO$geo="missouri"
+google.trends.MO$hits=google.trends.MO$hits * 75/100
+google.trends.MT = gtrends(c("flu shot"), geo = c("US-MT"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.MT$geo="montana"
+google.trends.MT$hits=google.trends.MT$hits * 63/100
+google.trends.NE = gtrends(c("flu shot"), geo = c("US-NE"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NE$geo="nebraska"
+google.trends.NE$hits=google.trends.NE$hits * 88/100
+google.trends.NV = gtrends(c("flu shot"), geo = c("US-NV"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NV$geo="nevada"
+google.trends.NV$hits=google.trends.NV$hits * 58/100
+google.trends.NH = gtrends(c("flu shot"), geo = c("US-NH"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NH$geo="new hampshire"
+google.trends.NH$hits=google.trends.NH$hits * 82/100
+google.trends.NJ = gtrends(c("flu shot"), geo = c("US-NJ"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NJ$geo="new jersey"
+google.trends.NJ$hits=google.trends.NJ$hits * 81/100
+google.trends.NM = gtrends(c("flu shot"), geo = c("US-NM"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NM$geo="new mexico"
+google.trends.NM$hits=google.trends.NM$hits * 68/100
+google.trends.NY = gtrends(c("flu shot"), geo = c("US-NY"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NY$geo="new york"
+google.trends.NY$hits=google.trends.NY$hits * 78/100
+google.trends.NC = gtrends(c("flu shot"), geo = c("US-NC"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.NC$geo="north carolina"
+google.trends.NC$hits=google.trends.NC$hits * 78/100
+google.trends.ND = gtrends(c("flu shot"), geo = c("US-ND"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.ND$geo="north dakota"
+google.trends.ND$hits=google.trends.ND$hits * 84/100
+google.trends.OH = gtrends(c("flu shot"), geo = c("US-OH"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.OH$geo="ohio"
+google.trends.OH$hits[31]=0.5
+google.trends.OH$hits=as.numeric(google.trends.OH$hits)
+google.trends.OH$hits=google.trends.OH$hits * 77/100
+google.trends.OK = gtrends(c("flu shot"), geo = c("US-OK"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.OK$geo="oklahoma"
+google.trends.OK$hits=google.trends.OK$hits * 80/100
+google.trends.OR = gtrends(c("flu shot"), geo = c("US-OR"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.OR$geo="oregon"
+google.trends.OR$hits=google.trends.OR$hits * 60/100
+google.trends.PA = gtrends(c("flu shot"), geo = c("US-PA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.PA$geo="pennsylvania"
+google.trends.PA$hits=google.trends.PA$hits * 86/100
+google.trends.RI = gtrends(c("flu shot"), geo = c("US-RI"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.RI$geo="rhode island"
+google.trends.RI$hits=google.trends.RI$hits * 91/100
+google.trends.SC = gtrends(c("flu shot"), geo = c("US-SC"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.SC$geo="south carolina"
+google.trends.SC$hits=google.trends.SC$hits * 71/100
+google.trends.SD = gtrends(c("flu shot"), geo = c("US-SD"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.SD$geo="south dakota"
+google.trends.SD$hits=google.trends.SD$hits * 100/100
+google.trends.TN = gtrends(c("flu shot"), geo = c("US-TN"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.TN$geo="tennessee"
+google.trends.TN$hits=google.trends.TN$hits * 83/100
+google.trends.TX = gtrends(c("flu shot"), geo = c("US-TX"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.TX$geo="texas"
+google.trends.TX$hits=google.trends.TX$hits * 68/100
+google.trends.UT = gtrends(c("flu shot"), geo = c("US-UT"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.UT$geo="utah"
+google.trends.UT$hits=google.trends.UT$hits * 69/100
+google.trends.VT = gtrends(c("flu shot"), geo = c("US-VT"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.VT$geo="vermont"
+google.trends.VT$hits=google.trends.VT$hits * 66/100
+google.trends.VA = gtrends(c("flu shot"), geo = c("US-VA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.VA$geo="virginia"
+google.trends.VA$hits=google.trends.VA$hits * 71/100
+google.trends.WA = gtrends(c("flu shot"), geo = c("US-WA"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.WA$geo="washington"
+google.trends.WA$hits=google.trends.WA$hits * 73/100
+google.trends.WV = gtrends(c("flu shot"), geo = c("US-WV"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.WV$geo="west virginia"
+google.trends.WV$hits=google.trends.WV$hits * 77/100
+google.trends.WI = gtrends(c("flu shot"), geo = c("US-WI"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.WI$geo="wisconsin"
+google.trends.WI$hits=google.trends.WI$hits * 79/100
+google.trends.WY = gtrends(c("flu shot"), geo = c("US-WY"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.WY$geo="wyoming"
+google.trends.WY$hits=google.trends.WY$hits * 63/100
+google.trends.DC = gtrends(c("flu shot"), geo = c("US-DC"), gprop = "web", time = "2011-01-01 2018-12-30")[[1]]
+google.trends.DC$geo="district of columbia"
+google.trends.DC$hits=google.trends.DC$hits * 78/100
+
+# google.trends = dcast(google.trends, date ~ keyword + geo, value.var = "hits")
+# rownames(google.trends) = google.trends$date
+# google.trends$date = NULL
+# plot(google.trends$date,google.trends$`flu shot_US`, type="l")
+```
+
+```{r}
+# "US-AL","US-AK","US-AZ","US-AR","US-CA",
+# "US-CO","US-CT","US-DE","US-FL","US-GA",
+# "US-HI","US-ID","US-IL","US-IN","US-IA",
+# "US-KS","US-KY","US-LA","US-ME","US-MD",
+# "US-MA","US-MI","US-MN","US-MS","US-MO",
+# "US-MT","US-NE","US-NV","US-NH","US-NJ",
+# "US-NM","US-NY","US-NC","US-ND","US-OH",
+# "US-OK","US-OR","US-PA","US-RI","US-SC",
+# "US-SD","US-TN","US-TX","US-UT","US-VT",
+# "US-VA","US-WA","US-WV","US-WI","US-WY"
+
+google.trends.data=rbind(google.trends.AL,google.trends.AK,google.trends.AZ,google.trends.AR,google.trends.CA,google.trends.CO,google.trends.CT,google.trends.DE,google.trends.FL,google.trends.GA,google.trends.HI,google.trends.ID,google.trends.IL,google.trends.IN,google.trends.IA,google.trends.KS,google.trends.KY,google.trends.LA,google.trends.ME,google.trends.MD,google.trends.MA,google.trends.MI,google.trends.MN,google.trends.MS,google.trends.MO,google.trends.MT,google.trends.NE,google.trends.NV, google.trends.NH, google.trends.NJ, google.trends.NM, google.trends.NY, google.trends.NC, google.trends.ND, google.trends.OH, google.trends.OK, google.trends.OR, google.trends.PA, google.trends.RI, google.trends.SC,google.trends.SD, google.trends.TN, google.trends.TX, google.trends.UT, google.trends.VT, google.trends.VA, google.trends.WA, google.trends.WV, google.trends.WI, google.trends.WY,google.trends.DC)
+
+google.trends.data <- google.trends.data %>%
+  separate(date, sep="-", into = c("year", "month", "day"))
+google.trends.data$yearmonth=as.yearmon( paste(google.trends.data$year, google.trends.data$month, sep = "." )  , format = "%Y.%m" )
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+brfss_df12 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2012 main.rds" ) )
+brfss_df13 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2013 main.rds" ) )
+brfss_df14 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2014 main.rds" ) )
+brfss_df15 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2015 main.rds" ) )
+brfss_df16 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2016 main.rds" ) )
+brfss_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2017 main.rds" ) )
+brfss_df18 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2018 main.rds" ) )
+
+brfss_df12$xpsu=as.integer(brfss_df12$xpsu)
+brfss_df13$xpsu=as.integer(brfss_df13$xpsu)
+brfss_df14$xpsu=as.integer(brfss_df14$xpsu)
+brfss_df15$xpsu=as.integer(brfss_df15$xpsu)
+brfss_df16$xpsu=as.integer(brfss_df16$xpsu)
+brfss_df17$xpsu=as.integer(brfss_df17$xpsu)
+brfss_df18$xpsu=as.integer(brfss_df18$xpsu)
+
+
+# brfss_df18$sex=brfss_df18$sex1
+
+brfss_df1213 <- intersect(colnames(brfss_df12), colnames(brfss_df13))
+
+brfss_df1213 <- rbind(brfss_df12[ , brfss_df1213], brfss_df13[ , brfss_df1213])
+
+brfss_df121314 <- intersect(colnames(brfss_df1213), colnames(brfss_df14))
+
+brfss_df121314 <- rbind(brfss_df1213[ , brfss_df121314], brfss_df14[ , brfss_df121314])
+
+brfss_df12131415 <- intersect(colnames(brfss_df121314), colnames(brfss_df15))
+
+brfss_df12131415 <- rbind(brfss_df121314[ , brfss_df12131415], brfss_df15[ , brfss_df12131415])
+
+brfss_df1213141516 <- intersect(colnames(brfss_df12131415), colnames(brfss_df16))
+
+brfss_df1213141516 <- rbind(brfss_df12131415[ , brfss_df1213141516], brfss_df16[ , brfss_df1213141516])
+
+brfss_df121314151617 <- intersect(colnames(brfss_df1213141516), colnames(brfss_df17))
+
+brfss_df121314151617 <- rbind(brfss_df1213141516[ , brfss_df121314151617], brfss_df17[ , brfss_df121314151617])
+
+brfss_df12131415161718 <- intersect(colnames(brfss_df121314151617), colnames(brfss_df18))
+
+brfss_df12131415161718 <- rbind(brfss_df121314151617[ , brfss_df12131415161718], brfss_df18[ , brfss_df12131415161718])
+
+
+
+brfss_df12131415161718$state_name=factor(brfss_df12131415161718$xstate , levels = 
+                    c(1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 
+                    37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 
+                    55, 56) ,
+                    
+                labels = 
+                    c("ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", 
+                    "COLORADO", "CONNECTICUT", "DELAWARE", "DISTRICT OF COLUMBIA", 
+                    "FLORIDA", "GEORGIA", "HAWAII", "IDAHO", "ILLINOIS", "INDIANA",
+                    "IOWA", "KANSAS", "KENTUCKY", "LOUISIANA", "MAINE", "MARYLAND",
+                    "MASSACHUSETTS", "MICHIGAN", "MINNESOTA", "MISSISSIPPI", 
+                    "MISSOURI", "MONTANA", "NEBRASKA", "NEVADA", "NEW HAMPSHIRE",
+                    "NEW JERSEY", "NEW MEXICO", "NEW YORK", "NORTH CAROLINA", 
+                    "NORTH DAKOTA", "OHIO", "OKLAHOMA", "OREGON", "PENNSYLVANIA",
+                    "RHODE ISLAND", "SOUTH CAROLINA", "SOUTH DAKOTA", "TENNESSEE",
+                    "TEXAS", "UTAH", "VERMONT", "VIRGINIA", "WASHINGTON",
+                    "WEST VIRGINIA", "WISCONSIN", "WYOMING"))
+
+
+brfss_df12131415161718s = brfss_df12131415161718 %>% select(xstate,	fmonth,	imonth,	iday,	iyear,	xpsu,	flshtmy2, state_name) 
+
+brfss_df12131415161718s$state_name=tolower(brfss_df12131415161718s$state_name)
+table(brfss_df12131415161718s$state_name)
+```
+
+```{r}
+brfss_df12131415161718s.AL <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='alabama'), ]
+brfss_df12131415161718s.AK <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='alaska'), ]
+brfss_df12131415161718s.AZ <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='arizona'), ]
+brfss_df12131415161718s.AR <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='arkansas'), ]
+brfss_df12131415161718s.CA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='california'), ]
+brfss_df12131415161718s.CO <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='colorado'), ]
+brfss_df12131415161718s.CT <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='connecticut'), ]
+brfss_df12131415161718s.DE <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='delaware'), ]
+brfss_df12131415161718s.FL <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='florida'), ]
+brfss_df12131415161718s.GA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='georgia'), ]
+brfss_df12131415161718s.HI <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='hawaii'), ]
+brfss_df12131415161718s.ID <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='idaho'), ]
+brfss_df12131415161718s.IL <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='illinois'), ]
+brfss_df12131415161718s.IN <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='indiana'), ]
+brfss_df12131415161718s.IA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='iowa'), ]
+brfss_df12131415161718s.KS <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='kansas'), ]
+brfss_df12131415161718s.KY <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='kentucky'), ]
+brfss_df12131415161718s.LA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='louisiana'), ]
+brfss_df12131415161718s.ME <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='maine'), ]
+brfss_df12131415161718s.MD <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='maryland'), ]
+brfss_df12131415161718s.MA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='massachusetts'), ]
+brfss_df12131415161718s.MI <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='michigan'), ]
+brfss_df12131415161718s.MN <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='minnesota'), ]
+brfss_df12131415161718s.MS <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='mississippi'), ]
+brfss_df12131415161718s.MO <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='missouri'), ]
+brfss_df12131415161718s.MT <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='montana'), ]
+brfss_df12131415161718s.NE <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='nebraska'), ]
+brfss_df12131415161718s.NV <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='nevada'), ]
+brfss_df12131415161718s.NH <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='new hampshire'), ]
+brfss_df12131415161718s.NJ <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='new jersey'), ]
+brfss_df12131415161718s.NM <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='new mexico'), ]
+brfss_df12131415161718s.NY <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='new york'), ]
+brfss_df12131415161718s.NC <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='north carolina'), ]
+brfss_df12131415161718s.ND <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='north dakota'), ]
+brfss_df12131415161718s.OH <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='ohio'), ]
+brfss_df12131415161718s.OK <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='oklahoma'), ]
+brfss_df12131415161718s.OR <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='oregon'), ]
+brfss_df12131415161718s.PA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='pennsylvania'), ]
+brfss_df12131415161718s.RI <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='rhode island'), ]
+brfss_df12131415161718s.SC <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='south carolina'), ]
+brfss_df12131415161718s.SD <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='south dakota'), ]
+brfss_df12131415161718s.TN <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='tennessee'), ]
+brfss_df12131415161718s.TX <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='texas'), ]
+brfss_df12131415161718s.UT <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='utah'), ]
+brfss_df12131415161718s.VT <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='vermont'), ]
+brfss_df12131415161718s.VA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='virginia'), ]
+brfss_df12131415161718s.WA <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='washington'), ]
+brfss_df12131415161718s.WV <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='west virginia'), ]
+brfss_df12131415161718s.WI <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='wisconsin'), ]
+brfss_df12131415161718s.WY <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='wyoming'), ]
+brfss_df12131415161718s.DC <- brfss_df12131415161718s[ which(brfss_df12131415161718s$state_name=='district of columbia'), ]
+
+
+```
+#1
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.AL$when_flushot = ifelse( brfss_df12131415161718s.AL$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.AL$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.AL$iyear = as.factor(brfss_df12131415161718s.AL$iyear)
+brfss_df12131415161718s.AL$imonth = as.factor(brfss_df12131415161718s.AL$imonth)
+
+brfss_df12131415161718s.AL$yearmonth=as.yearmon( paste(brfss_df12131415161718s.AL$iyear, brfss_df12131415161718s.AL$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.AL$yearmonth = as.factor(brfss_df12131415161718s.AL$yearmonth)
+brfss_df12131415161718s.AL=na.omit(brfss_df12131415161718s.AL)
+
+
+brfss_df12131415161718s.AL$when_flushot=as.character(brfss_df12131415161718s.AL$when_flushot)
+# brfss_df12131415161718s.AL$when_flushot=as.factor(brfss_df12131415161718s.AL$when_flushot)
+# glimpse(brfss_df12131415161718s.AL$when_flushot)
+brfss_df12131415161718s.AL$when_flushot <- sub("^", "0", brfss_df12131415161718s.AL$when_flushot)
+
+x=brfss_df12131415161718s.AL$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.AL$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.AL$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.AL$test_year_flushot
+brfss_df12131415161718s.AL$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.AL$month_flushot=as.numeric(brfss_df12131415161718s.AL$month_flushot)
+brfss_df12131415161718s.AL$year_flushot=as.numeric(brfss_df12131415161718s.AL$year_flushot)
+
+brfss_df12131415161718s.AL$time_flushot=as.yearmon( paste(brfss_df12131415161718s.AL$year_flushot, brfss_df12131415161718s.AL$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.AL= brfss_df12131415161718s.AL %>% count(time_flushot)
+brfss_flu.data.AL$time_flushot=as.yearmon(brfss_flu.data.AL$time_flushot)
+brfss_flu.data.AL$n=as.numeric(brfss_flu.data.AL$n)
+brfss_flu.data.AL$yearmonth=brfss_flu.data.AL$time_flushot
+brfss_flu.data.AL$geo="alabama"
+
+```
+#2
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.AK$when_flushot = ifelse( brfss_df12131415161718s.AK$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.AK$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.AK$iyear = as.factor(brfss_df12131415161718s.AK$iyear)
+brfss_df12131415161718s.AK$imonth = as.factor(brfss_df12131415161718s.AK$imonth)
+
+brfss_df12131415161718s.AK$yearmonth=as.yearmon( paste(brfss_df12131415161718s.AK$iyear, brfss_df12131415161718s.AK$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.AK$yearmonth = as.factor(brfss_df12131415161718s.AK$yearmonth)
+brfss_df12131415161718s.AK=na.omit(brfss_df12131415161718s.AK)
+
+
+brfss_df12131415161718s.AK$when_flushot=as.character(brfss_df12131415161718s.AK$when_flushot)
+# brfss_df12131415161718s.AK$when_flushot=as.factor(brfss_df12131415161718s.AK$when_flushot)
+# glimpse(brfss_df12131415161718s.AK$when_flushot)
+brfss_df12131415161718s.AK$when_flushot <- sub("^", "0", brfss_df12131415161718s.AK$when_flushot)
+
+x=brfss_df12131415161718s.AK$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.AK$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.AK$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.AK$test_year_flushot
+brfss_df12131415161718s.AK$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.AK$month_flushot=as.numeric(brfss_df12131415161718s.AK$month_flushot)
+brfss_df12131415161718s.AK$year_flushot=as.numeric(brfss_df12131415161718s.AK$year_flushot)
+
+brfss_df12131415161718s.AK$time_flushot=as.yearmon( paste(brfss_df12131415161718s.AK$year_flushot, brfss_df12131415161718s.AK$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.AK= brfss_df12131415161718s.AK %>% count(time_flushot)
+brfss_flu.data.AK$time_flushot=as.yearmon(brfss_flu.data.AK$time_flushot)
+brfss_flu.data.AK$n=as.numeric(brfss_flu.data.AK$n)
+brfss_flu.data.AK$yearmonth=brfss_flu.data.AK$time_flushot
+brfss_flu.data.AK$geo="alaska"
+
+```
+#3
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.AZ$when_flushot = ifelse( brfss_df12131415161718s.AZ$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.AZ$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.AZ$iyear = as.factor(brfss_df12131415161718s.AZ$iyear)
+brfss_df12131415161718s.AZ$imonth = as.factor(brfss_df12131415161718s.AZ$imonth)
+
+brfss_df12131415161718s.AZ$yearmonth=as.yearmon( paste(brfss_df12131415161718s.AZ$iyear, brfss_df12131415161718s.AZ$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.AZ$yearmonth = as.factor(brfss_df12131415161718s.AZ$yearmonth)
+brfss_df12131415161718s.AZ=na.omit(brfss_df12131415161718s.AZ)
+
+
+brfss_df12131415161718s.AZ$when_flushot=as.character(brfss_df12131415161718s.AZ$when_flushot)
+# brfss_df12131415161718s.AZ$when_flushot=as.factor(brfss_df12131415161718s.AZ$when_flushot)
+# glimpse(brfss_df12131415161718s.AZ$when_flushot)
+brfss_df12131415161718s.AZ$when_flushot <- sub("^", "0", brfss_df12131415161718s.AZ$when_flushot)
+
+x=brfss_df12131415161718s.AZ$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.AZ$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.AZ$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.AZ$test_year_flushot
+brfss_df12131415161718s.AZ$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.AZ$month_flushot=as.numeric(brfss_df12131415161718s.AZ$month_flushot)
+brfss_df12131415161718s.AZ$year_flushot=as.numeric(brfss_df12131415161718s.AZ$year_flushot)
+
+brfss_df12131415161718s.AZ$time_flushot=as.yearmon( paste(brfss_df12131415161718s.AZ$year_flushot, brfss_df12131415161718s.AZ$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.AZ= brfss_df12131415161718s.AZ %>% count(time_flushot)
+brfss_flu.data.AZ$time_flushot=as.yearmon(brfss_flu.data.AZ$time_flushot)
+brfss_flu.data.AZ$n=as.numeric(brfss_flu.data.AZ$n)
+brfss_flu.data.AZ$yearmonth=brfss_flu.data.AZ$time_flushot
+brfss_flu.data.AZ$geo="arizona"
+
+```
+#4
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.AR$when_flushot = ifelse( brfss_df12131415161718s.AR$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.AR$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.AR$iyear = as.factor(brfss_df12131415161718s.AR$iyear)
+brfss_df12131415161718s.AR$imonth = as.factor(brfss_df12131415161718s.AR$imonth)
+
+brfss_df12131415161718s.AR$yearmonth=as.yearmon( paste(brfss_df12131415161718s.AR$iyear, brfss_df12131415161718s.AR$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.AR$yearmonth = as.factor(brfss_df12131415161718s.AR$yearmonth)
+brfss_df12131415161718s.AR=na.omit(brfss_df12131415161718s.AR)
+
+
+brfss_df12131415161718s.AR$when_flushot=as.character(brfss_df12131415161718s.AR$when_flushot)
+# brfss_df12131415161718s.AR$when_flushot=as.factor(brfss_df12131415161718s.AR$when_flushot)
+# glimpse(brfss_df12131415161718s.AR$when_flushot)
+brfss_df12131415161718s.AR$when_flushot <- sub("^", "0", brfss_df12131415161718s.AR$when_flushot)
+
+x=brfss_df12131415161718s.AR$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.AR$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.AR$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.AR$test_year_flushot
+brfss_df12131415161718s.AR$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.AR$month_flushot=as.numeric(brfss_df12131415161718s.AR$month_flushot)
+brfss_df12131415161718s.AR$year_flushot=as.numeric(brfss_df12131415161718s.AR$year_flushot)
+
+brfss_df12131415161718s.AR$time_flushot=as.yearmon( paste(brfss_df12131415161718s.AR$year_flushot, brfss_df12131415161718s.AR$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.AR= brfss_df12131415161718s.AR %>% count(time_flushot)
+brfss_flu.data.AR$time_flushot=as.yearmon(brfss_flu.data.AR$time_flushot)
+brfss_flu.data.AR$n=as.numeric(brfss_flu.data.AR$n)
+brfss_flu.data.AR$yearmonth=brfss_flu.data.AR$time_flushot
+brfss_flu.data.AR$geo="arkansas"
+
+```
+#5
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.CA$when_flushot = ifelse( brfss_df12131415161718s.CA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.CA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.CA$iyear = as.factor(brfss_df12131415161718s.CA$iyear)
+brfss_df12131415161718s.CA$imonth = as.factor(brfss_df12131415161718s.CA$imonth)
+
+brfss_df12131415161718s.CA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.CA$iyear, brfss_df12131415161718s.CA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.CA$yearmonth = as.factor(brfss_df12131415161718s.CA$yearmonth)
+brfss_df12131415161718s.CA=na.omit(brfss_df12131415161718s.CA)
+
+
+brfss_df12131415161718s.CA$when_flushot=as.character(brfss_df12131415161718s.CA$when_flushot)
+# brfss_df12131415161718s.CA$when_flushot=as.factor(brfss_df12131415161718s.CA$when_flushot)
+# glimpse(brfss_df12131415161718s.CA$when_flushot)
+brfss_df12131415161718s.CA$when_flushot <- sub("^", "0", brfss_df12131415161718s.CA$when_flushot)
+
+x=brfss_df12131415161718s.CA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.CA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.CA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.CA$test_year_flushot
+brfss_df12131415161718s.CA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.CA$month_flushot=as.numeric(brfss_df12131415161718s.CA$month_flushot)
+brfss_df12131415161718s.CA$year_flushot=as.numeric(brfss_df12131415161718s.CA$year_flushot)
+
+brfss_df12131415161718s.CA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.CA$year_flushot, brfss_df12131415161718s.CA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.CA= brfss_df12131415161718s.CA %>% count(time_flushot)
+brfss_flu.data.CA$time_flushot=as.yearmon(brfss_flu.data.CA$time_flushot)
+brfss_flu.data.CA$n=as.numeric(brfss_flu.data.CA$n)
+brfss_flu.data.CA$yearmonth=brfss_flu.data.CA$time_flushot
+brfss_flu.data.CA$geo="california"
+brfss_flu.data.CA=head(brfss_flu.data.CA,-2)
+
+```
+#6. CO
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.CO$when_flushot = ifelse( brfss_df12131415161718s.CO$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.CO$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.CO$iyear = as.factor(brfss_df12131415161718s.CO$iyear)
+brfss_df12131415161718s.CO$imonth = as.factor(brfss_df12131415161718s.CO$imonth)
+
+brfss_df12131415161718s.CO$yearmonth=as.yearmon( paste(brfss_df12131415161718s.CO$iyear, brfss_df12131415161718s.CO$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.CO$yearmonth = as.factor(brfss_df12131415161718s.CO$yearmonth)
+brfss_df12131415161718s.CO=na.omit(brfss_df12131415161718s.CO)
+
+
+brfss_df12131415161718s.CO$when_flushot=as.character(brfss_df12131415161718s.CO$when_flushot)
+# brfss_df12131415161718s.CO$when_flushot=as.factor(brfss_df12131415161718s.CO$when_flushot)
+# glimpse(brfss_df12131415161718s.CO$when_flushot)
+brfss_df12131415161718s.CO$when_flushot <- sub("^", "0", brfss_df12131415161718s.CO$when_flushot)
+
+x=brfss_df12131415161718s.CO$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.CO$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.CO$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.CO$test_year_flushot
+brfss_df12131415161718s.CO$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.CO$month_flushot=as.numeric(brfss_df12131415161718s.CO$month_flushot)
+brfss_df12131415161718s.CO$year_flushot=as.numeric(brfss_df12131415161718s.CO$year_flushot)
+
+brfss_df12131415161718s.CO$time_flushot=as.yearmon( paste(brfss_df12131415161718s.CO$year_flushot, brfss_df12131415161718s.CO$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.CO= brfss_df12131415161718s.CO %>% count(time_flushot)
+brfss_flu.data.CO$time_flushot=as.yearmon(brfss_flu.data.CO$time_flushot)
+brfss_flu.data.CO$n=as.numeric(brfss_flu.data.CO$n)
+brfss_flu.data.CO$yearmonth=brfss_flu.data.CO$time_flushot
+brfss_flu.data.CO$geo="colorado"
+brfss_flu.data.CO=head(brfss_flu.data.CO,-1)
+```
+#7. CT
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.CT$when_flushot = ifelse( brfss_df12131415161718s.CT$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.CT$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.CT$iyear = as.factor(brfss_df12131415161718s.CT$iyear)
+brfss_df12131415161718s.CT$imonth = as.factor(brfss_df12131415161718s.CT$imonth)
+
+brfss_df12131415161718s.CT$yearmonth=as.yearmon( paste(brfss_df12131415161718s.CT$iyear, brfss_df12131415161718s.CT$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.CT$yearmonth = as.factor(brfss_df12131415161718s.CT$yearmonth)
+brfss_df12131415161718s.CT=na.omit(brfss_df12131415161718s.CT)
+
+
+brfss_df12131415161718s.CT$when_flushot=as.character(brfss_df12131415161718s.CT$when_flushot)
+# brfss_df12131415161718s.CT$when_flushot=as.factor(brfss_df12131415161718s.CT$when_flushot)
+# glimpse(brfss_df12131415161718s.CT$when_flushot)
+brfss_df12131415161718s.CT$when_flushot <- sub("^", "0", brfss_df12131415161718s.CT$when_flushot)
+
+x=brfss_df12131415161718s.CT$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.CT$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.CT$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.CT$test_year_flushot
+brfss_df12131415161718s.CT$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.CT$month_flushot=as.numeric(brfss_df12131415161718s.CT$month_flushot)
+brfss_df12131415161718s.CT$year_flushot=as.numeric(brfss_df12131415161718s.CT$year_flushot)
+
+brfss_df12131415161718s.CT$time_flushot=as.yearmon( paste(brfss_df12131415161718s.CT$year_flushot, brfss_df12131415161718s.CT$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.CT= brfss_df12131415161718s.CT %>% count(time_flushot)
+brfss_flu.data.CT$time_flushot=as.yearmon(brfss_flu.data.CT$time_flushot)
+brfss_flu.data.CT$n=as.numeric(brfss_flu.data.CT$n)
+brfss_flu.data.CT$yearmonth=brfss_flu.data.CT$time_flushot
+brfss_flu.data.CT$geo="connecticut"
+```
+#8. DE
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.DE$when_flushot = ifelse( brfss_df12131415161718s.DE$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.DE$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.DE$iyear = as.factor(brfss_df12131415161718s.DE$iyear)
+brfss_df12131415161718s.DE$imonth = as.factor(brfss_df12131415161718s.DE$imonth)
+
+brfss_df12131415161718s.DE$yearmonth=as.yearmon( paste(brfss_df12131415161718s.DE$iyear, brfss_df12131415161718s.DE$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.DE$yearmonth = as.factor(brfss_df12131415161718s.DE$yearmonth)
+brfss_df12131415161718s.DE=na.omit(brfss_df12131415161718s.DE)
+
+
+brfss_df12131415161718s.DE$when_flushot=as.character(brfss_df12131415161718s.DE$when_flushot)
+# brfss_df12131415161718s.DE$when_flushot=as.factor(brfss_df12131415161718s.DE$when_flushot)
+# glimpse(brfss_df12131415161718s.DE$when_flushot)
+brfss_df12131415161718s.DE$when_flushot <- sub("^", "0", brfss_df12131415161718s.DE$when_flushot)
+
+x=brfss_df12131415161718s.DE$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.DE$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.DE$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.DE$test_year_flushot
+brfss_df12131415161718s.DE$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.DE$month_flushot=as.numeric(brfss_df12131415161718s.DE$month_flushot)
+brfss_df12131415161718s.DE$year_flushot=as.numeric(brfss_df12131415161718s.DE$year_flushot)
+
+brfss_df12131415161718s.DE$time_flushot=as.yearmon( paste(brfss_df12131415161718s.DE$year_flushot, brfss_df12131415161718s.DE$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.DE= brfss_df12131415161718s.DE %>% count(time_flushot)
+brfss_flu.data.DE$time_flushot=as.yearmon(brfss_flu.data.DE$time_flushot)
+brfss_flu.data.DE$n=as.numeric(brfss_flu.data.DE$n)
+brfss_flu.data.DE$yearmonth=brfss_flu.data.DE$time_flushot
+brfss_flu.data.DE$geo="delaware"
+```
+#9. FL
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.FL$when_flushot = ifelse( brfss_df12131415161718s.FL$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.FL$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.FL$iyear = as.factor(brfss_df12131415161718s.FL$iyear)
+brfss_df12131415161718s.FL$imonth = as.factor(brfss_df12131415161718s.FL$imonth)
+
+brfss_df12131415161718s.FL$yearmonth=as.yearmon( paste(brfss_df12131415161718s.FL$iyear, brfss_df12131415161718s.FL$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.FL$yearmonth = as.factor(brfss_df12131415161718s.FL$yearmonth)
+brfss_df12131415161718s.FL=na.omit(brfss_df12131415161718s.FL)
+
+
+brfss_df12131415161718s.FL$when_flushot=as.character(brfss_df12131415161718s.FL$when_flushot)
+# brfss_df12131415161718s.FL$when_flushot=as.factor(brfss_df12131415161718s.FL$when_flushot)
+# glimpse(brfss_df12131415161718s.FL$when_flushot)
+brfss_df12131415161718s.FL$when_flushot <- sub("^", "0", brfss_df12131415161718s.FL$when_flushot)
+
+x=brfss_df12131415161718s.FL$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.FL$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.FL$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.FL$test_year_flushot
+brfss_df12131415161718s.FL$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.FL$month_flushot=as.numeric(brfss_df12131415161718s.FL$month_flushot)
+brfss_df12131415161718s.FL$year_flushot=as.numeric(brfss_df12131415161718s.FL$year_flushot)
+
+brfss_df12131415161718s.FL$time_flushot=as.yearmon( paste(brfss_df12131415161718s.FL$year_flushot, brfss_df12131415161718s.FL$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.FL= brfss_df12131415161718s.FL %>% count(time_flushot)
+brfss_flu.data.FL$time_flushot=as.yearmon(brfss_flu.data.FL$time_flushot)
+brfss_flu.data.FL$n=as.numeric(brfss_flu.data.FL$n)
+brfss_flu.data.FL$yearmonth=brfss_flu.data.FL$time_flushot
+brfss_flu.data.FL$geo="florida"
+brfss_flu.data.FL=head(brfss_flu.data.FL,-1)
+
+```
+#10. GA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.GA$when_flushot = ifelse( brfss_df12131415161718s.GA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.GA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.GA$iyear = as.factor(brfss_df12131415161718s.GA$iyear)
+brfss_df12131415161718s.GA$imonth = as.factor(brfss_df12131415161718s.GA$imonth)
+
+brfss_df12131415161718s.GA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.GA$iyear, brfss_df12131415161718s.GA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.GA$yearmonth = as.factor(brfss_df12131415161718s.GA$yearmonth)
+brfss_df12131415161718s.GA=na.omit(brfss_df12131415161718s.GA)
+
+
+brfss_df12131415161718s.GA$when_flushot=as.character(brfss_df12131415161718s.GA$when_flushot)
+# brfss_df12131415161718s.GA$when_flushot=as.factor(brfss_df12131415161718s.GA$when_flushot)
+# glimpse(brfss_df12131415161718s.GA$when_flushot)
+brfss_df12131415161718s.GA$when_flushot <- sub("^", "0", brfss_df12131415161718s.GA$when_flushot)
+
+x=brfss_df12131415161718s.GA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.GA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.GA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.GA$test_year_flushot
+brfss_df12131415161718s.GA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.GA$month_flushot=as.numeric(brfss_df12131415161718s.GA$month_flushot)
+brfss_df12131415161718s.GA$year_flushot=as.numeric(brfss_df12131415161718s.GA$year_flushot)
+
+brfss_df12131415161718s.GA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.GA$year_flushot, brfss_df12131415161718s.GA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.GA= brfss_df12131415161718s.GA %>% count(time_flushot)
+brfss_flu.data.GA$time_flushot=as.yearmon(brfss_flu.data.GA$time_flushot)
+brfss_flu.data.GA$n=as.numeric(brfss_flu.data.GA$n)
+brfss_flu.data.GA$yearmonth=brfss_flu.data.GA$time_flushot
+brfss_flu.data.GA$geo="georgia"
+brfss_flu.data.GA=head(brfss_flu.data.GA,-1)
+
+```
+#11. HI
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.HI$when_flushot = ifelse( brfss_df12131415161718s.HI$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.HI$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.HI$iyear = as.factor(brfss_df12131415161718s.HI$iyear)
+brfss_df12131415161718s.HI$imonth = as.factor(brfss_df12131415161718s.HI$imonth)
+
+brfss_df12131415161718s.HI$yearmonth=as.yearmon( paste(brfss_df12131415161718s.HI$iyear, brfss_df12131415161718s.HI$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.HI$yearmonth = as.factor(brfss_df12131415161718s.HI$yearmonth)
+brfss_df12131415161718s.HI=na.omit(brfss_df12131415161718s.HI)
+
+
+brfss_df12131415161718s.HI$when_flushot=as.character(brfss_df12131415161718s.HI$when_flushot)
+# brfss_df12131415161718s.HI$when_flushot=as.factor(brfss_df12131415161718s.HI$when_flushot)
+# glimpse(brfss_df12131415161718s.HI$when_flushot)
+brfss_df12131415161718s.HI$when_flushot <- sub("^", "0", brfss_df12131415161718s.HI$when_flushot)
+
+x=brfss_df12131415161718s.HI$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.HI$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.HI$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.HI$test_year_flushot
+brfss_df12131415161718s.HI$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.HI$month_flushot=as.numeric(brfss_df12131415161718s.HI$month_flushot)
+brfss_df12131415161718s.HI$year_flushot=as.numeric(brfss_df12131415161718s.HI$year_flushot)
+
+brfss_df12131415161718s.HI$time_flushot=as.yearmon( paste(brfss_df12131415161718s.HI$year_flushot, brfss_df12131415161718s.HI$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.HI= brfss_df12131415161718s.HI %>% count(time_flushot)
+brfss_flu.data.HI$time_flushot=as.yearmon(brfss_flu.data.HI$time_flushot)
+brfss_flu.data.HI$n=as.numeric(brfss_flu.data.HI$n)
+brfss_flu.data.HI$yearmonth=brfss_flu.data.HI$time_flushot
+brfss_flu.data.HI$geo="hawaii"
+```
+#12. ID
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.ID$when_flushot = ifelse( brfss_df12131415161718s.ID$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.ID$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.ID$iyear = as.factor(brfss_df12131415161718s.ID$iyear)
+brfss_df12131415161718s.ID$imonth = as.factor(brfss_df12131415161718s.ID$imonth)
+
+brfss_df12131415161718s.ID$yearmonth=as.yearmon( paste(brfss_df12131415161718s.ID$iyear, brfss_df12131415161718s.ID$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.ID$yearmonth = as.factor(brfss_df12131415161718s.ID$yearmonth)
+brfss_df12131415161718s.ID=na.omit(brfss_df12131415161718s.ID)
+
+
+brfss_df12131415161718s.ID$when_flushot=as.character(brfss_df12131415161718s.ID$when_flushot)
+# brfss_df12131415161718s.ID$when_flushot=as.factor(brfss_df12131415161718s.ID$when_flushot)
+# glimpse(brfss_df12131415161718s.ID$when_flushot)
+brfss_df12131415161718s.ID$when_flushot <- sub("^", "0", brfss_df12131415161718s.ID$when_flushot)
+
+x=brfss_df12131415161718s.ID$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.ID$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.ID$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.ID$test_year_flushot
+brfss_df12131415161718s.ID$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.ID$month_flushot=as.numeric(brfss_df12131415161718s.ID$month_flushot)
+brfss_df12131415161718s.ID$year_flushot=as.numeric(brfss_df12131415161718s.ID$year_flushot)
+
+brfss_df12131415161718s.ID$time_flushot=as.yearmon( paste(brfss_df12131415161718s.ID$year_flushot, brfss_df12131415161718s.ID$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.ID= brfss_df12131415161718s.ID %>% count(time_flushot)
+brfss_flu.data.ID$time_flushot=as.yearmon(brfss_flu.data.ID$time_flushot)
+brfss_flu.data.ID$n=as.numeric(brfss_flu.data.ID$n)
+brfss_flu.data.ID$yearmonth=brfss_flu.data.ID$time_flushot
+brfss_flu.data.ID$geo="idaho"
+```
+#13. IL
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.IL$when_flushot = ifelse( brfss_df12131415161718s.IL$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.IL$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.IL$iyear = as.factor(brfss_df12131415161718s.IL$iyear)
+brfss_df12131415161718s.IL$imonth = as.factor(brfss_df12131415161718s.IL$imonth)
+
+brfss_df12131415161718s.IL$yearmonth=as.yearmon( paste(brfss_df12131415161718s.IL$iyear, brfss_df12131415161718s.IL$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.IL$yearmonth = as.factor(brfss_df12131415161718s.IL$yearmonth)
+brfss_df12131415161718s.IL=na.omit(brfss_df12131415161718s.IL)
+
+
+brfss_df12131415161718s.IL$when_flushot=as.character(brfss_df12131415161718s.IL$when_flushot)
+# brfss_df12131415161718s.IL$when_flushot=as.factor(brfss_df12131415161718s.IL$when_flushot)
+# glimpse(brfss_df12131415161718s.IL$when_flushot)
+brfss_df12131415161718s.IL$when_flushot <- sub("^", "0", brfss_df12131415161718s.IL$when_flushot)
+
+x=brfss_df12131415161718s.IL$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.IL$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.IL$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.IL$test_year_flushot
+brfss_df12131415161718s.IL$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.IL$month_flushot=as.numeric(brfss_df12131415161718s.IL$month_flushot)
+brfss_df12131415161718s.IL$year_flushot=as.numeric(brfss_df12131415161718s.IL$year_flushot)
+
+brfss_df12131415161718s.IL$time_flushot=as.yearmon( paste(brfss_df12131415161718s.IL$year_flushot, brfss_df12131415161718s.IL$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.IL= brfss_df12131415161718s.IL %>% count(time_flushot)
+brfss_flu.data.IL$time_flushot=as.yearmon(brfss_flu.data.IL$time_flushot)
+brfss_flu.data.IL$n=as.numeric(brfss_flu.data.IL$n)
+brfss_flu.data.IL$yearmonth=brfss_flu.data.IL$time_flushot
+brfss_flu.data.IL$geo="illinois"
+brfss_flu.data.IL=head(brfss_flu.data.IL,-1)
+
+```
+#14. IN
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.IN$when_flushot = ifelse( brfss_df12131415161718s.IN$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.IN$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.IN$iyear = as.factor(brfss_df12131415161718s.IN$iyear)
+brfss_df12131415161718s.IN$imonth = as.factor(brfss_df12131415161718s.IN$imonth)
+
+brfss_df12131415161718s.IN$yearmonth=as.yearmon( paste(brfss_df12131415161718s.IN$iyear, brfss_df12131415161718s.IN$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.IN$yearmonth = as.factor(brfss_df12131415161718s.IN$yearmonth)
+brfss_df12131415161718s.IN=na.omit(brfss_df12131415161718s.IN)
+
+
+brfss_df12131415161718s.IN$when_flushot=as.character(brfss_df12131415161718s.IN$when_flushot)
+# brfss_df12131415161718s.IN$when_flushot=as.factor(brfss_df12131415161718s.IN$when_flushot)
+# glimpse(brfss_df12131415161718s.IN$when_flushot)
+brfss_df12131415161718s.IN$when_flushot <- sub("^", "0", brfss_df12131415161718s.IN$when_flushot)
+
+x=brfss_df12131415161718s.IN$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.IN$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.IN$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.IN$test_year_flushot
+brfss_df12131415161718s.IN$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.IN$month_flushot=as.numeric(brfss_df12131415161718s.IN$month_flushot)
+brfss_df12131415161718s.IN$year_flushot=as.numeric(brfss_df12131415161718s.IN$year_flushot) 
+
+brfss_df12131415161718s.IN$time_flushot=as.yearmon( paste(brfss_df12131415161718s.IN$year_flushot, brfss_df12131415161718s.IN$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.IN= brfss_df12131415161718s.IN %>% count(time_flushot)
+brfss_flu.data.IN$time_flushot=as.yearmon(brfss_flu.data.IN$time_flushot)
+brfss_flu.data.IN$n=as.numeric(brfss_flu.data.IN$n)
+brfss_flu.data.IN$yearmonth=brfss_flu.data.IN$time_flushot
+brfss_flu.data.IN$geo="indiana"
+```
+#15. IA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.IA$when_flushot = ifelse( brfss_df12131415161718s.IA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.IA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.IA$iyear = as.factor(brfss_df12131415161718s.IA$iyear)
+brfss_df12131415161718s.IA$imonth = as.factor(brfss_df12131415161718s.IA$imonth)
+
+brfss_df12131415161718s.IA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.IA$iyear, brfss_df12131415161718s.IA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.IA$yearmonth = as.factor(brfss_df12131415161718s.IA$yearmonth)
+brfss_df12131415161718s.IA=na.omit(brfss_df12131415161718s.IA)
+
+
+brfss_df12131415161718s.IA$when_flushot=as.character(brfss_df12131415161718s.IA$when_flushot)
+# brfss_df12131415161718s.IA$when_flushot=as.factor(brfss_df12131415161718s.IA$when_flushot)
+# glimpse(brfss_df12131415161718s.IA$when_flushot)
+brfss_df12131415161718s.IA$when_flushot <- sub("^", "0", brfss_df12131415161718s.IA$when_flushot)
+
+x=brfss_df12131415161718s.IA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.IA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.IA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.IA$test_year_flushot
+brfss_df12131415161718s.IA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.IA$month_flushot=as.numeric(brfss_df12131415161718s.IA$month_flushot)
+brfss_df12131415161718s.IA$year_flushot=as.numeric(brfss_df12131415161718s.IA$year_flushot) 
+
+brfss_df12131415161718s.IA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.IA$year_flushot, brfss_df12131415161718s.IA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.IA= brfss_df12131415161718s.IA %>% count(time_flushot)
+brfss_flu.data.IA$time_flushot=as.yearmon(brfss_flu.data.IA$time_flushot)
+brfss_flu.data.IA$n=as.numeric(brfss_flu.data.IA$n)
+brfss_flu.data.IA$yearmonth=brfss_flu.data.IA$time_flushot
+brfss_flu.data.IA$geo="iowa"
+```
+#16. KS
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.KS$when_flushot = ifelse( brfss_df12131415161718s.KS$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.KS$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.KS$iyear = as.factor(brfss_df12131415161718s.KS$iyear)
+brfss_df12131415161718s.KS$imonth = as.factor(brfss_df12131415161718s.KS$imonth)
+
+brfss_df12131415161718s.KS$yearmonth=as.yearmon( paste(brfss_df12131415161718s.KS$iyear, brfss_df12131415161718s.KS$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.KS$yearmonth = as.factor(brfss_df12131415161718s.KS$yearmonth)
+brfss_df12131415161718s.KS=na.omit(brfss_df12131415161718s.KS)
+
+
+brfss_df12131415161718s.KS$when_flushot=as.character(brfss_df12131415161718s.KS$when_flushot)
+# brfss_df12131415161718s.KS$when_flushot=as.factor(brfss_df12131415161718s.KS$when_flushot)
+# glimpse(brfss_df12131415161718s.KS$when_flushot)
+brfss_df12131415161718s.KS$when_flushot <- sub("^", "0", brfss_df12131415161718s.KS$when_flushot)
+
+x=brfss_df12131415161718s.KS$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.KS$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.KS$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.KS$test_year_flushot
+brfss_df12131415161718s.KS$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.KS$month_flushot=as.numeric(brfss_df12131415161718s.KS$month_flushot)
+brfss_df12131415161718s.KS$year_flushot=as.numeric(brfss_df12131415161718s.KS$year_flushot) 
+
+brfss_df12131415161718s.KS$time_flushot=as.yearmon( paste(brfss_df12131415161718s.KS$year_flushot, brfss_df12131415161718s.KS$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.KS= brfss_df12131415161718s.KS %>% count(time_flushot)
+brfss_flu.data.KS$time_flushot=as.yearmon(brfss_flu.data.KS$time_flushot)
+brfss_flu.data.KS$n=as.numeric(brfss_flu.data.KS$n)
+brfss_flu.data.KS$yearmonth=brfss_flu.data.KS$time_flushot
+brfss_flu.data.KS$geo="kansas"
+brfss_flu.data.KS=head(brfss_flu.data.KS,-1)
+
+```
+#17. KY
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.KY$when_flushot = ifelse( brfss_df12131415161718s.KY$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.KY$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.KY$iyear = as.factor(brfss_df12131415161718s.KY$iyear)
+brfss_df12131415161718s.KY$imonth = as.factor(brfss_df12131415161718s.KY$imonth)
+
+brfss_df12131415161718s.KY$yearmonth=as.yearmon( paste(brfss_df12131415161718s.KY$iyear, brfss_df12131415161718s.KY$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.KY$yearmonth = as.factor(brfss_df12131415161718s.KY$yearmonth)
+brfss_df12131415161718s.KY=na.omit(brfss_df12131415161718s.KY)
+
+
+brfss_df12131415161718s.KY$when_flushot=as.character(brfss_df12131415161718s.KY$when_flushot)
+# brfss_df12131415161718s.KY$when_flushot=as.factor(brfss_df12131415161718s.KY$when_flushot)
+# glimpse(brfss_df12131415161718s.KY$when_flushot)
+brfss_df12131415161718s.KY$when_flushot <- sub("^", "0", brfss_df12131415161718s.KY$when_flushot)
+
+x=brfss_df12131415161718s.KY$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.KY$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.KY$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.KY$test_year_flushot
+brfss_df12131415161718s.KY$month_flushot= substr(y, 1 , 2)
+ 
+brfss_df12131415161718s.KY$month_flushot=as.numeric(brfss_df12131415161718s.KY$month_flushot)
+brfss_df12131415161718s.KY$year_flushot=as.numeric(brfss_df12131415161718s.KY$year_flushot)
+
+brfss_df12131415161718s.KY$time_flushot=as.yearmon( paste(brfss_df12131415161718s.KY$year_flushot, brfss_df12131415161718s.KY$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.KY= brfss_df12131415161718s.KY %>% count(time_flushot)
+brfss_flu.data.KY$time_flushot=as.yearmon(brfss_flu.data.KY$time_flushot)
+brfss_flu.data.KY$n=as.numeric(brfss_flu.data.KY$n)
+brfss_flu.data.KY$yearmonth=brfss_flu.data.KY$time_flushot
+brfss_flu.data.KY$geo="kentucky"
+brfss_flu.data.KY=head(brfss_flu.data.KY,-2)
+
+```
+#18. LA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.LA$when_flushot = ifelse( brfss_df12131415161718s.LA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.LA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.LA$iyear = as.factor(brfss_df12131415161718s.LA$iyear)
+brfss_df12131415161718s.LA$imonth = as.factor(brfss_df12131415161718s.LA$imonth)
+
+brfss_df12131415161718s.LA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.LA$iyear, brfss_df12131415161718s.LA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.LA$yearmonth = as.factor(brfss_df12131415161718s.LA$yearmonth)
+brfss_df12131415161718s.LA=na.omit(brfss_df12131415161718s.LA)
+
+
+brfss_df12131415161718s.LA$when_flushot=as.character(brfss_df12131415161718s.LA$when_flushot)
+# brfss_df12131415161718s.LA$when_flushot=as.factor(brfss_df12131415161718s.LA$when_flushot)
+# glimpse(brfss_df12131415161718s.LA$when_flushot)
+brfss_df12131415161718s.LA$when_flushot <- sub("^", "0", brfss_df12131415161718s.LA$when_flushot)
+
+x=brfss_df12131415161718s.LA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.LA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.LA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.LA$test_year_flushot 
+brfss_df12131415161718s.LA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.LA$month_flushot=as.numeric(brfss_df12131415161718s.LA$month_flushot)
+brfss_df12131415161718s.LA$year_flushot=as.numeric(brfss_df12131415161718s.LA$year_flushot)
+
+brfss_df12131415161718s.LA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.LA$year_flushot, brfss_df12131415161718s.LA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.LA= brfss_df12131415161718s.LA %>% count(time_flushot)
+brfss_flu.data.LA$time_flushot=as.yearmon(brfss_flu.data.LA$time_flushot)
+brfss_flu.data.LA$n=as.numeric(brfss_flu.data.LA$n)
+brfss_flu.data.LA$yearmonth=brfss_flu.data.LA$time_flushot
+brfss_flu.data.LA$geo="louisiana"
+brfss_flu.data.LA=head(brfss_flu.data.LA,-1)
+
+```
+#19. ME
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.ME$when_flushot = ifelse( brfss_df12131415161718s.ME$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.ME$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.ME$iyear = as.factor(brfss_df12131415161718s.ME$iyear)
+brfss_df12131415161718s.ME$imonth = as.factor(brfss_df12131415161718s.ME$imonth)
+
+brfss_df12131415161718s.ME$yearmonth=as.yearmon( paste(brfss_df12131415161718s.ME$iyear, brfss_df12131415161718s.ME$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.ME$yearmonth = as.factor(brfss_df12131415161718s.ME$yearmonth)
+brfss_df12131415161718s.ME=na.omit(brfss_df12131415161718s.ME)
+
+
+brfss_df12131415161718s.ME$when_flushot=as.character(brfss_df12131415161718s.ME$when_flushot)
+# brfss_df12131415161718s.ME$when_flushot=as.factor(brfss_df12131415161718s.ME$when_flushot)
+# glimpse(brfss_df12131415161718s.ME$when_flushot)
+brfss_df12131415161718s.ME$when_flushot <- sub("^", "0", brfss_df12131415161718s.ME$when_flushot)
+
+x=brfss_df12131415161718s.ME$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.ME$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.ME$test_year_flushot= substrRight(x, 6) 
+
+y=brfss_df12131415161718s.ME$test_year_flushot
+brfss_df12131415161718s.ME$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.ME$month_flushot=as.numeric(brfss_df12131415161718s.ME$month_flushot)
+brfss_df12131415161718s.ME$year_flushot=as.numeric(brfss_df12131415161718s.ME$year_flushot)
+
+brfss_df12131415161718s.ME$time_flushot=as.yearmon( paste(brfss_df12131415161718s.ME$year_flushot, brfss_df12131415161718s.ME$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.ME= brfss_df12131415161718s.ME %>% count(time_flushot)
+brfss_flu.data.ME$time_flushot=as.yearmon(brfss_flu.data.ME$time_flushot)
+brfss_flu.data.ME$n=as.numeric(brfss_flu.data.ME$n)
+brfss_flu.data.ME$yearmonth=brfss_flu.data.ME$time_flushot
+brfss_flu.data.ME$geo="maine"
+```
+#20. MD
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MD$when_flushot = ifelse( brfss_df12131415161718s.MD$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MD$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MD$iyear = as.factor(brfss_df12131415161718s.MD$iyear)
+brfss_df12131415161718s.MD$imonth = as.factor(brfss_df12131415161718s.MD$imonth)
+
+brfss_df12131415161718s.MD$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MD$iyear, brfss_df12131415161718s.MD$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MD$yearmonth = as.factor(brfss_df12131415161718s.MD$yearmonth)
+brfss_df12131415161718s.MD=na.omit(brfss_df12131415161718s.MD)
+
+
+brfss_df12131415161718s.MD$when_flushot=as.character(brfss_df12131415161718s.MD$when_flushot)
+# brfss_df12131415161718s.MD$when_flushot=as.factor(brfss_df12131415161718s.MD$when_flushot)
+# glimpse(brfss_df12131415161718s.MD$when_flushot)
+brfss_df12131415161718s.MD$when_flushot <- sub("^", "0", brfss_df12131415161718s.MD$when_flushot)
+
+x=brfss_df12131415161718s.MD$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MD$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.MD$test_year_flushot= substrRight(x, 6) 
+
+y=brfss_df12131415161718s.MD$test_year_flushot
+brfss_df12131415161718s.MD$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MD$month_flushot=as.numeric(brfss_df12131415161718s.MD$month_flushot)
+brfss_df12131415161718s.MD$year_flushot=as.numeric(brfss_df12131415161718s.MD$year_flushot)
+
+brfss_df12131415161718s.MD$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MD$year_flushot, brfss_df12131415161718s.MD$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MD= brfss_df12131415161718s.MD %>% count(time_flushot)
+brfss_flu.data.MD$time_flushot=as.yearmon(brfss_flu.data.MD$time_flushot)
+brfss_flu.data.MD$n=as.numeric(brfss_flu.data.MD$n)
+brfss_flu.data.MD$yearmonth=brfss_flu.data.MD$time_flushot
+brfss_flu.data.MD$geo="maryland"
+```
+#21. MA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MA$when_flushot = ifelse( brfss_df12131415161718s.MA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MA$iyear = as.factor(brfss_df12131415161718s.MA$iyear)
+brfss_df12131415161718s.MA$imonth = as.factor(brfss_df12131415161718s.MA$imonth)
+
+brfss_df12131415161718s.MA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MA$iyear, brfss_df12131415161718s.MA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MA$yearmonth = as.factor(brfss_df12131415161718s.MA$yearmonth)
+brfss_df12131415161718s.MA=na.omit(brfss_df12131415161718s.MA)
+
+
+brfss_df12131415161718s.MA$when_flushot=as.character(brfss_df12131415161718s.MA$when_flushot)
+# brfss_df12131415161718s.MA$when_flushot=as.factor(brfss_df12131415161718s.MA$when_flushot)
+# glimpse(brfss_df12131415161718s.MA$when_flushot)
+brfss_df12131415161718s.MA$when_flushot <- sub("^", "0", brfss_df12131415161718s.MA$when_flushot)
+
+x=brfss_df12131415161718s.MA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.MA$test_year_flushot= substrRight(x, 6) 
+
+y=brfss_df12131415161718s.MA$test_year_flushot
+brfss_df12131415161718s.MA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MA$month_flushot=as.numeric(brfss_df12131415161718s.MA$month_flushot)
+brfss_df12131415161718s.MA$year_flushot=as.numeric(brfss_df12131415161718s.MA$year_flushot)
+
+brfss_df12131415161718s.MA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MA$year_flushot, brfss_df12131415161718s.MA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MA= brfss_df12131415161718s.MA %>% count(time_flushot)
+brfss_flu.data.MA$time_flushot=as.yearmon(brfss_flu.data.MA$time_flushot)
+brfss_flu.data.MA$n=as.numeric(brfss_flu.data.MA$n)
+brfss_flu.data.MA$yearmonth=brfss_flu.data.MA$time_flushot
+brfss_flu.data.MA$geo="massachusetts"
+brfss_flu.data.MA=head(brfss_flu.data.MA,-6)
+
+```
+#22. MI
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MI$when_flushot = ifelse( brfss_df12131415161718s.MI$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MI$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MI$iyear = as.factor(brfss_df12131415161718s.MI$iyear)
+brfss_df12131415161718s.MI$imonth = as.factor(brfss_df12131415161718s.MI$imonth)
+
+brfss_df12131415161718s.MI$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MI$iyear, brfss_df12131415161718s.MI$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MI$yearmonth = as.factor(brfss_df12131415161718s.MI$yearmonth)
+brfss_df12131415161718s.MI=na.omit(brfss_df12131415161718s.MI)
+
+
+brfss_df12131415161718s.MI$when_flushot=as.character(brfss_df12131415161718s.MI$when_flushot)
+# brfss_df12131415161718s.MI$when_flushot=as.factor(brfss_df12131415161718s.MI$when_flushot)
+# glimpse(brfss_df12131415161718s.MI$when_flushot)
+brfss_df12131415161718s.MI$when_flushot <- sub("^", "0", brfss_df12131415161718s.MI$when_flushot)
+
+x=brfss_df12131415161718s.MI$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+} 
+brfss_df12131415161718s.MI$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.MI$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.MI$test_year_flushot
+brfss_df12131415161718s.MI$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MI$month_flushot=as.numeric(brfss_df12131415161718s.MI$month_flushot)
+brfss_df12131415161718s.MI$year_flushot=as.numeric(brfss_df12131415161718s.MI$year_flushot)
+
+brfss_df12131415161718s.MI$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MI$year_flushot, brfss_df12131415161718s.MI$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MI= brfss_df12131415161718s.MI %>% count(time_flushot)
+brfss_flu.data.MI$time_flushot=as.yearmon(brfss_flu.data.MI$time_flushot)
+brfss_flu.data.MI$n=as.numeric(brfss_flu.data.MI$n)
+brfss_flu.data.MI$yearmonth=brfss_flu.data.MI$time_flushot
+brfss_flu.data.MI$geo="michigan"
+```
+#23. MN
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MN$when_flushot = ifelse( brfss_df12131415161718s.MN$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MN$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MN$iyear = as.factor(brfss_df12131415161718s.MN$iyear)
+brfss_df12131415161718s.MN$imonth = as.factor(brfss_df12131415161718s.MN$imonth)
+
+brfss_df12131415161718s.MN$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MN$iyear, brfss_df12131415161718s.MN$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MN$yearmonth = as.factor(brfss_df12131415161718s.MN$yearmonth)
+brfss_df12131415161718s.MN=na.omit(brfss_df12131415161718s.MN)
+
+
+brfss_df12131415161718s.MN$when_flushot=as.character(brfss_df12131415161718s.MN$when_flushot)
+# brfss_df12131415161718s.MN$when_flushot=as.factor(brfss_df12131415161718s.MN$when_flushot)
+# glimpse(brfss_df12131415161718s.MN$when_flushot)
+brfss_df12131415161718s.MN$when_flushot <- sub("^", "0", brfss_df12131415161718s.MN$when_flushot)
+
+x=brfss_df12131415161718s.MN$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MN$year_flushot= substrRight(x, 4) 
+brfss_df12131415161718s.MN$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.MN$test_year_flushot
+brfss_df12131415161718s.MN$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MN$month_flushot=as.numeric(brfss_df12131415161718s.MN$month_flushot)
+brfss_df12131415161718s.MN$year_flushot=as.numeric(brfss_df12131415161718s.MN$year_flushot)
+
+brfss_df12131415161718s.MN$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MN$year_flushot, brfss_df12131415161718s.MN$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MN= brfss_df12131415161718s.MN %>% count(time_flushot)
+brfss_flu.data.MN$time_flushot=as.yearmon(brfss_flu.data.MN$time_flushot)
+brfss_flu.data.MN$n=as.numeric(brfss_flu.data.MN$n)
+brfss_flu.data.MN$yearmonth=brfss_flu.data.MN$time_flushot
+brfss_flu.data.MN$geo="minnesota"
+```
+#24. MS
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MS$when_flushot = ifelse( brfss_df12131415161718s.MS$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MS$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MS$iyear = as.factor(brfss_df12131415161718s.MS$iyear)
+brfss_df12131415161718s.MS$imonth = as.factor(brfss_df12131415161718s.MS$imonth)
+
+brfss_df12131415161718s.MS$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MS$iyear, brfss_df12131415161718s.MS$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MS$yearmonth = as.factor(brfss_df12131415161718s.MS$yearmonth)
+brfss_df12131415161718s.MS=na.omit(brfss_df12131415161718s.MS)
+
+
+brfss_df12131415161718s.MS$when_flushot=as.character(brfss_df12131415161718s.MS$when_flushot)
+# brfss_df12131415161718s.MS$when_flushot=as.factor(brfss_df12131415161718s.MS$when_flushot)
+# glimpse(brfss_df12131415161718s.MS$when_flushot)
+brfss_df12131415161718s.MS$when_flushot <- sub("^", "0", brfss_df12131415161718s.MS$when_flushot)
+
+x=brfss_df12131415161718s.MS$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MS$year_flushot= substrRight(x, 4) 
+brfss_df12131415161718s.MS$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.MS$test_year_flushot
+brfss_df12131415161718s.MS$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MS$month_flushot=as.numeric(brfss_df12131415161718s.MS$month_flushot)
+brfss_df12131415161718s.MS$year_flushot=as.numeric(brfss_df12131415161718s.MS$year_flushot)
+
+brfss_df12131415161718s.MS$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MS$year_flushot, brfss_df12131415161718s.MS$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MS= brfss_df12131415161718s.MS %>% count(time_flushot)
+brfss_flu.data.MS$time_flushot=as.yearmon(brfss_flu.data.MS$time_flushot)
+brfss_flu.data.MS$n=as.numeric(brfss_flu.data.MS$n)
+brfss_flu.data.MS$yearmonth=brfss_flu.data.MS$time_flushot
+brfss_flu.data.MS$geo="mississippi"
+```
+#25. MO
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MO$when_flushot = ifelse( brfss_df12131415161718s.MO$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MO$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MO$iyear = as.factor(brfss_df12131415161718s.MO$iyear)
+brfss_df12131415161718s.MO$imonth = as.factor(brfss_df12131415161718s.MO$imonth)
+
+brfss_df12131415161718s.MO$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MO$iyear, brfss_df12131415161718s.MO$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MO$yearmonth = as.factor(brfss_df12131415161718s.MO$yearmonth)
+brfss_df12131415161718s.MO=na.omit(brfss_df12131415161718s.MO)
+
+
+brfss_df12131415161718s.MO$when_flushot=as.character(brfss_df12131415161718s.MO$when_flushot)
+# brfss_df12131415161718s.MO$when_flushot=as.factor(brfss_df12131415161718s.MO$when_flushot)
+# glimpse(brfss_df12131415161718s.MO$when_flushot)
+brfss_df12131415161718s.MO$when_flushot <- sub("^", "0", brfss_df12131415161718s.MO$when_flushot)
+
+x=brfss_df12131415161718s.MO$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MO$year_flushot= substrRight(x, 4) 
+brfss_df12131415161718s.MO$test_year_flushot= substrRight(x, 6) 
+
+y=brfss_df12131415161718s.MO$test_year_flushot
+brfss_df12131415161718s.MO$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MO$month_flushot=as.numeric(brfss_df12131415161718s.MO$month_flushot)
+brfss_df12131415161718s.MO$year_flushot=as.numeric(brfss_df12131415161718s.MO$year_flushot) 
+
+brfss_df12131415161718s.MO$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MO$year_flushot, brfss_df12131415161718s.MO$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MO= brfss_df12131415161718s.MO %>% count(time_flushot)
+brfss_flu.data.MO$time_flushot=as.yearmon(brfss_flu.data.MO$time_flushot)
+brfss_flu.data.MO$n=as.numeric(brfss_flu.data.MO$n)
+brfss_flu.data.MO$yearmonth=brfss_flu.data.MO$time_flushot
+brfss_flu.data.MO$geo="missouri"
+```
+#26. MT
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.MT$when_flushot = ifelse( brfss_df12131415161718s.MT$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.MT$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.MT$iyear = as.factor(brfss_df12131415161718s.MT$iyear)
+brfss_df12131415161718s.MT$imonth = as.factor(brfss_df12131415161718s.MT$imonth)
+
+brfss_df12131415161718s.MT$yearmonth=as.yearmon( paste(brfss_df12131415161718s.MT$iyear, brfss_df12131415161718s.MT$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.MT$yearmonth = as.factor(brfss_df12131415161718s.MT$yearmonth)
+brfss_df12131415161718s.MT=na.omit(brfss_df12131415161718s.MT)
+
+
+brfss_df12131415161718s.MT$when_flushot=as.character(brfss_df12131415161718s.MT$when_flushot)
+# brfss_df12131415161718s.MT$when_flushot=as.factor(brfss_df12131415161718s.MT$when_flushot)
+# glimpse(brfss_df12131415161718s.MT$when_flushot)
+brfss_df12131415161718s.MT$when_flushot <- sub("^", "0", brfss_df12131415161718s.MT$when_flushot)
+
+x=brfss_df12131415161718s.MT$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.MT$year_flushot= substrRight(x, 4) 
+brfss_df12131415161718s.MT$test_year_flushot= substrRight(x, 6) 
+
+y=brfss_df12131415161718s.MT$test_year_flushot 
+brfss_df12131415161718s.MT$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.MT$month_flushot=as.numeric(brfss_df12131415161718s.MT$month_flushot)
+brfss_df12131415161718s.MT$year_flushot=as.numeric(brfss_df12131415161718s.MT$year_flushot) 
+
+brfss_df12131415161718s.MT$time_flushot=as.yearmon( paste(brfss_df12131415161718s.MT$year_flushot, brfss_df12131415161718s.MT$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.MT= brfss_df12131415161718s.MT %>% count(time_flushot)
+brfss_flu.data.MT$time_flushot=as.yearmon(brfss_flu.data.MT$time_flushot)
+brfss_flu.data.MT$n=as.numeric(brfss_flu.data.MT$n)
+brfss_flu.data.MT$yearmonth=brfss_flu.data.MT$time_flushot
+brfss_flu.data.MT$geo="montana"
+```
+#27. NE
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NE$when_flushot = ifelse( brfss_df12131415161718s.NE$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NE$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NE$iyear = as.factor(brfss_df12131415161718s.NE$iyear)
+brfss_df12131415161718s.NE$imonth = as.factor(brfss_df12131415161718s.NE$imonth)
+
+brfss_df12131415161718s.NE$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NE$iyear, brfss_df12131415161718s.NE$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NE$yearmonth = as.factor(brfss_df12131415161718s.NE$yearmonth)
+brfss_df12131415161718s.NE=na.omit(brfss_df12131415161718s.NE)
+
+
+brfss_df12131415161718s.NE$when_flushot=as.character(brfss_df12131415161718s.NE$when_flushot)
+# brfss_df12131415161718s.NE$when_flushot=as.factor(brfss_df12131415161718s.NE$when_flushot)
+# glimpse(brfss_df12131415161718s.NE$when_flushot)
+brfss_df12131415161718s.NE$when_flushot <- sub("^", "0", brfss_df12131415161718s.NE$when_flushot)
+
+x=brfss_df12131415161718s.NE$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NE$year_flushot= substrRight(x, 4) 
+brfss_df12131415161718s.NE$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NE$test_year_flushot
+brfss_df12131415161718s.NE$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NE$month_flushot=as.numeric(brfss_df12131415161718s.NE$month_flushot)
+brfss_df12131415161718s.NE$year_flushot=as.numeric(brfss_df12131415161718s.NE$year_flushot)
+
+brfss_df12131415161718s.NE$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NE$year_flushot, brfss_df12131415161718s.NE$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NE= brfss_df12131415161718s.NE %>% count(time_flushot)
+brfss_flu.data.NE$time_flushot=as.yearmon(brfss_flu.data.NE$time_flushot)
+brfss_flu.data.NE$n=as.numeric(brfss_flu.data.NE$n)
+brfss_flu.data.NE$yearmonth=brfss_flu.data.NE$time_flushot
+brfss_flu.data.NE$geo="nebraska"
+brfss_flu.data.NE=head(brfss_flu.data.NE,-1)
+
+```
+#28. NV
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NV$when_flushot = ifelse( brfss_df12131415161718s.NV$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NV$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NV$iyear = as.factor(brfss_df12131415161718s.NV$iyear)
+brfss_df12131415161718s.NV$imonth = as.factor(brfss_df12131415161718s.NV$imonth)
+
+brfss_df12131415161718s.NV$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NV$iyear, brfss_df12131415161718s.NV$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NV$yearmonth = as.factor(brfss_df12131415161718s.NV$yearmonth)
+brfss_df12131415161718s.NV=na.omit(brfss_df12131415161718s.NV)
+
+
+brfss_df12131415161718s.NV$when_flushot=as.character(brfss_df12131415161718s.NV$when_flushot)
+# brfss_df12131415161718s.NV$when_flushot=as.factor(brfss_df12131415161718s.NV$when_flushot)
+# glimpse(brfss_df12131415161718s.NV$when_flushot)
+brfss_df12131415161718s.NV$when_flushot <- sub("^", "0", brfss_df12131415161718s.NV$when_flushot)
+
+x=brfss_df12131415161718s.NV$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NV$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NV$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NV$test_year_flushot
+brfss_df12131415161718s.NV$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NV$month_flushot=as.numeric(brfss_df12131415161718s.NV$month_flushot)
+brfss_df12131415161718s.NV$year_flushot=as.numeric(brfss_df12131415161718s.NV$year_flushot)
+
+brfss_df12131415161718s.NV$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NV$year_flushot, brfss_df12131415161718s.NV$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NV= brfss_df12131415161718s.NV %>% count(time_flushot)
+brfss_flu.data.NV$time_flushot=as.yearmon(brfss_flu.data.NV$time_flushot)
+brfss_flu.data.NV$n=as.numeric(brfss_flu.data.NV$n)
+brfss_flu.data.NV$yearmonth=brfss_flu.data.NV$time_flushot
+brfss_flu.data.NV$geo="nevada"
+brfss_flu.data.NV=head(brfss_flu.data.NV,-1)
+
+```
+#29. NH
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NH$when_flushot = ifelse( brfss_df12131415161718s.NH$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NH$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NH$iyear = as.factor(brfss_df12131415161718s.NH$iyear)
+brfss_df12131415161718s.NH$imonth = as.factor(brfss_df12131415161718s.NH$imonth)
+
+brfss_df12131415161718s.NH$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NH$iyear, brfss_df12131415161718s.NH$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NH$yearmonth = as.factor(brfss_df12131415161718s.NH$yearmonth)
+brfss_df12131415161718s.NH=na.omit(brfss_df12131415161718s.NH)
+
+
+brfss_df12131415161718s.NH$when_flushot=as.character(brfss_df12131415161718s.NH$when_flushot)
+# brfss_df12131415161718s.NH$when_flushot=as.factor(brfss_df12131415161718s.NH$when_flushot)
+# glimpse(brfss_df12131415161718s.NH$when_flushot)
+brfss_df12131415161718s.NH$when_flushot <- sub("^", "0", brfss_df12131415161718s.NH$when_flushot)
+
+x=brfss_df12131415161718s.NH$when_flushot 
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NH$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NH$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NH$test_year_flushot
+brfss_df12131415161718s.NH$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NH$month_flushot=as.numeric(brfss_df12131415161718s.NH$month_flushot)
+brfss_df12131415161718s.NH$year_flushot=as.numeric(brfss_df12131415161718s.NH$year_flushot)
+
+brfss_df12131415161718s.NH$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NH$year_flushot, brfss_df12131415161718s.NH$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NH= brfss_df12131415161718s.NH %>% count(time_flushot)
+brfss_flu.data.NH$time_flushot=as.yearmon(brfss_flu.data.NH$time_flushot)
+brfss_flu.data.NH$n=as.numeric(brfss_flu.data.NH$n)
+brfss_flu.data.NH$yearmonth=brfss_flu.data.NH$time_flushot
+brfss_flu.data.NH$geo="new hampshire"
+```
+#30. NJ
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NJ$when_flushot = ifelse( brfss_df12131415161718s.NJ$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NJ$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NJ$iyear = as.factor(brfss_df12131415161718s.NJ$iyear)
+brfss_df12131415161718s.NJ$imonth = as.factor(brfss_df12131415161718s.NJ$imonth)
+
+brfss_df12131415161718s.NJ$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NJ$iyear, brfss_df12131415161718s.NJ$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NJ$yearmonth = as.factor(brfss_df12131415161718s.NJ$yearmonth)
+brfss_df12131415161718s.NJ=na.omit(brfss_df12131415161718s.NJ)
+
+
+brfss_df12131415161718s.NJ$when_flushot=as.character(brfss_df12131415161718s.NJ$when_flushot)
+# brfss_df12131415161718s.NJ$when_flushot=as.factor(brfss_df12131415161718s.NJ$when_flushot)
+# glimpse(brfss_df12131415161718s.NJ$when_flushot)
+brfss_df12131415161718s.NJ$when_flushot <- sub("^", "0", brfss_df12131415161718s.NJ$when_flushot)
+
+x=brfss_df12131415161718s.NJ$when_flushot 
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NJ$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NJ$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NJ$test_year_flushot
+brfss_df12131415161718s.NJ$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NJ$month_flushot=as.numeric(brfss_df12131415161718s.NJ$month_flushot)
+brfss_df12131415161718s.NJ$year_flushot=as.numeric(brfss_df12131415161718s.NJ$year_flushot)
+
+brfss_df12131415161718s.NJ$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NJ$year_flushot, brfss_df12131415161718s.NJ$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NJ= brfss_df12131415161718s.NJ %>% count(time_flushot)
+brfss_flu.data.NJ$time_flushot=as.yearmon(brfss_flu.data.NJ$time_flushot)
+brfss_flu.data.NJ$n=as.numeric(brfss_flu.data.NJ$n)
+brfss_flu.data.NJ$yearmonth=brfss_flu.data.NJ$time_flushot
+brfss_flu.data.NJ$geo="new jersey"
+brfss_flu.data.NJ=head(brfss_flu.data.NJ,-1)
+
+```
+#31. NM
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NM$when_flushot = ifelse( brfss_df12131415161718s.NM$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NM$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NM$iyear = as.factor(brfss_df12131415161718s.NM$iyear)
+brfss_df12131415161718s.NM$imonth = as.factor(brfss_df12131415161718s.NM$imonth)
+
+brfss_df12131415161718s.NM$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NM$iyear, brfss_df12131415161718s.NM$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NM$yearmonth = as.factor(brfss_df12131415161718s.NM$yearmonth)
+brfss_df12131415161718s.NM=na.omit(brfss_df12131415161718s.NM)
+
+
+brfss_df12131415161718s.NM$when_flushot=as.character(brfss_df12131415161718s.NM$when_flushot)
+# brfss_df12131415161718s.NM$when_flushot=as.factor(brfss_df12131415161718s.NM$when_flushot)
+# glimpse(brfss_df12131415161718s.NM$when_flushot)
+brfss_df12131415161718s.NM$when_flushot <- sub("^", "0", brfss_df12131415161718s.NM$when_flushot) 
+
+x=brfss_df12131415161718s.NM$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NM$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NM$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NM$test_year_flushot
+brfss_df12131415161718s.NM$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NM$month_flushot=as.numeric(brfss_df12131415161718s.NM$month_flushot)
+brfss_df12131415161718s.NM$year_flushot=as.numeric(brfss_df12131415161718s.NM$year_flushot)
+
+brfss_df12131415161718s.NM$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NM$year_flushot, brfss_df12131415161718s.NM$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NM= brfss_df12131415161718s.NM %>% count(time_flushot)
+brfss_flu.data.NM$time_flushot=as.yearmon(brfss_flu.data.NM$time_flushot)
+brfss_flu.data.NM$n=as.numeric(brfss_flu.data.NM$n)
+brfss_flu.data.NM$yearmonth=brfss_flu.data.NM$time_flushot
+brfss_flu.data.NM$geo="new mexico"
+```
+#32. NY
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NY$when_flushot = ifelse( brfss_df12131415161718s.NY$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NY$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NY$iyear = as.factor(brfss_df12131415161718s.NY$iyear)
+brfss_df12131415161718s.NY$imonth = as.factor(brfss_df12131415161718s.NY$imonth)
+
+brfss_df12131415161718s.NY$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NY$iyear, brfss_df12131415161718s.NY$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NY$yearmonth = as.factor(brfss_df12131415161718s.NY$yearmonth)
+brfss_df12131415161718s.NY=na.omit(brfss_df12131415161718s.NY)
+
+
+brfss_df12131415161718s.NY$when_flushot=as.character(brfss_df12131415161718s.NY$when_flushot)
+# brfss_df12131415161718s.NY$when_flushot=as.factor(brfss_df12131415161718s.NY$when_flushot)
+# glimpse(brfss_df12131415161718s.NY$when_flushot)
+brfss_df12131415161718s.NY$when_flushot <- sub("^", "0", brfss_df12131415161718s.NY$when_flushot) 
+
+x=brfss_df12131415161718s.NY$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NY$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NY$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NY$test_year_flushot
+brfss_df12131415161718s.NY$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NY$month_flushot=as.numeric(brfss_df12131415161718s.NY$month_flushot)
+brfss_df12131415161718s.NY$year_flushot=as.numeric(brfss_df12131415161718s.NY$year_flushot)
+
+brfss_df12131415161718s.NY$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NY$year_flushot, brfss_df12131415161718s.NY$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NY= brfss_df12131415161718s.NY %>% count(time_flushot)
+brfss_flu.data.NY$time_flushot=as.yearmon(brfss_flu.data.NY$time_flushot)
+brfss_flu.data.NY$n=as.numeric(brfss_flu.data.NY$n)
+brfss_flu.data.NY$yearmonth=brfss_flu.data.NY$time_flushot
+brfss_flu.data.NY$geo="new york"
+```
+#33. NC
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.NC$when_flushot = ifelse( brfss_df12131415161718s.NC$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.NC$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.NC$iyear = as.factor(brfss_df12131415161718s.NC$iyear)
+brfss_df12131415161718s.NC$imonth = as.factor(brfss_df12131415161718s.NC$imonth)
+
+brfss_df12131415161718s.NC$yearmonth=as.yearmon( paste(brfss_df12131415161718s.NC$iyear, brfss_df12131415161718s.NC$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.NC$yearmonth = as.factor(brfss_df12131415161718s.NC$yearmonth)
+brfss_df12131415161718s.NC=na.omit(brfss_df12131415161718s.NC)
+
+
+brfss_df12131415161718s.NC$when_flushot=as.character(brfss_df12131415161718s.NC$when_flushot)
+# brfss_df12131415161718s.NC$when_flushot=as.factor(brfss_df12131415161718s.NC$when_flushot)
+# glimpse(brfss_df12131415161718s.NC$when_flushot)
+brfss_df12131415161718s.NC$when_flushot <- sub("^", "0", brfss_df12131415161718s.NC$when_flushot) 
+
+x=brfss_df12131415161718s.NC$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.NC$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.NC$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.NC$test_year_flushot
+brfss_df12131415161718s.NC$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.NC$month_flushot=as.numeric(brfss_df12131415161718s.NC$month_flushot)
+brfss_df12131415161718s.NC$year_flushot=as.numeric(brfss_df12131415161718s.NC$year_flushot)
+
+brfss_df12131415161718s.NC$time_flushot=as.yearmon( paste(brfss_df12131415161718s.NC$year_flushot, brfss_df12131415161718s.NC$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.NC= brfss_df12131415161718s.NC %>% count(time_flushot)
+brfss_flu.data.NC$time_flushot=as.yearmon(brfss_flu.data.NC$time_flushot)
+brfss_flu.data.NC$n=as.numeric(brfss_flu.data.NC$n)
+brfss_flu.data.NC$yearmonth=brfss_flu.data.NC$time_flushot
+brfss_flu.data.NC$geo="north carolina"
+brfss_flu.data.NC=head(brfss_flu.data.NC,-1)
+
+```
+#34. ND
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.ND$when_flushot = ifelse( brfss_df12131415161718s.ND$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.ND$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.ND$iyear = as.factor(brfss_df12131415161718s.ND$iyear)
+brfss_df12131415161718s.ND$imonth = as.factor(brfss_df12131415161718s.ND$imonth)
+
+brfss_df12131415161718s.ND$yearmonth=as.yearmon( paste(brfss_df12131415161718s.ND$iyear, brfss_df12131415161718s.ND$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.ND$yearmonth = as.factor(brfss_df12131415161718s.ND$yearmonth)
+brfss_df12131415161718s.ND=na.omit(brfss_df12131415161718s.ND)
+
+
+brfss_df12131415161718s.ND$when_flushot=as.character(brfss_df12131415161718s.ND$when_flushot)
+# brfss_df12131415161718s.ND$when_flushot=as.factor(brfss_df12131415161718s.ND$when_flushot) 
+# glimpse(brfss_df12131415161718s.ND$when_flushot)
+brfss_df12131415161718s.ND$when_flushot <- sub("^", "0", brfss_df12131415161718s.ND$when_flushot)
+
+x=brfss_df12131415161718s.ND$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.ND$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.ND$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.ND$test_year_flushot
+brfss_df12131415161718s.ND$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.ND$month_flushot=as.numeric(brfss_df12131415161718s.ND$month_flushot)
+brfss_df12131415161718s.ND$year_flushot=as.numeric(brfss_df12131415161718s.ND$year_flushot)
+
+brfss_df12131415161718s.ND$time_flushot=as.yearmon( paste(brfss_df12131415161718s.ND$year_flushot, brfss_df12131415161718s.ND$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.ND= brfss_df12131415161718s.ND %>% count(time_flushot)
+brfss_flu.data.ND$time_flushot=as.yearmon(brfss_flu.data.ND$time_flushot)
+brfss_flu.data.ND$n=as.numeric(brfss_flu.data.ND$n)
+brfss_flu.data.ND$yearmonth=brfss_flu.data.ND$time_flushot
+brfss_flu.data.ND$geo="north dakota"
+brfss_flu.data.ND=head(brfss_flu.data.ND,-1)
+
+```
+#35. OH
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.OH$when_flushot = ifelse( brfss_df12131415161718s.OH$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.OH$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.OH$iyear = as.factor(brfss_df12131415161718s.OH$iyear)
+brfss_df12131415161718s.OH$imonth = as.factor(brfss_df12131415161718s.OH$imonth)
+
+brfss_df12131415161718s.OH$yearmonth=as.yearmon( paste(brfss_df12131415161718s.OH$iyear, brfss_df12131415161718s.OH$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.OH$yearmonth = as.factor(brfss_df12131415161718s.OH$yearmonth)
+brfss_df12131415161718s.OH=na.omit(brfss_df12131415161718s.OH)
+
+
+brfss_df12131415161718s.OH$when_flushot=as.character(brfss_df12131415161718s.OH$when_flushot) 
+# brfss_df12131415161718s.OH$when_flushot=as.factor(brfss_df12131415161718s.OH$when_flushot)
+# glimpse(brfss_df12131415161718s.OH$when_flushot)
+brfss_df12131415161718s.OH$when_flushot <- sub("^", "0", brfss_df12131415161718s.OH$when_flushot)
+
+x=brfss_df12131415161718s.OH$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.OH$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.OH$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.OH$test_year_flushot
+brfss_df12131415161718s.OH$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.OH$month_flushot=as.numeric(brfss_df12131415161718s.OH$month_flushot)
+brfss_df12131415161718s.OH$year_flushot=as.numeric(brfss_df12131415161718s.OH$year_flushot)
+
+brfss_df12131415161718s.OH$time_flushot=as.yearmon( paste(brfss_df12131415161718s.OH$year_flushot, brfss_df12131415161718s.OH$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.OH= brfss_df12131415161718s.OH %>% count(time_flushot)
+brfss_flu.data.OH$time_flushot=as.yearmon(brfss_flu.data.OH$time_flushot)
+brfss_flu.data.OH$n=as.numeric(brfss_flu.data.OH$n)
+brfss_flu.data.OH$yearmonth=brfss_flu.data.OH$time_flushot
+brfss_flu.data.OH$geo="ohio"
+```
+#36. OK
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.OK$when_flushot = ifelse( brfss_df12131415161718s.OK$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.OK$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.OK$iyear = as.factor(brfss_df12131415161718s.OK$iyear)
+brfss_df12131415161718s.OK$imonth = as.factor(brfss_df12131415161718s.OK$imonth)
+
+brfss_df12131415161718s.OK$yearmonth=as.yearmon( paste(brfss_df12131415161718s.OK$iyear, brfss_df12131415161718s.OK$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.OK$yearmonth = as.factor(brfss_df12131415161718s.OK$yearmonth)
+brfss_df12131415161718s.OK=na.omit(brfss_df12131415161718s.OK)
+
+
+brfss_df12131415161718s.OK$when_flushot=as.character(brfss_df12131415161718s.OK$when_flushot) 
+# brfss_df12131415161718s.OK$when_flushot=as.factor(brfss_df12131415161718s.OK$when_flushot)
+# glimpse(brfss_df12131415161718s.OK$when_flushot)
+brfss_df12131415161718s.OK$when_flushot <- sub("^", "0", brfss_df12131415161718s.OK$when_flushot)
+
+x=brfss_df12131415161718s.OK$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.OK$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.OK$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.OK$test_year_flushot
+brfss_df12131415161718s.OK$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.OK$month_flushot=as.numeric(brfss_df12131415161718s.OK$month_flushot)
+brfss_df12131415161718s.OK$year_flushot=as.numeric(brfss_df12131415161718s.OK$year_flushot)
+
+brfss_df12131415161718s.OK$time_flushot=as.yearmon( paste(brfss_df12131415161718s.OK$year_flushot, brfss_df12131415161718s.OK$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.OK= brfss_df12131415161718s.OK %>% count(time_flushot)
+brfss_flu.data.OK$time_flushot=as.yearmon(brfss_flu.data.OK$time_flushot)
+brfss_flu.data.OK$n=as.numeric(brfss_flu.data.OK$n)
+brfss_flu.data.OK$yearmonth=brfss_flu.data.OK$time_flushot
+brfss_flu.data.OK$geo="oklahoma"
+```
+#37. OR
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.OR$when_flushot = ifelse( brfss_df12131415161718s.OR$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.OR$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.OR$iyear = as.factor(brfss_df12131415161718s.OR$iyear)
+brfss_df12131415161718s.OR$imonth = as.factor(brfss_df12131415161718s.OR$imonth)
+
+brfss_df12131415161718s.OR$yearmonth=as.yearmon( paste(brfss_df12131415161718s.OR$iyear, brfss_df12131415161718s.OR$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.OR$yearmonth = as.factor(brfss_df12131415161718s.OR$yearmonth)
+brfss_df12131415161718s.OR=na.omit(brfss_df12131415161718s.OR)
+
+
+brfss_df12131415161718s.OR$when_flushot=as.character(brfss_df12131415161718s.OR$when_flushot) 
+# brfss_df12131415161718s.OR$when_flushot=as.factor(brfss_df12131415161718s.OR$when_flushot)
+# glimpse(brfss_df12131415161718s.OR$when_flushot)
+brfss_df12131415161718s.OR$when_flushot <- sub("^", "0", brfss_df12131415161718s.OR$when_flushot)
+
+x=brfss_df12131415161718s.OR$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.OR$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.OR$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.OR$test_year_flushot
+brfss_df12131415161718s.OR$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.OR$month_flushot=as.numeric(brfss_df12131415161718s.OR$month_flushot)
+brfss_df12131415161718s.OR$year_flushot=as.numeric(brfss_df12131415161718s.OR$year_flushot)
+
+brfss_df12131415161718s.OR$time_flushot=as.yearmon( paste(brfss_df12131415161718s.OR$year_flushot, brfss_df12131415161718s.OR$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.OR= brfss_df12131415161718s.OR %>% count(time_flushot)
+brfss_flu.data.OR$time_flushot=as.yearmon(brfss_flu.data.OR$time_flushot)
+brfss_flu.data.OR$n=as.numeric(brfss_flu.data.OR$n)
+brfss_flu.data.OR$yearmonth=brfss_flu.data.OR$time_flushot
+brfss_flu.data.OR$geo="oregon"
+brfss_flu.data.OR=head(brfss_flu.data.OR,-1)
+
+```
+#38. PA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.PA$when_flushot = ifelse( brfss_df12131415161718s.PA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.PA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.PA$iyear = as.factor(brfss_df12131415161718s.PA$iyear)
+brfss_df12131415161718s.PA$imonth = as.factor(brfss_df12131415161718s.PA$imonth)
+
+brfss_df12131415161718s.PA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.PA$iyear, brfss_df12131415161718s.PA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.PA$yearmonth = as.factor(brfss_df12131415161718s.PA$yearmonth)
+brfss_df12131415161718s.PA=na.omit(brfss_df12131415161718s.PA) 
+
+
+brfss_df12131415161718s.PA$when_flushot=as.character(brfss_df12131415161718s.PA$when_flushot) 
+# brfss_df12131415161718s.PA$when_flushot=as.factor(brfss_df12131415161718s.PA$when_flushot)
+# glimpse(brfss_df12131415161718s.PA$when_flushot)
+brfss_df12131415161718s.PA$when_flushot <- sub("^", "0", brfss_df12131415161718s.PA$when_flushot)
+
+x=brfss_df12131415161718s.PA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.PA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.PA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.PA$test_year_flushot
+brfss_df12131415161718s.PA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.PA$month_flushot=as.numeric(brfss_df12131415161718s.PA$month_flushot)
+brfss_df12131415161718s.PA$year_flushot=as.numeric(brfss_df12131415161718s.PA$year_flushot)
+
+brfss_df12131415161718s.PA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.PA$year_flushot, brfss_df12131415161718s.PA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.PA= brfss_df12131415161718s.PA %>% count(time_flushot)
+brfss_flu.data.PA$time_flushot=as.yearmon(brfss_flu.data.PA$time_flushot)
+brfss_flu.data.PA$n=as.numeric(brfss_flu.data.PA$n)
+brfss_flu.data.PA$yearmonth=brfss_flu.data.PA$time_flushot
+brfss_flu.data.PA$geo="pennsylvania"
+brfss_flu.data.PA=head(brfss_flu.data.PA,-1)
+```
+#39. RI
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.RI$when_flushot = ifelse( brfss_df12131415161718s.RI$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.RI$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.RI$iyear = as.factor(brfss_df12131415161718s.RI$iyear)
+brfss_df12131415161718s.RI$imonth = as.factor(brfss_df12131415161718s.RI$imonth)
+
+brfss_df12131415161718s.RI$yearmonth=as.yearmon( paste(brfss_df12131415161718s.RI$iyear, brfss_df12131415161718s.RI$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.RI$yearmonth = as.factor(brfss_df12131415161718s.RI$yearmonth)
+brfss_df12131415161718s.RI=na.omit(brfss_df12131415161718s.RI) 
+
+
+brfss_df12131415161718s.RI$when_flushot=as.character(brfss_df12131415161718s.RI$when_flushot)
+# brfss_df12131415161718s.RI$when_flushot=as.factor(brfss_df12131415161718s.RI$when_flushot)
+# glimpse(brfss_df12131415161718s.RI$when_flushot)
+brfss_df12131415161718s.RI$when_flushot <- sub("^", "0", brfss_df12131415161718s.RI$when_flushot)
+
+x=brfss_df12131415161718s.RI$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.RI$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.RI$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.RI$test_year_flushot
+brfss_df12131415161718s.RI$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.RI$month_flushot=as.numeric(brfss_df12131415161718s.RI$month_flushot)
+brfss_df12131415161718s.RI$year_flushot=as.numeric(brfss_df12131415161718s.RI$year_flushot)
+
+brfss_df12131415161718s.RI$time_flushot=as.yearmon( paste(brfss_df12131415161718s.RI$year_flushot, brfss_df12131415161718s.RI$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.RI= brfss_df12131415161718s.RI %>% count(time_flushot)
+brfss_flu.data.RI$time_flushot=as.yearmon(brfss_flu.data.RI$time_flushot)
+brfss_flu.data.RI$n=as.numeric(brfss_flu.data.RI$n)
+brfss_flu.data.RI$yearmonth=brfss_flu.data.RI$time_flushot
+brfss_flu.data.RI$geo="rhode island"
+```
+#40. SC
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.SC$when_flushot = ifelse( brfss_df12131415161718s.SC$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.SC$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.SC$iyear = as.factor(brfss_df12131415161718s.SC$iyear)
+brfss_df12131415161718s.SC$imonth = as.factor(brfss_df12131415161718s.SC$imonth)
+
+brfss_df12131415161718s.SC$yearmonth=as.yearmon( paste(brfss_df12131415161718s.SC$iyear, brfss_df12131415161718s.SC$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.SC$yearmonth = as.factor(brfss_df12131415161718s.SC$yearmonth) 
+brfss_df12131415161718s.SC=na.omit(brfss_df12131415161718s.SC)
+
+
+brfss_df12131415161718s.SC$when_flushot=as.character(brfss_df12131415161718s.SC$when_flushot)
+# brfss_df12131415161718s.SC$when_flushot=as.factor(brfss_df12131415161718s.SC$when_flushot)
+# glimpse(brfss_df12131415161718s.SC$when_flushot)
+brfss_df12131415161718s.SC$when_flushot <- sub("^", "0", brfss_df12131415161718s.SC$when_flushot)
+
+x=brfss_df12131415161718s.SC$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.SC$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.SC$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.SC$test_year_flushot
+brfss_df12131415161718s.SC$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.SC$month_flushot=as.numeric(brfss_df12131415161718s.SC$month_flushot)
+brfss_df12131415161718s.SC$year_flushot=as.numeric(brfss_df12131415161718s.SC$year_flushot)
+
+brfss_df12131415161718s.SC$time_flushot=as.yearmon( paste(brfss_df12131415161718s.SC$year_flushot, brfss_df12131415161718s.SC$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.SC= brfss_df12131415161718s.SC %>% count(time_flushot)
+brfss_flu.data.SC$time_flushot=as.yearmon(brfss_flu.data.SC$time_flushot)
+brfss_flu.data.SC$n=as.numeric(brfss_flu.data.SC$n)
+brfss_flu.data.SC$yearmonth=brfss_flu.data.SC$time_flushot
+brfss_flu.data.SC$geo="south carolina"
+brfss_flu.data.SC=head(brfss_flu.data.SC,-1)
+```
+#41. SD
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.SD$when_flushot = ifelse( brfss_df12131415161718s.SD$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.SD$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.SD$iyear = as.factor(brfss_df12131415161718s.SD$iyear)
+brfss_df12131415161718s.SD$imonth = as.factor(brfss_df12131415161718s.SD$imonth)
+
+brfss_df12131415161718s.SD$yearmonth=as.yearmon( paste(brfss_df12131415161718s.SD$iyear, brfss_df12131415161718s.SD$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.SD$yearmonth = as.factor(brfss_df12131415161718s.SD$yearmonth) 
+brfss_df12131415161718s.SD=na.omit(brfss_df12131415161718s.SD)
+
+
+brfss_df12131415161718s.SD$when_flushot=as.character(brfss_df12131415161718s.SD$when_flushot)
+# brfss_df12131415161718s.SD$when_flushot=as.factor(brfss_df12131415161718s.SD$when_flushot)
+# glimpse(brfss_df12131415161718s.SD$when_flushot)
+brfss_df12131415161718s.SD$when_flushot <- sub("^", "0", brfss_df12131415161718s.SD$when_flushot)
+
+x=brfss_df12131415161718s.SD$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.SD$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.SD$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.SD$test_year_flushot
+brfss_df12131415161718s.SD$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.SD$month_flushot=as.numeric(brfss_df12131415161718s.SD$month_flushot)
+brfss_df12131415161718s.SD$year_flushot=as.numeric(brfss_df12131415161718s.SD$year_flushot)
+
+brfss_df12131415161718s.SD$time_flushot=as.yearmon( paste(brfss_df12131415161718s.SD$year_flushot, brfss_df12131415161718s.SD$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.SD= brfss_df12131415161718s.SD %>% count(time_flushot)
+brfss_flu.data.SD$time_flushot=as.yearmon(brfss_flu.data.SD$time_flushot)
+brfss_flu.data.SD$n=as.numeric(brfss_flu.data.SD$n)
+brfss_flu.data.SD$yearmonth=brfss_flu.data.SD$time_flushot
+brfss_flu.data.SD$geo="south dakota"
+```
+#42. TN
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.TN$when_flushot = ifelse( brfss_df12131415161718s.TN$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.TN$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.TN$iyear = as.factor(brfss_df12131415161718s.TN$iyear)
+brfss_df12131415161718s.TN$imonth = as.factor(brfss_df12131415161718s.TN$imonth)
+
+brfss_df12131415161718s.TN$yearmonth=as.yearmon( paste(brfss_df12131415161718s.TN$iyear, brfss_df12131415161718s.TN$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.TN$yearmonth = as.factor(brfss_df12131415161718s.TN$yearmonth) 
+brfss_df12131415161718s.TN=na.omit(brfss_df12131415161718s.TN) 
+
+
+brfss_df12131415161718s.TN$when_flushot=as.character(brfss_df12131415161718s.TN$when_flushot)
+# brfss_df12131415161718s.TN$when_flushot=as.factor(brfss_df12131415161718s.TN$when_flushot)
+# glimpse(brfss_df12131415161718s.TN$when_flushot)
+brfss_df12131415161718s.TN$when_flushot <- sub("^", "0", brfss_df12131415161718s.TN$when_flushot)
+
+x=brfss_df12131415161718s.TN$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.TN$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.TN$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.TN$test_year_flushot
+brfss_df12131415161718s.TN$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.TN$month_flushot=as.numeric(brfss_df12131415161718s.TN$month_flushot)
+brfss_df12131415161718s.TN$year_flushot=as.numeric(brfss_df12131415161718s.TN$year_flushot)
+
+brfss_df12131415161718s.TN$time_flushot=as.yearmon( paste(brfss_df12131415161718s.TN$year_flushot, brfss_df12131415161718s.TN$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.TN= brfss_df12131415161718s.TN %>% count(time_flushot)
+brfss_flu.data.TN$time_flushot=as.yearmon(brfss_flu.data.TN$time_flushot)
+brfss_flu.data.TN$n=as.numeric(brfss_flu.data.TN$n)
+brfss_flu.data.TN$yearmonth=brfss_flu.data.TN$time_flushot
+brfss_flu.data.TN$geo="tennessee"
+brfss_flu.data.TN=head(brfss_flu.data.TN,-1)
+```
+#43. TX
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.TX$when_flushot = ifelse( brfss_df12131415161718s.TX$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.TX$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.TX$iyear = as.factor(brfss_df12131415161718s.TX$iyear)
+brfss_df12131415161718s.TX$imonth = as.factor(brfss_df12131415161718s.TX$imonth)
+
+brfss_df12131415161718s.TX$yearmonth=as.yearmon( paste(brfss_df12131415161718s.TX$iyear, brfss_df12131415161718s.TX$imonth, sep = "." )  , format = "%Y.%m" ) 
+# brfss_df12131415161718s.TX$yearmonth = as.factor(brfss_df12131415161718s.TX$yearmonth)
+brfss_df12131415161718s.TX=na.omit(brfss_df12131415161718s.TX)
+
+
+brfss_df12131415161718s.TX$when_flushot=as.character(brfss_df12131415161718s.TX$when_flushot)
+# brfss_df12131415161718s.TX$when_flushot=as.factor(brfss_df12131415161718s.TX$when_flushot)
+# glimpse(brfss_df12131415161718s.TX$when_flushot)
+brfss_df12131415161718s.TX$when_flushot <- sub("^", "0", brfss_df12131415161718s.TX$when_flushot)
+
+x=brfss_df12131415161718s.TX$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.TX$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.TX$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.TX$test_year_flushot
+brfss_df12131415161718s.TX$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.TX$month_flushot=as.numeric(brfss_df12131415161718s.TX$month_flushot)
+brfss_df12131415161718s.TX$year_flushot=as.numeric(brfss_df12131415161718s.TX$year_flushot)
+
+brfss_df12131415161718s.TX$time_flushot=as.yearmon( paste(brfss_df12131415161718s.TX$year_flushot, brfss_df12131415161718s.TX$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.TX= brfss_df12131415161718s.TX %>% count(time_flushot)
+brfss_flu.data.TX$time_flushot=as.yearmon(brfss_flu.data.TX$time_flushot)
+brfss_flu.data.TX$n=as.numeric(brfss_flu.data.TX$n)
+brfss_flu.data.TX$yearmonth=brfss_flu.data.TX$time_flushot
+brfss_flu.data.TX$geo="texas"
+brfss_flu.data.TX=head(brfss_flu.data.TX,-1)
+```
+#44. UT
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.UT$when_flushot = ifelse( brfss_df12131415161718s.UT$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.UT$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.UT$iyear = as.factor(brfss_df12131415161718s.UT$iyear)
+brfss_df12131415161718s.UT$imonth = as.factor(brfss_df12131415161718s.UT$imonth) 
+
+brfss_df12131415161718s.UT$yearmonth=as.yearmon( paste(brfss_df12131415161718s.UT$iyear, brfss_df12131415161718s.UT$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.UT$yearmonth = as.factor(brfss_df12131415161718s.UT$yearmonth)
+brfss_df12131415161718s.UT=na.omit(brfss_df12131415161718s.UT)
+
+
+brfss_df12131415161718s.UT$when_flushot=as.character(brfss_df12131415161718s.UT$when_flushot)
+# brfss_df12131415161718s.UT$when_flushot=as.factor(brfss_df12131415161718s.UT$when_flushot)
+# glimpse(brfss_df12131415161718s.UT$when_flushot)
+brfss_df12131415161718s.UT$when_flushot <- sub("^", "0", brfss_df12131415161718s.UT$when_flushot)
+
+x=brfss_df12131415161718s.UT$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.UT$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.UT$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.UT$test_year_flushot
+brfss_df12131415161718s.UT$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.UT$month_flushot=as.numeric(brfss_df12131415161718s.UT$month_flushot)
+brfss_df12131415161718s.UT$year_flushot=as.numeric(brfss_df12131415161718s.UT$year_flushot)
+
+brfss_df12131415161718s.UT$time_flushot=as.yearmon( paste(brfss_df12131415161718s.UT$year_flushot, brfss_df12131415161718s.UT$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.UT= brfss_df12131415161718s.UT %>% count(time_flushot)
+brfss_flu.data.UT$time_flushot=as.yearmon(brfss_flu.data.UT$time_flushot)
+brfss_flu.data.UT$n=as.numeric(brfss_flu.data.UT$n)
+brfss_flu.data.UT$yearmonth=brfss_flu.data.UT$time_flushot
+brfss_flu.data.UT$geo="utah"
+brfss_flu.data.UT=head(brfss_flu.data.UT,-1)
+```
+#45. VT
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.VT$when_flushot = ifelse( brfss_df12131415161718s.VT$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.VT$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.VT$iyear = as.factor(brfss_df12131415161718s.VT$iyear) 
+brfss_df12131415161718s.VT$imonth = as.factor(brfss_df12131415161718s.VT$imonth)
+
+brfss_df12131415161718s.VT$yearmonth=as.yearmon( paste(brfss_df12131415161718s.VT$iyear, brfss_df12131415161718s.VT$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.VT$yearmonth = as.factor(brfss_df12131415161718s.VT$yearmonth)
+brfss_df12131415161718s.VT=na.omit(brfss_df12131415161718s.VT)
+
+
+brfss_df12131415161718s.VT$when_flushot=as.character(brfss_df12131415161718s.VT$when_flushot)
+# brfss_df12131415161718s.VT$when_flushot=as.factor(brfss_df12131415161718s.VT$when_flushot)
+# glimpse(brfss_df12131415161718s.VT$when_flushot)
+brfss_df12131415161718s.VT$when_flushot <- sub("^", "0", brfss_df12131415161718s.VT$when_flushot)
+
+x=brfss_df12131415161718s.VT$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.VT$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.VT$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.VT$test_year_flushot
+brfss_df12131415161718s.VT$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.VT$month_flushot=as.numeric(brfss_df12131415161718s.VT$month_flushot)
+brfss_df12131415161718s.VT$year_flushot=as.numeric(brfss_df12131415161718s.VT$year_flushot)
+
+brfss_df12131415161718s.VT$time_flushot=as.yearmon( paste(brfss_df12131415161718s.VT$year_flushot, brfss_df12131415161718s.VT$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.VT= brfss_df12131415161718s.VT %>% count(time_flushot)
+brfss_flu.data.VT$time_flushot=as.yearmon(brfss_flu.data.VT$time_flushot)
+brfss_flu.data.VT$n=as.numeric(brfss_flu.data.VT$n)
+brfss_flu.data.VT$yearmonth=brfss_flu.data.VT$time_flushot
+brfss_flu.data.VT$geo="vermont"
+```
+#46. VA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.VA$when_flushot = ifelse( brfss_df12131415161718s.VA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.VA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.VA$iyear = as.factor(brfss_df12131415161718s.VA$iyear) 
+brfss_df12131415161718s.VA$imonth = as.factor(brfss_df12131415161718s.VA$imonth)
+
+brfss_df12131415161718s.VA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.VA$iyear, brfss_df12131415161718s.VA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.VA$yearmonth = as.factor(brfss_df12131415161718s.VA$yearmonth)
+brfss_df12131415161718s.VA=na.omit(brfss_df12131415161718s.VA)
+
+
+brfss_df12131415161718s.VA$when_flushot=as.character(brfss_df12131415161718s.VA$when_flushot)
+# brfss_df12131415161718s.VA$when_flushot=as.factor(brfss_df12131415161718s.VA$when_flushot)
+# glimpse(brfss_df12131415161718s.VA$when_flushot)
+brfss_df12131415161718s.VA$when_flushot <- sub("^", "0", brfss_df12131415161718s.VA$when_flushot)
+
+x=brfss_df12131415161718s.VA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.VA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.VA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.VA$test_year_flushot
+brfss_df12131415161718s.VA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.VA$month_flushot=as.numeric(brfss_df12131415161718s.VA$month_flushot)
+brfss_df12131415161718s.VA$year_flushot=as.numeric(brfss_df12131415161718s.VA$year_flushot)
+
+brfss_df12131415161718s.VA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.VA$year_flushot, brfss_df12131415161718s.VA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.VA= brfss_df12131415161718s.VA %>% count(time_flushot)
+brfss_flu.data.VA$time_flushot=as.yearmon(brfss_flu.data.VA$time_flushot)
+brfss_flu.data.VA$n=as.numeric(brfss_flu.data.VA$n)
+brfss_flu.data.VA$yearmonth=brfss_flu.data.VA$time_flushot
+brfss_flu.data.VA$geo="virginia"
+```
+#47. WA
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.WA$when_flushot = ifelse( brfss_df12131415161718s.WA$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.WA$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.WA$iyear = as.factor(brfss_df12131415161718s.WA$iyear) 
+brfss_df12131415161718s.WA$imonth = as.factor(brfss_df12131415161718s.WA$imonth)
+
+brfss_df12131415161718s.WA$yearmonth=as.yearmon( paste(brfss_df12131415161718s.WA$iyear, brfss_df12131415161718s.WA$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.WA$yearmonth = as.factor(brfss_df12131415161718s.WA$yearmonth)
+brfss_df12131415161718s.WA=na.omit(brfss_df12131415161718s.WA)
+
+
+brfss_df12131415161718s.WA$when_flushot=as.character(brfss_df12131415161718s.WA$when_flushot)
+# brfss_df12131415161718s.WA$when_flushot=as.factor(brfss_df12131415161718s.WA$when_flushot)
+# glimpse(brfss_df12131415161718s.WA$when_flushot)
+brfss_df12131415161718s.WA$when_flushot <- sub("^", "0", brfss_df12131415161718s.WA$when_flushot)
+
+x=brfss_df12131415161718s.WA$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.WA$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.WA$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.WA$test_year_flushot
+brfss_df12131415161718s.WA$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.WA$month_flushot=as.numeric(brfss_df12131415161718s.WA$month_flushot)
+brfss_df12131415161718s.WA$year_flushot=as.numeric(brfss_df12131415161718s.WA$year_flushot)
+
+brfss_df12131415161718s.WA$time_flushot=as.yearmon( paste(brfss_df12131415161718s.WA$year_flushot, brfss_df12131415161718s.WA$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.WA= brfss_df12131415161718s.WA %>% count(time_flushot)
+brfss_flu.data.WA$time_flushot=as.yearmon(brfss_flu.data.WA$time_flushot)
+brfss_flu.data.WA$n=as.numeric(brfss_flu.data.WA$n)
+brfss_flu.data.WA$yearmonth=brfss_flu.data.WA$time_flushot
+brfss_flu.data.WA$geo="washington"
+```
+#48. WV
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.WV$when_flushot = ifelse( brfss_df12131415161718s.WV$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.WV$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.WV$iyear = as.factor(brfss_df12131415161718s.WV$iyear) 
+brfss_df12131415161718s.WV$imonth = as.factor(brfss_df12131415161718s.WV$imonth)
+
+brfss_df12131415161718s.WV$yearmonth=as.yearmon( paste(brfss_df12131415161718s.WV$iyear, brfss_df12131415161718s.WV$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.WV$yearmonth = as.factor(brfss_df12131415161718s.WV$yearmonth)
+brfss_df12131415161718s.WV=na.omit(brfss_df12131415161718s.WV)
+
+
+brfss_df12131415161718s.WV$when_flushot=as.character(brfss_df12131415161718s.WV$when_flushot)
+# brfss_df12131415161718s.WV$when_flushot=as.factor(brfss_df12131415161718s.WV$when_flushot)
+# glimpse(brfss_df12131415161718s.WV$when_flushot)
+brfss_df12131415161718s.WV$when_flushot <- sub("^", "0", brfss_df12131415161718s.WV$when_flushot)
+
+x=brfss_df12131415161718s.WV$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.WV$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.WV$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.WV$test_year_flushot
+brfss_df12131415161718s.WV$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.WV$month_flushot=as.numeric(brfss_df12131415161718s.WV$month_flushot)
+brfss_df12131415161718s.WV$year_flushot=as.numeric(brfss_df12131415161718s.WV$year_flushot)
+
+brfss_df12131415161718s.WV$time_flushot=as.yearmon( paste(brfss_df12131415161718s.WV$year_flushot, brfss_df12131415161718s.WV$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.WV= brfss_df12131415161718s.WV %>% count(time_flushot)
+brfss_flu.data.WV$time_flushot=as.yearmon(brfss_flu.data.WV$time_flushot)
+brfss_flu.data.WV$n=as.numeric(brfss_flu.data.WV$n)
+brfss_flu.data.WV$yearmonth=brfss_flu.data.WV$time_flushot
+brfss_flu.data.WV$geo="west virginia"
+```
+#49. WI
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.WI$when_flushot = ifelse( brfss_df12131415161718s.WI$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.WI$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.WI$iyear = as.factor(brfss_df12131415161718s.WI$iyear) 
+brfss_df12131415161718s.WI$imonth = as.factor(brfss_df12131415161718s.WI$imonth)
+
+brfss_df12131415161718s.WI$yearmonth=as.yearmon( paste(brfss_df12131415161718s.WI$iyear, brfss_df12131415161718s.WI$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.WI$yearmonth = as.factor(brfss_df12131415161718s.WI$yearmonth)
+brfss_df12131415161718s.WI=na.omit(brfss_df12131415161718s.WI)
+
+
+brfss_df12131415161718s.WI$when_flushot=as.character(brfss_df12131415161718s.WI$when_flushot)
+# brfss_df12131415161718s.WI$when_flushot=as.factor(brfss_df12131415161718s.WI$when_flushot)
+# glimpse(brfss_df12131415161718s.WI$when_flushot)
+brfss_df12131415161718s.WI$when_flushot <- sub("^", "0", brfss_df12131415161718s.WI$when_flushot)
+
+x=brfss_df12131415161718s.WI$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.WI$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.WI$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.WI$test_year_flushot
+brfss_df12131415161718s.WI$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.WI$month_flushot=as.numeric(brfss_df12131415161718s.WI$month_flushot)
+brfss_df12131415161718s.WI$year_flushot=as.numeric(brfss_df12131415161718s.WI$year_flushot)
+
+brfss_df12131415161718s.WI$time_flushot=as.yearmon( paste(brfss_df12131415161718s.WI$year_flushot, brfss_df12131415161718s.WI$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.WI= brfss_df12131415161718s.WI %>% count(time_flushot)
+brfss_flu.data.WI$time_flushot=as.yearmon(brfss_flu.data.WI$time_flushot)
+brfss_flu.data.WI$n=as.numeric(brfss_flu.data.WI$n)
+brfss_flu.data.WI$yearmonth=brfss_flu.data.WI$time_flushot
+brfss_flu.data.WI$geo="wisconsin"
+brfss_flu.data.WI=head(brfss_flu.data.WI,-1)
+```
+#50. WY
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.WY$when_flushot = ifelse( brfss_df12131415161718s.WY$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.WY$flshtmy2), NA)
+
+#year and state dummies 
+brfss_df12131415161718s.WY$iyear = as.factor(brfss_df12131415161718s.WY$iyear)
+brfss_df12131415161718s.WY$imonth = as.factor(brfss_df12131415161718s.WY$imonth)
+
+brfss_df12131415161718s.WY$yearmonth=as.yearmon( paste(brfss_df12131415161718s.WY$iyear, brfss_df12131415161718s.WY$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.WY$yearmonth = as.factor(brfss_df12131415161718s.WY$yearmonth)
+brfss_df12131415161718s.WY=na.omit(brfss_df12131415161718s.WY)
+
+
+brfss_df12131415161718s.WY$when_flushot=as.character(brfss_df12131415161718s.WY$when_flushot)
+# brfss_df12131415161718s.WY$when_flushot=as.factor(brfss_df12131415161718s.WY$when_flushot)
+# glimpse(brfss_df12131415161718s.WY$when_flushot)
+brfss_df12131415161718s.WY$when_flushot <- sub("^", "0", brfss_df12131415161718s.WY$when_flushot)
+
+x=brfss_df12131415161718s.WY$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.WY$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.WY$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.WY$test_year_flushot
+brfss_df12131415161718s.WY$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.WY$month_flushot=as.numeric(brfss_df12131415161718s.WY$month_flushot)
+brfss_df12131415161718s.WY$year_flushot=as.numeric(brfss_df12131415161718s.WY$year_flushot)
+
+brfss_df12131415161718s.WY$time_flushot=as.yearmon( paste(brfss_df12131415161718s.WY$year_flushot, brfss_df12131415161718s.WY$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.WY= brfss_df12131415161718s.WY %>% count(time_flushot)
+brfss_flu.data.WY$time_flushot=as.yearmon(brfss_flu.data.WY$time_flushot)
+brfss_flu.data.WY$n=as.numeric(brfss_flu.data.WY$n)
+brfss_flu.data.WY$yearmonth=brfss_flu.data.WY$time_flushot
+brfss_flu.data.WY$geo="wyoming"
+```
+#51. DC
+```{r,include=FALSE, echo=FALSE}
+brfss_df12131415161718s.DC$when_flushot = ifelse( brfss_df12131415161718s.DC$flshtmy2 %in% 12011:122018 , as.numeric( brfss_df12131415161718s.DC$flshtmy2), NA)
+
+#year and state dummies
+brfss_df12131415161718s.DC$iyear = as.factor(brfss_df12131415161718s.DC$iyear)
+brfss_df12131415161718s.DC$imonth = as.factor(brfss_df12131415161718s.DC$imonth)
+
+brfss_df12131415161718s.DC$yearmonth=as.yearmon( paste(brfss_df12131415161718s.DC$iyear, brfss_df12131415161718s.DC$imonth, sep = "." )  , format = "%Y.%m" )
+# brfss_df12131415161718s.DC$yearmonth = as.factor(brfss_df12131415161718s.DC$yearmonth)
+brfss_df12131415161718s.DC=na.omit(brfss_df12131415161718s.DC)
+
+
+brfss_df12131415161718s.DC$when_flushot=as.character(brfss_df12131415161718s.DC$when_flushot)
+# brfss_df12131415161718s.DC$when_flushot=as.factor(brfss_df12131415161718s.DC$when_flushot)
+# glimpse(brfss_df12131415161718s.DC$when_flushot)
+brfss_df12131415161718s.DC$when_flushot <- sub("^", "0", brfss_df12131415161718s.DC$when_flushot)
+
+x=brfss_df12131415161718s.DC$when_flushot
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+brfss_df12131415161718s.DC$year_flushot= substrRight(x, 4)
+brfss_df12131415161718s.DC$test_year_flushot= substrRight(x, 6)
+
+y=brfss_df12131415161718s.DC$test_year_flushot
+brfss_df12131415161718s.DC$month_flushot= substr(y, 1 , 2)
+
+brfss_df12131415161718s.DC$month_flushot=as.numeric(brfss_df12131415161718s.DC$month_flushot)
+brfss_df12131415161718s.DC$year_flushot=as.numeric(brfss_df12131415161718s.DC$year_flushot)
+
+brfss_df12131415161718s.DC$time_flushot=as.yearmon( paste(brfss_df12131415161718s.DC$year_flushot, brfss_df12131415161718s.DC$month_flushot, sep = "." )  , format = "%Y.%m" )
+
+brfss_flu.data.DC= brfss_df12131415161718s.DC %>% count(time_flushot)
+brfss_flu.data.DC$time_flushot=as.yearmon(brfss_flu.data.DC$time_flushot)
+brfss_flu.data.DC$n=as.numeric(brfss_flu.data.DC$n)
+brfss_flu.data.DC$yearmonth=brfss_flu.data.DC$time_flushot
+brfss_flu.data.DC$geo="district of columbia"
+```
+
+```{r}
+brfss_flu.data.overall=rbind(brfss_flu.data.AL,brfss_flu.data.AK,brfss_flu.data.AZ,brfss_flu.data.AR,brfss_flu.data.CA,brfss_flu.data.CO,brfss_flu.data.CT,brfss_flu.data.DE,brfss_flu.data.FL,brfss_flu.data.GA,brfss_flu.data.HI,brfss_flu.data.ID,brfss_flu.data.IL,brfss_flu.data.IN,brfss_flu.data.IA,brfss_flu.data.KS,brfss_flu.data.KY,brfss_flu.data.LA,brfss_flu.data.ME,brfss_flu.data.MD,brfss_flu.data.MA,brfss_flu.data.MI,brfss_flu.data.MN,brfss_flu.data.MS,brfss_flu.data.MO,brfss_flu.data.MT,brfss_flu.data.NE,brfss_flu.data.NV, brfss_flu.data.NH, brfss_flu.data.NJ, brfss_flu.data.NM, brfss_flu.data.NY, brfss_flu.data.NC, brfss_flu.data.ND, brfss_flu.data.OH, brfss_flu.data.OK, brfss_flu.data.OR, brfss_flu.data.PA, brfss_flu.data.RI, brfss_flu.data.SC,brfss_flu.data.SD, brfss_flu.data.TN, brfss_flu.data.TX, brfss_flu.data.UT, brfss_flu.data.VT, brfss_flu.data.VA, brfss_flu.data.WA, brfss_flu.data.WV, brfss_flu.data.WI, brfss_flu.data.WY,brfss_flu.data.DC)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

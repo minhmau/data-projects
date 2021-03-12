@@ -1,0 +1,2304 @@
+---
+title: "The Impact of Diabetes Education on Risky Behaviors and General Health Outcomes"
+author: "Minh Pham"
+date: \today
+output:
+  pdf_document: default
+  word_document: default
+  bibliography: references.bib
+header-includes:
+- \usepackage{longtable,booktabs,multirow}
+- \usepackage[justification=centering]{caption}
+- \usepackage{float}
+- \floatplacement{figure}{H}
+linestretch: 2.0
+longtable: yes
+geometry: left=2cm,right=2cm,top=2cm,bottom=2cm
+fontsize: 12pt
+indent: true
+abstract: | 
+ Using the Behavioral Risk Factor Surveillance System (BRFSS) survey from 2013 to 2018, this study investigates diabetes education's effects among respondents with diabetes on different health outcomes and risky behaviors. Using Propensity Coarsened Exact Matching (CEM) for diabetes education, this study found that receiving diabetes education positively affects one's self-reported health outcomes and negatively affects one's propensity to engage in risky behaviors. Specifically, this study shows strong evidence that receiving diabetes education reduces the number of days that the survey participants do not feel well, both mentally and physically. It also reduces respondent's alcohol intake and the probability of respondents being a current smoker. Moreover, this study also shows that having diabetes education increases the frequency of having an A1C check-up and increases physical activity among respondents. This study also is the first to use repeated cross-sectional data across all states in the U.S. to investigate the long-term effect of diabetes educations on mental and physical health. This study reaffirms the findings of prior studies on the impact of diabetes education on other health outcomes such as exercise and other risky behaviors such as smoking and drinking.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(dev = 'png', echo = TRUE,tidy.opts=list(width.cutoff=55),tidy=TRUE, warning = F,message = F)
+```
+
+
+```{r,include=FALSE, echo=FALSE}
+library(devtools)
+library(readr)
+library(pscl)
+library(spdep)
+library(MASS)
+library(readxl)
+library(lodown)
+library(tidyverse)
+library(survey)
+library(zoo)
+library(dplyr)
+library(srvyr)
+library(ggplot2)
+library(sjstats)
+library(quantmod)
+library(multiwayvcov)
+library(InformationValue)
+library(lmtest)
+library(mpath)
+library(rsq)
+library(stargazer)
+library(gtsummary)
+library(gt)
+library(glue)
+library(effects)
+library(reshape2)
+library(ROSE)
+library(randomForest)
+library(countreg)
+library(mfx)
+library(censReg)
+library(Matching)
+library(MatchIt)
+library(fastDummies)
+library(Hmisc)
+library(gridExtra)
+library(cem)
+library(margins)
+library(magick)
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+brfss_df13 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2013 main.rds" ) )
+brfss_df14 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2014 main.rds" ) )
+brfss_df15 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2015 main.rds" ) )
+brfss_df16 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2016 main.rds" ) )
+brfss_df17 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2017 main.rds" ) )
+brfss_df18 <- 
+    readRDS( file.path( path.expand( "~" ) , "BRFSS" , "2018 main.rds" ) )
+
+
+brfss_df13$xpsu=as.integer(brfss_df13$xpsu)
+brfss_df14$xpsu=as.integer(brfss_df14$xpsu)
+brfss_df15$xpsu=as.integer(brfss_df15$xpsu)
+brfss_df16$xpsu=as.integer(brfss_df16$xpsu)
+brfss_df17$xpsu=as.integer(brfss_df17$xpsu)
+brfss_df18$xpsu=as.integer(brfss_df18$xpsu)
+
+### Create date
+brfss_df13$iyear <- rep(2013,nrow(brfss_df13)) # make new column
+brfss_df13$Date <- as.Date( paste(brfss_df13$iyear, brfss_df13$imonth , brfss_df13$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df13=brfss_df13[order(as.Date(brfss_df13$Date, format="%d/%m/%Y")),]
+
+brfss_df14$iyear <- rep(2014,nrow(brfss_df14)) # make new column
+brfss_df14$Date <- as.Date( paste(brfss_df14$iyear, brfss_df14$imonth , brfss_df14$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df14=brfss_df14[order(as.Date(brfss_df14$Date, format="%d/%m/%Y")),]
+
+brfss_df15$iyear <- rep(2015,nrow(brfss_df15)) # make new column
+brfss_df15$Date <- as.Date( paste(brfss_df15$iyear, brfss_df15$imonth , brfss_df15$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df15=brfss_df15[order(as.Date(brfss_df15$Date, format="%d/%m/%Y")),]
+
+brfss_df16$iyear <- rep(2016,nrow(brfss_df16)) # make new column
+brfss_df16$Date <- as.Date( paste(brfss_df16$iyear, brfss_df16$imonth , brfss_df16$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df16=brfss_df16[order(as.Date(brfss_df16$Date, format="%d/%m/%Y")),]
+
+brfss_df17$iyear <- rep(2017,nrow(brfss_df17)) # make new column
+brfss_df17$Date <- as.Date( paste(brfss_df17$iyear, brfss_df17$imonth , brfss_df17$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df17=brfss_df17[order(as.Date(brfss_df17$Date, format="%d/%m/%Y")),]
+
+brfss_df18$iyear <- rep(2018,nrow(brfss_df18)) # make new column
+brfss_df18$Date <- as.Date( paste(brfss_df18$iyear, brfss_df18$imonth , brfss_df18$iday , sep = "." )  , format = "%Y.%m.%d" )
+brfss_df18=brfss_df18[order(as.Date(brfss_df18$Date, format="%d/%m/%Y")),]
+
+brfss_df18$sex=brfss_df18$sex1
+
+
+brfss_df1314 <- intersect(colnames(brfss_df13), colnames(brfss_df14))
+
+brfss_df1314 <- rbind(brfss_df13[ , brfss_df1314], brfss_df14[ , brfss_df1314])
+
+brfss_df131415 <- intersect(colnames(brfss_df1314), colnames(brfss_df15))
+
+brfss_df131415 <- rbind(brfss_df1314[ , brfss_df131415], brfss_df15[ , brfss_df131415])
+
+brfss_df13141516 <- intersect(colnames(brfss_df131415), colnames(brfss_df16))
+
+brfss_df13141516 <- rbind(brfss_df131415[ , brfss_df13141516], brfss_df16[ , brfss_df13141516])
+
+brfss_df1314151617 <- intersect(colnames(brfss_df13141516), colnames(brfss_df17))
+
+brfss_df1314151617 <- rbind(brfss_df13141516[ , brfss_df1314151617], brfss_df17[ , brfss_df1314151617])
+
+brfss_df131415161718 <- intersect(colnames(brfss_df1314151617), colnames(brfss_df18))
+
+brfss_df131415161718 <- rbind(brfss_df1314151617[ , brfss_df131415161718], brfss_df18[ , brfss_df131415161718])
+
+#write_csv(brfss_df131415161718, '/Users/minhpham1609/Desktop/brfss_df131415161718.csv')
+
+# Var-names: xstate	fmonth	imonth	iday	iyear	dispcode	xpsu	pvtresd1	colghous	ladult	numadult	nummen	numwomen	genhlth	physhlth	menthlth	poorhlth	hlthpln1	persdoc2	medcost	checkup1	cvdinfr4	cvdcrhd4	cvdstrk3	asthma3	asthnow	chcscncr	chcocncr	chccopd1	havarth3	addepev2	diabete3	veteran3	marital	children	educa	employ1	income2	weight2	height3	renthom1	sex	pregnant	blind	decide	diffwalk	diffdres	diffalon	smoke100	smokday2	stopsmk2	lastsmk2	usenow3	alcday5	avedrnk2	drnk3ge5	maxdrnks	exerany2	seatbelt	flushot6	flshtmy2	hivtst6	hivtstd3	pdiabtst	prediab1	diabage2	insulin	bldsugar	doctdiab	chkhemo3	feetchk	diabeye	diabedu	imfvplac	hpvadvc2	hpvadsht	rcsgendr	rcsrltn2	casthdx2	casthno2	ctelnum1	cadult	cclghous	landline	qstver	qstlang	mscode	xststr	xstrwt	xrawrake	xwt2rake	xchispnc	xcrace1	xcllcpwt	xdualuse	xdualcor	xllcpwt	xrfhlth	xhcvu651	xltasth1	xcasthm1	xasthms1	xdrdxar1	xprace1	xmrace1	xhispanc	xrace	xraceg21	xracegr3	xracexg1	xageg5yr	xage65yr	xagexg	htin4	htm4	wtkg3	xbmi5	xbmi5cat	xrfbmi5	xchldcnt	xeducag	xincomg	xsmoker3	xrfsmok3	drnkany5	drocdy3x	xrfbing5	xtotinda	xrfseat2	xrfseat3	xflshot6	xaidtst3	xage80	one	Date
+
+#first let’s select a couple variables
+
+brfss_df131415161718$state_name=factor(brfss_df131415161718$xstate , levels = 
+                    c(1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 
+                    37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 
+                    55, 56) ,
+                    
+                labels = 
+                    c("ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", 
+                    "COLORADO", "CONNECTICUT", "DELAWARE", "DISTRICT OF COLUMBIA", 
+                    "FLORIDA", "GEORGIA", "HAWAII", "IDAHO", "ILLINOIS", "INDIANA",
+                    "IOWA", "KANSAS", "KENTUCKY", "LOUISIANA", "MAINE", "MARYLAND",
+                    "MASSACHUSETTS", "MICHIGAN", "MINNESOTA", "MISSISSIPPI", 
+                    "MISSOURI", "MONTANA", "NEBRASKA", "NEVADA", "NEW HAMPSHIRE",
+                    "NEW JERSEY", "NEW MEXICO", "NEW YORK", "NORTH CAROLINA", 
+                    "NORTH DAKOTA", "OHIO", "OKLAHOMA", "OREGON", "PENNSYLVANIA",
+                    "RHODE ISLAND", "SOUTH CAROLINA", "SOUTH DAKOTA", "TENNESSEE",
+                    "TEXAS", "UTAH", "VERMONT", "VIRGINIA", "WASHINGTON",
+                    "WEST VIRGINIA", "WISCONSIN", "WYOMING"))
+
+# brfss_df131415161718s= brfss_df131415161718 %>% select(xstate,	fmonth,	imonth,	iday,	iyear,	dispcode,	xpsu,	physhlth,	menthlth,	poorhlth,decide,	marital,	employ1,	sex,	mscode,	xststr,	xstrwt,	xllcpwt,	xprace1,	xagexg,	xchldcnt,	xeducag,	xincomg,	Date,	state_name,drocdy3x,alcday5 ) ADDEPEV2
+
+brfss.select= brfss_df131415161718 %>% select(xstate,	fmonth,	imonth,	iday,	iyear,	dispcode,	xpsu,	physhlth,	menthlth,	marital,	employ1,	sex,	xststr,	xstrwt,	xllcpwt,	xprace1,	xagexg,	xchldcnt,	xeducag,	xincomg,	Date,	state_name,genhlth, diabedu, insulin,alcday5,drocdy3x,xbmi5,xrfbmi5,xrfsmok3, hlthpln1, cvdcrhd4,  xdrdxar1,xtotinda, diabete3, cvdstrk3, asthma3, chccopd1, addepev2,chkhemo3,chcocncr  ) 
+
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+#DATA cleaning:
+brfss = brfss.select[which(brfss.select$diabete3 ==1),]
+
+#recode main outcome categorical variables
+
+# brfss_df131415161718s$difficult_making_decision = ifelse(brfss_df131415161718s$decide==1,1,ifelse(brfss_df131415161718s$decide==2,0,NA))
+
+brfss$general_health_uncoded = ifelse( brfss$genhlth %in% 1:5 , as.numeric( brfss$genhlth <= 3 ) , NA )
+
+# brfss$life_satisfaction = ifelse( brfss$lsatisfy %in% 1:4 , as.numeric( brfss$lsatisfy <= 2 ) , NA )
+
+brfss$cancer = ifelse( brfss$chcocncr ==1 , 1, ifelse(brfss$chcocncr==2, 0, NA))
+
+brfss$health_insured = ifelse( brfss$hlthpln1 ==1 , 1, ifelse(brfss$hlthpln1==2, 0, NA))
+
+brfss$heart_disease = ifelse( brfss$cvdcrhd4 ==1 , 1, ifelse(brfss$cvdcrhd4==2, 0, NA))
+
+brfss$arthritis = ifelse( brfss$xdrdxar1 ==1 , 1, ifelse(brfss$xdrdxar1==2, 0, NA))
+
+brfss$exercise = ifelse( brfss$xtotinda ==1 , 1, ifelse(brfss$xtotinda==2, 0, NA))
+
+brfss$stroke = ifelse( brfss$cvdstrk3 ==1 , 1, ifelse(brfss$cvdstrk3==2, 0, NA))
+
+brfss$asthma = ifelse( brfss$asthma3 ==1 , 1, ifelse(brfss$asthma3==2, 0, NA))
+
+brfss$bronchitis = ifelse( brfss$chccopd1 ==1 , 1, ifelse(brfss$chccopd1==2, 0, NA))
+
+brfss$depression = ifelse( brfss$addepev2 ==1 , 1, ifelse(brfss$addepev2==2, 0, NA))
+
+brfss$A1C = ifelse( brfss$chkhemo3 %in% 1:76 , as.numeric( brfss$chkhemo3), ifelse(brfss$chkhemo3==88, brfss$chkhemo3==0, NA))
+
+#recode main outcome continuous variable
+
+brfss$mental_health = ifelse( brfss$menthlth %in% 1:30 , as.numeric( brfss$menthlth), ifelse(brfss$menthlth==88, brfss$menthlth==0, NA))
+
+brfss$mental_health_recode = ifelse( brfss$menthlth %in% 1:30 , as.numeric( brfss$menthlth), ifelse(brfss$menthlth==88, brfss$menthlth==0, NA))
+
+brfss$mental_health_recode = replace(brfss$mental_health_recode, brfss$mental_health_recode <10,1)
+brfss$mental_health_recode= replace(brfss$mental_health_recode, brfss$mental_health_recode >=10,0)
+
+# brfss$mentalandphysical_health = ifelse( brfss$poorhlth %in% 1:30 , as.numeric( brfss$poorhlth), ifelse(brfss$poorhlth==88, brfss$poorhlth==0, NA))
+
+brfss$physical_health = ifelse( brfss$physhlth %in% 1:30 , as.numeric( brfss$physhlth), ifelse(brfss$physhlth==88, brfss$physhlth==0, NA))
+
+brfss$physical_health_recode = ifelse( brfss$physhlth %in% 1:30 , as.numeric( brfss$physhlth), ifelse(brfss$physhlth==88, brfss$physhlth==0, NA))
+
+brfss$physical_health_recode = replace(brfss$physical_health_recode, brfss$physical_health_recode <10,1)
+brfss$physical_health_recode = replace(brfss$physical_health_recode, brfss$physical_health_recode >=10,0)
+
+#recode main outcome variables
+#Adults who reported having had at least one drink of alcohol in the past 30 days.
+brfss$alcohol_consumption = ifelse( brfss$alcday5 %in% 201:230 , as.numeric( brfss$alcday5 - 200 ) ,ifelse(brfss$alcday5==888 , brfss$alcday5==0, NA ))
+min(brfss$alcohol_consumption)
+max(brfss$alcohol_consumption)
+
+#Drink-occasions-per-day
+# brfss$drink_occasions = ifelse( brfss$drocdy3x %in% 1:899 , as.numeric( brfss$drocdy3x), ifelse(brfss$drocdy3x==1, brfss$drocdy3x==0, NA))
+# min(brfss$drink_occasions)
+# max(brfss$drink_occasions)
+
+brfss$calculated_bmi_index <- brfss$xbmi5/100
+
+brfss$diabetes_education= ifelse( brfss$diabedu ==1 , 1, ifelse(brfss$diabedu==2, 0, NA))
+
+brfss$insulin= ifelse( brfss$insulin ==1 , 1, ifelse(brfss$insulin==2, 0, NA))
+
+brfss$overweight = ifelse( brfss$xrfbmi5 ==1 , 1, ifelse(brfss$xrfbmi5==2, 0, NA))
+
+brfss$calculated_current_smokers = ifelse(brfss$xrfsmok3==1,0,ifelse(brfss$xrfsmok3==2,1,NA))
+
+
+#demographics
+brfss$gender= ifelse( brfss$sex ==1 , 1, ifelse(brfss$sex==2, 0, NA))
+
+brfss$number_of_children <-  ifelse( brfss$xchldcnt ==1 , 1, ifelse(brfss$xchldcnt==2, 2,ifelse(brfss$xchldcnt==3,3,ifelse(brfss$xchldcnt==4,4,ifelse(brfss$xchldcnt==5,5,ifelse(brfss$xchldcnt==6,5, NA))))))
+
+brfss$marital_status <-  ifelse( brfss$marital ==1 , 1, ifelse(brfss$marital==2, 2,ifelse(brfss$marital==3,3,ifelse(brfss$marital==4,4,ifelse(brfss$marital==5,5,ifelse(brfss$marital==6,6, NA))))))
+
+brfss$employment_status <- ifelse( brfss$employ1 ==1 , 1, ifelse(brfss$employ1==2, 2,ifelse(brfss$employ1==3,3,ifelse(brfss$employ1==4,4,ifelse(brfss$employ1==5,5,ifelse(brfss$employ1==6,6,ifelse(brfss$employ1==7,7,ifelse(brfss$employ1==8,8, NA))))))))
+
+brfss$calculated_race <- ifelse( brfss$xprace1 ==1 , 1, ifelse(brfss$xprace1==2, 2,ifelse(brfss$xprace1==3,3,ifelse(brfss$xprace1==4,4,ifelse(brfss$xprace1==5,5,ifelse(brfss$xprace1==6,6,NA))))))
+
+brfss$calculated_education <-ifelse( brfss$xeducag ==1 , 1, ifelse(brfss$xeducag==2, 2,ifelse(brfss$xeducag==3,3,ifelse(brfss$xeducag==4,4, NA))))
+
+
+brfss$calculated_income <- ifelse( brfss$xincomg ==1 , 1, ifelse(brfss$xincomg==2, 2,ifelse(brfss$xincomg==3,3,ifelse(brfss$xincomg==4,4,ifelse(brfss$xincomg==5,5,ifelse(brfss$xincomg==9,9, NA))))))
+
+brfss$calculated_age <- ifelse( brfss$xagexg ==1 , 1, ifelse(brfss$xagexg==2, 2,ifelse(brfss$xagexg==3,3,ifelse(brfss$xagexg==4,4,ifelse(brfss$xagexg==5,5,ifelse(brfss$xagexg==6,6,NA))))))
+
+# brfss$metropolitan_status <- ifelse( brfss$mscode ==1 , 1, ifelse(brfss$mscode==2, 2,ifelse(brfss$mscode==3,3,ifelse(brfss$mscode==5,5,NA))))
+
+brfss=na.omit(brfss)
+colSums(is.na(brfss))
+
+
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+
+brfss$gender=as.factor(recode(brfss$gender,'1'='male','0'='female',.missing='NA',.default = 'NA'))
+
+brfss$number_of_children <- as.factor(recode(brfss$number_of_children, "1" = "nochildren", "2" = "1children", "3" = "2children", "4" = "3children", "5" = "4morechildren", .default =  "NA", .missing = "NA"))
+
+brfss$marital_status <- as.factor(recode(brfss$marital_status, "1" = "married", "2" = "divorced","3"="widowed","4"="separated","5"="nevermarried","6"="membermarriedcoup",.default = "NA", .missing = "NA"))
+
+brfss$employment_status <- as.factor(recode(brfss$employment_status, "1" = "wagesemployed", "2" = "selfemployed","3"="noworkmore1","4"="noworkless1","5"="homemaker","6"="student","7"="retired","8"="unable",.default = "NA", .missing = "NA"))
+
+brfss$calculated_race <- as.factor(recode(brfss$calculated_race, "1" = "white", "2" = "black","3"="native","4"="asian","5"="pacific","6"="other" ,.default = "NA", .missing = "NA"))
+
+brfss$calculated_education <- as.factor(recode(brfss$calculated_education, "1" = "K", "2" = "HSgrad", "3" = "attendCOL", "4" = "COLgrad", .default = "NA", .missing = "NA")) 
+
+brfss$calculated_income <- as.factor(recode(brfss$calculated_income, "1" = "le15K", "2" = "15to25K", "3" = "25to35K", "4" = "35to50K", "5" = "50more","9"="others", .default = "NA", missing = "NA"))
+
+brfss$calculated_age <- as.factor(recode(brfss$calculated_age, "1" = "18to24", "2" = "25to34", "3" = "35to44", "4" = "45to54", "5" = "55to64", "6" = "65older", .default =  "NA", .missing = "NA"))
+
+# brfss$metropolitan_status <- as.factor(recode(brfss$metropolitan_status, "1" = "citycenter", "2" = "countybutcenter", "3" = "suburban", "5" = "notMSA", .default =  "NA", .missing = "NA"))
+
+
+#setting reference values
+brfss$gender <- relevel(brfss$gender, ref = "female")
+brfss$calculated_income <- relevel(brfss$calculated_income, ref = "50more")
+brfss$calculated_education <- relevel(brfss$calculated_education, ref = "COLgrad")
+brfss$calculated_age <- relevel(brfss$calculated_age, ref = "18to24")
+brfss$marital_status = relevel(brfss$marital_status, ref = "married")
+brfss$employment_status = relevel(brfss$employment_status, ref = "wagesemployed")
+brfss$calculated_race = relevel(brfss$calculated_race, ref = "white")
+brfss$number_of_children = relevel(brfss$number_of_children, ref = "nochildren")
+
+#year and state dummies
+brfss$iyear = as.factor(brfss$iyear)
+brfss$imonth = as.factor(brfss$imonth)
+brfss$state_name = as.factor(brfss$state_name)
+brfss$state_name=tolower(brfss$state_name)
+
+#state-specific-time trends
+brfss$yearmonth=as.yearmon( paste(brfss$iyear, brfss$imonth, sep = "." )  , format = "%Y.%m" )
+brfss$yearmonth = as.factor(brfss$yearmonth)
+
+table(brfss$diabetes_education)
+
+brfss= brfss %>% select(diabetes_education, calculated_age , gender , calculated_income , calculated_education , marital_status , number_of_children, employment_status , calculated_race , health_insured , heart_disease , arthritis , stroke , asthma , bronchitis , depression , state_name , imonth , iyear, physical_health, mental_health, alcohol_consumption, calculated_bmi_index,overweight, calculated_current_smokers, exercise, xstrwt, calculated_bmi_index, A1C, cancer) 
+
+# brfss<- dummy_cols(brfss, select_columns = c("calculated_age", "gender","calculated_income","calculated_education","marital_status","number_of_children","employment_status","calculated_race", "state_name", "imonth","iyear"))
+# 
+# brfss.new <- brfss %>% select(-(2:9))
+# brfss.new <- brfss.new %>% select(-state_name, -imonth,-iyear)
+# colnames.brfss.new <- colnames(brfss.new)
+
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+table(brfss$diabetes_education)
+#Propensity score model
+glm.ps <- glm(diabetes_education ~ health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race , family = binomial(), data=brfss )
+summary(glm.ps)
+
+#---Attach	the	predicted	propensity	score	to	the	datafile
+brfss$psvalue	<- predict(glm.ps,	type	= "response")
+#---Back	to	back	histogram
+histbackback(split(brfss$psvalue,	brfss$diabetes_education),	main= "Propensity score before matching",	xlab=c("control",	"treatment"))
+
+labs <- paste("Actual Diabetes Education Enrollment:", c("Yes", "No"))
+brfss %>%
+  mutate(diabetes_education = ifelse(diabetes_education == 1, labs[1], labs[2])) %>%
+  ggplot(aes(x = psvalue)) +
+  geom_histogram(color = "white") +
+  facet_wrap(~diabetes_education) +
+  xlab("Probability of going to having Diabetes Education") +
+  theme_bw()
+
+
+# Continue using the prop score for matching...
+# hist(brfss$psvalue[brfss$diabetes_education==0], main = "Propensity scores and treatment groups", xlim=c(0,1), ylim=c(0,20000), xlab = "Propensity score (gray = treated, white = control)")
+# hist(brfss$psvalue[brfss$diabetes_education==1], add = TRUE, col = "gray")
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+#Executing a matching algorithm
+mod_match <- matchit(diabetes_education ~ health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race , method = "cem", ratio=1, data = brfss)
+summary(mod_match)
+
+match.data	= match.data(mod_match)
+table(match.data$diabetes_education)
+
+labs <- paste("Actual Diabetes Education Enrollment:", c("Yes", "No"))
+match.data %>%
+  mutate(diabetes_education = ifelse(diabetes_education == 1, labs[1], labs[2])) %>%
+  ggplot(aes(x = distance)) +
+  geom_histogram(color = "white") +
+  facet_wrap(~diabetes_education) +
+  xlab("Probability of going to having Diabetes Education") +
+  theme_bw()
+
+plot(mod_match,	type	= "jitter")
+histbackback(split(match.data$subclass,	match.data$diabetes_education),	main= "Propensity score after matching",	xlab=c("control",	"treatment"))
+
+match.data %>% group_by(diabetes_education) %>% summarise_all(funs(mean))
+
+#write_csv(match.data, '/Users/minhpham1609/Desktop/match.data.csv')
+
+# library(Zelig)
+# z.mental <- zelig(mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression +  state_name + imonth + iyear, model = "negbin",weights = "subclass", data = match.data)
+# summary(z.mental) #same results as using glm negbin => can proceed with count model using glm
+```
+
+```{r, include=FALSE, echo=FALSE, eval = FALSE}
+fn_bal <- function(dta, variable) {
+  dta$variable <- dta[, variable]
+  dta$diabetes_education <- as.factor(dta$diabetes_education)
+  support <- c(min(dta$variable), max(dta$variable))
+  ggplot(dta, aes(x = psvalue, y = variable, color = diabetes_education)) +
+    geom_point(alpha = 0.2, size = 1.3) +
+    geom_smooth(method = "loess", se = F) +
+    xlab("Propensity score") +
+    ylab(variable) +
+    theme_bw() +
+    ylim(support)
+}
+
+fn_bal.matched <- function(dta, variable) {
+  dta$variable <- dta[, variable]
+  dta$diabetes_education <- as.factor(dta$diabetes_education)
+  support <- c(min(dta$variable), max(dta$variable))
+  ggplot(dta, aes(x = distance, y = variable, color = diabetes_education)) +
+    geom_point(alpha = 0.2, size = 1.3) +
+    geom_smooth(method = "loess", se = F) +
+    xlab("Propensity score") +
+    ylab(variable) +
+    theme_bw() +
+    ylim(support)
+}
+
+```
+
+```{r, include=FALSE, echo=FALSE, eval = FALSE}
+grid.arrange(
+   fn_bal(brfss, "health_insured") + theme(legend.position = "top"),
+   fn_bal(match.data, "health_insured") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "heart_disease") + theme(legend.position = "top"),
+   fn_bal(match.data, "heart_disease") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "depression") + theme(legend.position = "top"),
+   fn_bal(match.data, "depression") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "arthritis") + theme(legend.position = "top"),
+   fn_bal(match.data, "arthritis") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "stroke") + theme(legend.position = "top"),
+   fn_bal(match.data, "stroke") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "asthma") + theme(legend.position = "top"),
+   fn_bal(match.data, "asthma") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "bronchitis") + theme(legend.position = "top"),
+   fn_bal(match.data, "bronchitis") + theme(legend.position = "top"),
+   ncol =2
+)
+
+grid.arrange(
+   fn_bal(brfss, "cancer") + theme(legend.position = "top"),
+   fn_bal(match.data, "cancer") + theme(legend.position = "top"),
+   ncol =2
+)
+# par(mfrow = c(2, 2)) 
+# plot(mod_match, type = "QQ")
+```
+
+```{r, include=FALSE, echo=FALSE}
+graphs.matched.data <- match.data
+graphs.matched.data$diabetes_education <- as.factor(graphs.matched.data$diabetes_education)
+
+#mental
+ggplot(graphs.matched.data, aes(distance, mental_health,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm.nb",formula = mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear) + coord_cartesian(ylim=c(0,10))
+
+#physical 
+ggplot(graphs.matched.data, aes(distance, physical_health,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm.nb",formula = physical_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear) + coord_cartesian(ylim=c(0,15))
+
+#alcohol
+ggplot(graphs.matched.data, aes(distance, alcohol_consumption,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm.nb",formula = alcohol_consumption ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear) + coord_cartesian(ylim=c(0,10))
+
+#A1C
+ggplot(graphs.matched.data, aes(distance, A1C,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm.nb",formula = A1C ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear) + coord_cartesian(ylim=c(0,10))
+
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+# mental health models
+
+#Changing the weights? to sublass? pscore?
+# model.glm.mental = glm(mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer +  state_name + imonth + iyear, family=poisson, weights = distance,  data  = match.data)
+# sum.model.glm.mental=summary(model.glm.mental)
+# sum.model.glm.mental
+
+model.glm.nb.mental = glm.nb(mental_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = distance,  data  = match.data)
+sum.model.glm.nb.mental=summary(model.glm.nb.mental)
+sum.model.glm.nb.mental #best model
+
+countreg::rootogram(model.glm.nb.mental)
+
+# model.glm.zf.mental = zeroinfl(mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear | diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, weights = distance,  data  = match.data, dist = "poisson")
+# sum.model.glm.zf.mental=summary(model.glm.zf.mental)
+# sum.model.glm.zf.mental
+
+model.glm.zinb.mental = zeroinfl(mental_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear |diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.model.glm.zinb.mental=summary(model.glm.zinb.mental)
+sum.model.glm.zinb.mental
+
+countreg::rootogram(model.glm.zinb.mental)
+
+## Exponentiated coefficients
+expCoef.mental <- exp(coef((model.glm.zinb.mental)))
+expCoef.mental <- matrix(expCoef.mental, ncol = 2)
+rownames(expCoef.mental) <- names(coef(model.glm.nb.mental))
+colnames(expCoef.mental) <- c("Count_model","Zero Inflation Model")
+expCoef.mental
+# Count model: among those who have bad mental health days, having diabetes education decreases the number of bad mental health days by 0.9645732 times 
+# ZFL model: Not significant!
+
+#marginal effects
+# m.mental <- margins(model.glm.zinb.mental,variables = "diabetes_education")
+# sum.m.mental <- summary(m.mental)
+# #interpretation: On average, having diabetes education reduces (-) number of unhealthy mental health days by exp(0.1122)=1.119 times, or 11.9% decrease in number of mental unhealthy days.
+# exp(0.1122)
+
+#dont knit this
+# tobit.mental = censReg(mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear,  left = 0, right = 30, data  = match.data)
+# sum.tobit.mental = summary(tobit.mental)
+# marginal.effect.mental = margEff(tobit.mental)
+#
+
+hurdle.mental = hurdle(mental_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin", zero="negbin")
+sum.hurdle.mental=summary(hurdle.mental)
+sum.hurdle.mental
+
+countreg::rootogram(hurdle.mental)
+
+vuong(model.glm.nb.mental, model.glm.zinb.mental) #shows that zinb is better
+```
+
+```{r, include=FALSE, echo=FALSE}
+#physical health models
+
+# model.glm.physical = glm(physical_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=poisson, weights = distance,  data  = match.data)
+# sum.model.glm.physical=summary(model.glm.physical)
+# sum.model.glm.physical
+
+model.glm.nb.physical = glm.nb(physical_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = distance,  data  = match.data)
+sum.model.glm.nb.physical=summary(model.glm.nb.physical)
+sum.model.glm.nb.physical
+
+countreg::rootogram(model.glm.nb.physical)
+
+# model.glm.zf.physical = zeroinfl(physical_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear | diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, weights = distance,  data  = match.data, dist = "poisson")
+# sum.model.glm.zf.physical=summary(model.glm.zf.physical)
+# sum.model.glm.zf.physical
+
+model.glm.zinb.physical = zeroinfl(physical_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear | diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.model.glm.zinb.physical=summary(model.glm.zinb.physical)
+sum.model.glm.zinb.physical
+
+countreg::rootogram(model.glm.zinb.physical)
+
+## Exponentiated coefficients
+expCoef.physical <- exp(coef((model.glm.zinb.physical)))
+expCoef.physical <- matrix(expCoef.physical, ncol = 2)
+rownames(expCoef.physical) <- names(coef(model.glm.nb.physical))
+colnames(expCoef.physical) <- c("Count_model","Zero Inflation Model")
+expCoef.physical
+# Count model: among those who have bad physical health days, having diabetes education decreases the number of bad physical health days by 0.9622672 times 
+# ZFL model: among those who never have bad physical health days, having diabetes education decreases the odds of having bad physical health days by 0.8960978 times 
+
+#marginal effects
+# m.physical <- margins(model.glm.nb.physical,variables = "diabetes_education")
+# sum.m.physical <- summary(m.physical)
+
+#dont knit this
+# tobit.physical = censReg(physical_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear,  left = 0, right = 30, data  = match.data)
+# sum.tobit.physical = summary(tobit.physical)
+# marginal.effect.physical = margEff(tobit.physical)
+#
+
+hurdle.physical = hurdle(physical_health ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.hurdle.physical=summary(hurdle.physical)
+sum.hurdle.physical
+
+countreg::rootogram(hurdle.physical)
+
+vuong(model.glm.nb.physical, model.glm.zinb.physical) #this shows that zinb model is better
+
+```
+
+```{r, include=FALSE, echo=FALSE}
+
+#alcohol_consumption model
+
+# model.glm.drinking = glm(alcohol_consumption ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=quasipoisson(link = "log"), weights = distance,  data  = match.data)
+# sum.model.glm.drinking=summary(model.glm.drinking)
+# sum.model.glm.drinking
+
+model.glm.nb.drinking = glm.nb(alcohol_consumption ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = distance,  data  = match.data)
+sum.model.glm.nb.drinking=summary(model.glm.nb.drinking)
+sum.model.glm.nb.drinking #best model
+
+countreg::rootogram(model.glm.nb.drinking)
+
+# model.glm.zf.drinking = zeroinfl(alcohol_consumption ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear | diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, weights = xstrwt,  data  = match.data, dist = "negbin")
+# sum.model.glm.zf.drinking=summary(model.glm.zf.drinking)
+# sum.model.glm.zf.drinking #best model
+
+model.glm.zinb.drinking = zeroinfl(alcohol_consumption ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear | diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.model.glm.zinb.drinking=summary(model.glm.zinb.drinking)
+sum.model.glm.zinb.drinking
+
+countreg::rootogram(model.glm.zinb.drinking)
+
+## Exponentiated coefficients
+expCoef.drinking <- exp(coef((model.glm.zinb.drinking)))
+expCoef.drinking <- matrix(expCoef.drinking, ncol = 2)
+rownames(expCoef.drinking) <- names(coef(model.glm.nb.drinking))
+colnames(expCoef.drinking) <- c("Count_model","Zero Inflation Model")
+expCoef.drinking
+# Count model: among those who have drinks in the past 30 days, having diabetes education decreases the number of drinks by 0.8339918 times 
+# ZFL model: among those who never drink in the past 30 days, having diabetes education decreases the odds of having drinks by 0.92142645 times 
+
+#marginal effects
+# m.drinking <- margins(model.glm.zinb.drinking,variables = "diabetes_education")
+# sum.m.drinking <- summary(m.drinking)
+
+#dont knit this
+# tobit.drinking = censReg(alcohol_consumption ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, left = 0, right = 30,  data  = match.data)
+# sum.tobit.drinking = summary(tobit.drinking)
+# marginal.effect.drinking = margEff(tobit.drinking)
+#
+
+hurdle.drinking = hurdle(alcohol_consumption ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.hurdle.drinking=summary(hurdle.drinking)
+sum.hurdle.drinking
+
+countreg::rootogram(hurdle.drinking)
+
+vuong(model.glm.nb.drinking, model.glm.zinb.drinking)
+```
+
+```{r, include=FALSE, echo=FALSE}
+#A1C
+
+# model.glm.a1c = glm(A1C ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=quasipoisson(link = "log"), weights = weights,  data  = match.data)
+# sum.model.glm.a1c=summary(model.glm.a1c)
+# sum.model.glm.a1c
+
+model.glm.nb.a1c = glm.nb(A1C ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data)
+sum.model.glm.nb.a1c=summary(model.glm.nb.a1c)
+sum.model.glm.nb.a1c #best model
+
+countreg::rootogram(model.glm.nb.a1c)
+
+# model.glm.zf.a1c = zeroinfl(A1C ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear | diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+# sum.model.glm.zf.a1c=summary(model.glm.zf.a1c)
+# sum.model.glm.zf.a1c #best model
+
+model.glm.zinb.a1c = zeroinfl(A1C ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear | 1, weights = weights,  data  = match.data, dist = "negbin")
+sum.model.glm.zinb.a1c=summary(model.glm.zinb.a1c)
+sum.model.glm.zinb.a1c
+
+countreg::rootogram(model.glm.zinb.a1c)
+
+hurdle.a1c= hurdle(A1C ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights,  data  = match.data, dist = "negbin")
+sum.hurdle.a1c=summary(hurdle.a1c)
+sum.hurdle.a1c
+
+countreg::rootogram(hurdle.a1c)
+
+vuong(model.glm.nb.a1c, model.glm.zinb.a1c)
+
+
+## Exponentiated coefficients
+# Cannot run the zoro-inflated results, so use the hurdle model instead
+expCoef.a1c <- exp(coef((hurdle.a1c)))
+expCoef.a1c <- matrix(expCoef.a1c, ncol = 2)
+rownames(expCoef.a1c) <- names(coef(model.glm.nb.a1c))
+colnames(expCoef.a1c) <- c("Count_model","Zero Inflation Model")
+expCoef.a1c
+# Count model: among those who have A1C checkups in the past 30 days, having diabetes education increases the number of doctor checkups by 1.1217469 times 
+# ZFL model: among those who never have A1C checkups in the past 30 days, having diabetes education increases the odds of having doctor checkups by 2.468988 times 
+
+#marginal effects
+# m.a1c <- margins(model.glm.zinb.a1c,variables = "diabetes_education")
+# sum.m.a1c <- summary(m.a1c)
+
+#dont knit this
+# tobit.a1c = censReg(A1C ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, left = 0, right = 30,  data  = match.data)
+# sum.tobit.a1c = summary(tobit.a1c)
+# marginal.effect.a1c = margEff(tobit.a1c)
+#
+
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+# #smoking
+brfss.smoking = match.data %>% select(calculated_current_smokers, diabetes_education , calculated_age , gender , calculated_income , calculated_education , marital_status , number_of_children, employment_status , calculated_race , health_insured , heart_disease , arthritis , state_name , imonth , iyear,xstrwt, subclass,distance,weights, stroke , asthma , bronchitis , depression, cancer )
+brfss.smoking=na.omit(brfss.smoking)
+table(brfss.smoking$calculated_current_smokers)
+data_balanced_both.smoker <- ovun.sample(calculated_current_smokers ~  ., data = brfss.smoking, method = "both", p=0.5,  N=51855, seed = 1)$data
+data_balanced_under.smoker <- ovun.sample(calculated_current_smokers ~  ., data = brfss.smoking, method = "under",  N=9318, seed = 1)$data
+
+model.glm.smoker= glm(calculated_current_smokers ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights, family=quasibinomial(link=logit), data  = data_balanced_under.smoker)
+sum.model.glm.smoker=summary(model.glm.smoker)
+sum.model.glm.smoker
+
+#dont knit this
+xb.logit.smoker <- predict(model.glm.smoker)
+factor.logit.smoker <- mean(dlogis(xb.logit.smoker))
+APE.logit.smoker <- coef(model.glm.smoker) * factor.logit.smoker
+model.marginal.smokerMEM = logitmfx(calculated_current_smokers ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, data  = data_balanced_both.smoker, atmean = TRUE) #MEM
+model.marginal.smokerAME = logitmfx(calculated_current_smokers ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, data  = data_balanced_both.smoker, atmean = FALSE) #AME
+#
+
+graphs.matched.data.smoker <- data_balanced_both.smoker
+graphs.matched.data.smoker$diabetes_education <- as.factor(graphs.matched.data.smoker$diabetes_education)
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+# # #physical activity
+brfss.exercise = match.data %>% select(exercise, diabetes_education , calculated_age , gender , calculated_income , calculated_education , marital_status , number_of_children, employment_status , calculated_race , health_insured , heart_disease , arthritis , state_name , imonth , iyear,xstrwt,subclass,distance,weights,  stroke , asthma , bronchitis , depression, cancer )
+brfss.exercise=na.omit(brfss.exercise)
+table(brfss.exercise$exercise)
+data_balanced_both.exercise <- ovun.sample(exercise ~  ., data = brfss.exercise, method = "both", p=0.5,  N=51855, seed = 1)$data
+data_balanced_under.exercise <- ovun.sample(exercise ~  ., data = brfss.exercise, method = "under",  N=37070, seed = 1)$data
+
+model.glm.exercise = glm(exercise ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, weights = weights, family=quasibinomial(link=logit), data  = data_balanced_under.exercise)
+sum.model.glm.exercise=summary(model.glm.exercise)
+sum.model.glm.exercise
+
+#dont knit this
+xb.logit.exercise <- predict(model.glm.exercise)
+factor.logit.exercise <- mean(dlogis(xb.logit.exercise))
+APE.logit.exercise <- coef(model.glm.exercise) * factor.logit.exercise
+model.marginal.exerciseMEM = logitmfx(exercise ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, data  = data_balanced_both.exercise, atmean = TRUE) #MEM
+model.marginal.exerciseAME = logitmfx(exercise ~  diabetes_education + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + state_name + imonth + iyear, data  = data_balanced_both.exercise, atmean = FALSE) #AME
+#
+
+graphs.matched.data.exercise <- data_balanced_both.exercise
+graphs.matched.data.exercise$diabetes_education <- as.factor(graphs.matched.data.exercise$diabetes_education)
+
+```
+
+
+```{r , include=FALSE, echo=FALSE}
+descriptive_statistics_binary =  match.data %>%
+  dplyr::select(diabetes_education, physical_health, mental_health, A1C, calculated_current_smokers, alcohol_consumption, exercise, health_insured, heart_disease, arthritis, stroke,asthma, bronchitis,depression, cancer  )
+
+stargazer(descriptive_statistics_binary,  title="Descriptive statistics for Binary Variables", covariate.labels=c("Diabetes Education", "Physical Health Not Good","Mental Health Not Good", "A1C Check-up","Current Smoker","Alcohol Consumption", "Physical Activity", "Health Insured", "Heart Disease", "Arthritis","Stroke","Asthma", "Bronchitis", "Depression", "Cancer"))
+
+```
+
+
+```{r , include=FALSE, echo=FALSE, eval=FALSE}
+descriptive_statistics_demographics =
+  match.data %>%
+  dplyr::select(diabetes_education, calculated_age , gender , calculated_income , calculated_education , marital_status , number_of_children , employment_status , calculated_race,state_name)
+
+descriptive_statisics <- descriptive_statistics_demographics %>%
+  # build base summary table
+  tbl_summary(
+    by = diabetes_education,
+    # change variable labels
+    label = list(diabetes_education ~ "Diabetes Education",
+                 calculated_age ~ "Age",
+                 gender ~ "Gender",
+                 calculated_income ~ "Income",
+                 calculated_education ~ "Education",
+                 marital_status ~ "Marital Status",
+                 number_of_children ~ "Number of Children",
+                 calculated_race ~ "Race",
+                 employment_status ~ "Employment Status",
+                 state_name ~ "State Name"),
+    # change statistics printed in table
+    statistic = list(all_continuous() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} / {N} ({p}%)"),
+  ) %>%
+  # add statistic labels
+  add_stat_label() %>%
+  # bold variable labels, italicize levels
+  bold_labels() %>%
+  italicize_levels() %>%
+   gt() %>%
+  tab_header(
+    title = md("Descriptive Statistics - Demographics"),
+    subtitle = md("By Diabetes Education")
+  ) %>%
+  as_latex()
+
+descriptive_statisics %>%
+  as.character() %>%
+  cat()
+
+
+```
+
+
+\abstract{Using the Behavioral Risk Factor Surveillance System (BRFSS) survey from 2013 to 2018, this study investigates diabetes education's effects among respondents with diabetes on different health outcomes and risky behaviors. Using Propensity Coarsened Exact Matching (CEM) for diabetes education, this study found that receiving diabetes education positively affects one's self-reported health outcomes and negatively affects one's propensity to engage in risky behaviors. Specifically, this study shows strong evidence that receiving diabetes education reduces the number of days that the survey participants do not feel well, both mentally and physically. It also reduces respondent's alcohol intake and the probability of respondents being a current smoker. Moreover, this study also shows that having diabetes education increases the frequency of having an A1C check-up and increases physical activity among respondents. This study also is the first to use repeated cross-sectional data across all states in the U.S. to investigate the long-term effect of diabetes educations on mental and physical health. This study reaffirms the findings of prior studies on the impact of diabetes education on other health outcomes such as exercise and other risky behaviors such as smoking and drinking.}
+
+# 1. Introduction
+
+Diabetes is a common and expensive disease associated with severe and premature mortality. According to the National Diabetes Statistics Report for 2020, the number of people living with the disease is over 34,2 million. This number is a substantial 10.5% of the United States of America population and a significant increase from the 18.2 million people reported to have suffered from diabetes in 2012. Besides, without adequate interference from governmental policies, this number is expected to increase. The impact of diabetes is so severe that in 2017 it cost the U.S. an estimated 327 billion dollars, which translates to an average cost per person in the U.S. of roughly 10,000 dollars per year. 
+
+Moreover, diabetes is the sixth leading cause of death after heart disease, cancer, injuries, respiratory diseases, and stroke. Diabetes mortality and the financial cost of diabetes are expected to rise without proper interventions from governmental policies. Many diabetes education programs have attempted to mitigate the adverse effects of diabetes on health. However, the levels of effectiveness for these programs are very different across study designs and samples. It is because generally, the understanding of diabetes education programs can be broadly defined, and thus the implementation of these programs can be very different. There has not been any universal approach to implementing diabetes education on patients, making it more difficult for policymakers to implement policies correctly.
+
+Nevertheless, diabetes education programs have proved to have significant economic implications. Several studies have shown that effective diabetes self-management significantly reduces both complications and health care costs (Caspersen 2011; Stetson 2011), although the estimated savings per diabetes education program can vary significantly. For instance, Balamurugan et al. 2006 showed that the cost-saving was estimated at 415 dollars per program completer over three years, while Chase et al. 2003 found it 163 dollars over six months. Similarly, Cranor et al. 2003 show that the total average direct medical cost was found to be reduced by 1,200 dollars to 1,872 dollars per patient per year, while De Weerdt et al. 1991 found it to be 2324 per patient per year. In another context, having diabetes education is found to have an incremental cost-effectiveness ratio of 55,726 dollars per quality-adjusted life-year (Brownson et al., 2009), 12,994 dollars for trial data per quality-adjusted life-year, and 5,047 dollars per quality-adjusted life-year for real-world data (Gillett et al., 2010). Although diabetes education programs' economic cost-saving structure is widely different across different studies, they are generally quite useful. However, not many diabetes patients are informed about these diabetes education programs. It is merely because health care professionals are not aware of the positive impacts of these education programs. Little is still known about the effectiveness of diabetes treatment and the prevention of behavior and lifestyles.
+
+Using observational survey data from the Behavioral Risk Factor Surveillance System (BRFSS) survey, this study employs the Propensity Coarsened Exact Matching (CEM) method to measure diabetes education's effects on various health factors. This study uses a simple theoretical framework to investigate the impacts of having diabetes education on health outcomes through two different models. The first model investigates the direct relationship of diabetes education on behaviors and risky behaviors, including the frequency of A1C doctor check-ups, the likelihood of having exercise, drinking frequency, and the likelihood of being a current smoker. The second model investigates the direct relationship between diabetes education and general health outcomes, including bad mental and physical health days.
+
+With numerous controlling factors in the study, which includes demographics, health insurance, chronic health conditions, and different fixed effects, this study provides evidence that having diabetes education increases the likelihood of exercising by 6.7% on average and reduces the probability of being a smoker by 4.8% on average. Also, among those who have experienced bad physical health days, having diabetes education decreases the number of bad physical health days by 0.97 times. Among those who never experienced bad physical health days, having diabetes education decreases the odds of having bad physical health days by 0.90 times. The study also shows that among those who have had drinks in the past 30 days, having diabetes education decreases the number of drinks by 0.82 times, and among those who never had a drink in the past 30 days, having diabetes education decreases the odds of having drinks by 0.89 times. Lastly, among those who have had A1C check-ups in the past 30 days, having diabetes education increases the number of doctor check-ups by 1.13 times, and among those who never had A1C check-ups in the past 30 days, having diabetes education increases the odds of having doctor check-ups by 2.5 times.
+
+The results have a significant implication. This study aims to increase the knowledge and skills of people with diabetes to help them successfully self-manage the disease. Previous research indicates that 50% to 80% of individuals with diabetes have significant deficits in knowledge about the management of their disease (Clement et al.). As a result, diabetes patients undermine the disease's detrimental effect and thus fail to manage it. Even in primary care settings, little time is still devoted to diabetes management during routine doctor visits (Barnes CS, Ziemer DC, Miller CD, et al.). It is because doctors and health-care professionals do not fully understand the significant implications that diabetes can cause in the long run.
+
+On the one hand, public health sectors failed to express the significance of diabetes disease. On the other hand, failed to prioritize the importance of diabetes education for diabetes patients. This paper aims to bring more lights to the general public about the positive impacts of diabetes education programs on behaviors and lifestyles, thus hoping to motivate policymakers to focus on widely acceptable interventions with a stable cost.
+
+This paper is not the first research to investigate the effect of diabetes education programs. Previous research has repeatedly shown the evaluated effect of diabetes self-management on various health factors, such as physical activity and impulsive behaviors. However, this study differs from previous studies in two significant ways. First, rather than using short sample periods at mainly local and state levels, this study is the first to investigate the long-term impact of diabetes education at the national level. With well over 2.7 million observations spanning from 2013 to 2018 and well-designed econometrics models, the estimates yielded from this study are confidently efficient and consistent. Second, this paper is the first to attempt at finding the causal effects of diabetes education programs. With the dense controls and the utilization of the Propensity Coarsened Exact Matching (CEM) method, this study aims to find unbiased estimates of diabetes education.
+
+This paper is organized as follows. Section 2 outlines the mechanisms and previous literature review on diabetes education programs. This section also discusses the economics of diabetes education. Section 3 presents the data and empirical approach, including a propensity score analysis on the dataset and its descriptive literature. Section 4 illustrates the methodologies used on the dataset and presents the results. In section 5, this paper shows the goodness of fits of the estimates, in which it shows that the estimates produced are consistent and accurate. Section 6 concludes the paper.
+
+# 2. Mechanisms and Previous Literature 
+
+Compared to real health data, survey health data can potentially cause issues by incorrectly predicting the population's general health. Many argue that people tend to be biased when reporting their health or inflate their health to be much more favorable than their actual health. Therefore, using survey health data for research can be quite tricky because many believe that these data do not have a perfect representation of the tested population. In a sense, reported health is subjective. Previous studies have investigated how subjective health measures capture real health measures. Apouey and Clark 2015 agree that subjective health assessments should capture the overall population health evaluation, including mental and physical health. Besides, subjective health surveys have been shown to predict health outcomes in many additional aspects, such as health care utilization and mortality (Benjamins et al. 2004; Miilunpalo et al. 1997; Jylha 2009). Moreover, numerous studies in the economics literature have used self-reported health for their studies, which indicate a consensus on the use of self-reported health as an apparent connection with objective health (Gravelle and Sutton 2009; Maclean 2013; Lenhart 2015; Apouey and Clark 2015; Lindeboom and van Doorslaer 2004; Maclean et al. 2015; Cottini and Lucifora 2013; Bockerman and Ilmakunnas 2009). However, previous literature has also shown that these subjective health measures may exhibit some reporting errors (Baker, Stabile, and Deri 2004), which may or may not affect the actual estimates.
+
+Now that it is clear to assume the use of survey health data for this paper, to understand diabetes education's impact on various health factors properly, it is crucial to understand diabetes education. The understanding of diabetes education programs can be broadly defined, and there has not been a universal approach to implementing diabetes education on patients. Generally, diabetes education is defined as "a collaborative process through which people with or at risk for diabetes gain the knowledge and skills needed to modify behavior and successfully self-manage the disease and its related conditions" (Boren 2009). Norris (2002), based on 72 randomized controlled trials, classified diabetes education interventions into four main categories. The first category includes information about and understanding of diabetes. The second category includes habits that cover patients' diet and physiology and changes in ability and prevention, including handling (e.g., blood glucose level monitoring). The last two categories include the detection of complications (e.g., pedicure monitoring) and a coping strategy to facilitate the use of various techniques through enhanced psycho-social functions and improved self-relaxation to avoid complications.
+
+The question now leaves to ask whether diabetes education works and how effective diabetes education programs are. In other words, what is the economics of diabetes education programs? Generally, the accepted cost-benefit strategy for diabetes education programs is designed to help patients with their diabetes control and maximize their health. Nonetheless, there is a lack of studies evaluating the costs and the benefits of diabetes education intervention. The supply and demand framework of diabetes education is not well-known, and the costs and the benefits of these programs are widely different. For instance, Balamurugan et al. (2006) found that the estimated savings in diabetes-related costs were 415 dollars per program completer over three years. Chase et al. (2003) found that the estimated savings of 142 dollars over six months, with an average cost of 305 dollars for the control group and 163 dollars for the treatment group. Cranor et al. (2003) found that the total average direct medical costs decreased by 1200 dollars to 1872 dollars per patient per year. De Weerdt et al. (1991) found that patients who completed a diabetes education course had 2324 dollars less in medical claims per year. Similarly, Brownson et al., 2009 showed that having diabetes education yields an incremental cost-effectiveness ratio of \$55,726/QALY (quality-adjusted life-year) in a lifetime. Gillett et al. (2010) show that this estimate is \$12,994/QALY for trial data and $5,047/QALY for real-world data.
+
+Besides, Boren, Fitzner, Panhalkar, and Specker (2009) identified 609 studies and articles and evaluated the cost-benefit of diabetes education programs. They conclude that diabetes education's cost generally measures the following: total health care costs, total diabetes-related costs, outpatient costs, inpatient costs, medication costs, cost per quality-adjusted life-year, cost of essential prevention of diabetes, cost per depression-free day, and cost of restricted activity. These costs are then assigned to one out of three impact categories: cost-effectiveness associated with the intervention, neutral impact associated with the intervention, and increased cost associated with the intervention. For the most part, diabetes education programs are effective, although one study found that they are too costly for implementation. Nonetheless, the effects are widely different among different study designs, which suggest that there needs to be a focus on interventions that work well and do so for a reasonable cost. Thus, many are still confused about whether they should or should not have diabetes education.
+
+Moreover, many are not adequately informed about diabetes education programs. 50% to 80% of people with diabetes have significant deficits in knowledge about the management of their disease (Clement et al.). This estimate is significant, given that more than 30 million Americans are currently living with diabetes disease. One reason contributed is the lack of knowledge and research about the direct impacts of diabetes education on health and behaviors. Therefore, to motivate policymakers to focus on widely acceptable interventions with stable cost, it is essential to spread knowledge and understand diabetes education's impact. A few studies use cross-sectional BRFSS data to estimate diabetes education's impact on various health outcomes like this project. Johnson et al. studies 1,446 adults aged 18 years and older with diabetes and participated in the 2008 Florida Behavioral Risk Factor Surveillance System survey and found a good association between the length of diabetes self-management education (DSME) and the use of such diabetes clinical care services, including A1C and pneumococcal vaccination. Tsai et al. estimated the prevalence of optimal self-rated health by diabetes status of more than 400,000 thousand adults aged 18 years and older who participated in the 2007 state-based survey of the Behavioral Risk Factor Surveillance System (BRFSS). They found that adults' regular physical activity, especially adults with diabetes, is linked with optimal self-rated health. Strine et al. analyzed the correlation of diabetes self-management education (DSME) with preventive health habits and activities in 22,682 individuals with type 2 diabetes using evidence from the 2001 and 2002 Behavioral Risk Factor Surveillance System (BRFSS). They observed that diabetics patients who did not receive DSME were less likely to have regular dilated eye inspection, flu injections, pneumococcal shots, and frequent blood sugar checks. They also found that these patients were less likely to be monitored by health care professionals for feet sores or irritations and the A1C blood condition. Norris SL, Lau J, Smith SJ, Schmid CH, and Engelgau 2002 carried out a meta-analyze of 72 randomized controlled studies which examined the self-management impact of diabetes on several different outcomes. They found that Gamma-hydroxybutyrate (Ghb) blood levels improve substantially among diabetes patients who have practiced diabetes management. Furthermore, they found that the time between the instructor and the patient is also a powerful indicator of its impact.
+
+Previous literature has shown that diabetes education program has positive effects on all aspects of health. This paper contributes to the literature in many ways. As mentioned in the introduction section, this study is the first to use repeated cross-sectional data across all states in the U.S. to investigate the long-term effect of diabetes educations on mental and physical health. Moreover, this study is the first to use a propensity score analysis to measure diabetes education's effect on various health factors. Last, this study confirms the positive effects of diabetes education on physical activity and other risky behaviors such as smoking and drinking.
+
+
+# 3. Data and Empirical Framework
+
+This paper adopts the empirical framework as follow:
+
+$$(Model - 1): BehavioralOutcomes_{i,s,t}=\beta_0 + \beta_1DiabetesEducation_{i,s,t} + \beta_XX_{i,s,t}+\tau_t+\gamma_s+\epsilon_{i,s,t}$$
+
+$$(Model - 2): GeneralHealth_{i,s,t}=\beta_0 + \beta_1DiabetesEducation_{i,s,t} + \beta_XX_{i,s,t}+\tau_t+\gamma_s+\epsilon_{i,s,t}$$
+
+The health outcome measure comes from the Behavioral Risk Factor Surveillance System (BRFSS), maintained by the Center for Disease Control and Prevention (CDC) to monitor the health and behavioral risk in the United States of America. These surveys span from 2013 to 2018 and are made by individual $i$ in state $s$ in day $t$. The sample data constructed for analysis is restricted to people who reported having chronic diabetes. $DiabetesEducation_{i,s,t}$ is the variable of interest that indicates respondents who do and do not have diabetes education. This variable comes from a question of the survey that asks, "Have you ever taken a course or class in how to manage your diabetes yourself?". The set of control variables, which may influence health, is suggested by previous work and added into the framework. Particularly, $X{i,s,t}$  is a matrix of individual-level demographic data, including $age$, $gender$, $income$, $education-status$, $marital-status$, $number-of-children$, $employment-status$, $race$, and $health-insurance-status$. It also includes a series of chronic condition controls, including $heart-disease$, $arthritis$, $stroke$, $asthma$, $bronchitis$, $depression$, and $cancer$. 
+
+Moreover, $\tau_t$ are indicator variables for calendar months and calendar years, while $\gamma_s$ are indicators for different states. These vectors include dummies for 72 different months across six different years, and they also include dummies for 42 different states after the removal of NAs. The vector of month fixed effects account for seasonality's effect on health behaviors, and the vector of fixed effects account for any yearly differences in health behaviors across different years. Moreover, the vector of state fixed effects accounts for permanent differences across states that may affect health and health behaviors. These controls account for lifestyle patterns and state infrastructures on health care. Lastly, the $\epsilon_{i,s,t}$ is an idiosyncratic random error term.
+
+In this analysis, Model 1 will measure the direct effect of Diabetes Education on Behavioral changes. $BehavioralOutcomes_{i,s,t}$ are measures for risky behaviors of smoking and drinking. Drinking is the reported number of alcoholic beverages such as beer, wine, a malt beverage, or liquor in the past 30 days; smoking is the reported adults who are current smokers. This outcome also includes exercise, which consists of who reported doing physical activity or exercise during the past 30 days other than their regular job, and the frequency of A1C doctor checkups. Model 2 will measure the impact of Diabetes Education on $GeneralHealth_{i,s,t}$, which includes the reported number of days physical health not good, and the reported number of days mental health not good. This paper will refer to these as the number of physically unhealthy days and mentally unhealthy days.
+
+This paper uses a simplified theoretical framework and hypothesizes that in Model 1, having diabetes education will reduce the number of drinks consumed, reduce the likelihood of being a smoker, and increase the frequency of A1C doctor check-ups. In model 2, this paper hypothesizes that having diabetes education will decrease the number of physically unhealthy days and mentally unhealthy days.
+
+
+\begin{table}[!htbp] \centering 
+\caption{Simplified Model for Pmimary Research Outcomes} 
+  \label{}
+\begin{tabular}{lll}
+\hline
+\multicolumn{1}{c}{\textit{\textbf{Treatment}}} & \multicolumn{2}{c}{}                                                       \\ \hline
+                                              & \textit{Action:}           & \textbf{Diabetes Education}                   \\ \hline \hline
+\multicolumn{1}{c}{\textit{\textbf{Outcomes}}} &                            &                                               \\ \hline
+                                              & \textit{Direct Effects on}   & \textbf{Behavioral Improvements}              \\ \hline
+                                              & \textit{Behaviors and Risky Behaviors:}                           & - More Exercise                               \\ \hline
+                                              &                            & - Less Drinking                               \\ \hline
+                                              &                            & - Less Smoking                                \\ \hline
+                                              &                            & - Frequently Check-up for A1C Levels          \\ \hline 
+                                              &                            & - etc.                                        \\ \hline \hline
+\multicolumn{1}{c}{\textit{\textbf{Outcomes}}} &                            &                                               \\ \hline
+                                              & \textit{Direct Effects on} & \textbf{Overall Quality of Life Improvements} \\ \hline
+                                              & \textit{General Health:}                           & - Improve Mental Health                       \\ \hline
+                                              &                            & - Improve Physical Health                     \\ \hline
+                                              &                            & - etc.                                         \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+### 3.1 Propensity Score Analysis
+
+To be able to establish the estimates of diabetes education, this paper implements a propensity matching method. Since the data consists of primarily categorical demographics, using the traditional matching method, such as the nearest neighbor matching, is not the best practice. The nearest neighbor performs 1-1 matching with the smallest distance between the treated and control group. By default, this method will convert all the categorical variables into continuous variables and match them through continuous values. Instead, this paper aims to select exact matches between the treated and control group based on the subcategory for each categorical variable (i.e., income less than 15k in the control group to income less than 15k in the treated group). In recent progress, coarsened exact matching (CEM) can precisely match the broader spectrums of the variables, for example, using variable categories and subcategories rather than a continuous measure (Iacus, King, and Porro, 2009). The exact matching method and coarsened exact matching method are fundamentally different. The exact matching uses exact one-to-one matching, which pairs each treated unit with one control unit for which the values of covariates are identical. The coarsened exact matching algorithm performs exact matching on coarsened data to determine matches and then passes on the un-coarsened data from observations matched to estimate the effect. CEM method works by first dividing all the observations into strata, each of which has the same values for all the coarsened pre-treatment covariates. It is then excluding all observations on each stratum with no occurrence of at least one value for every single value of the treatment component. This method is robust to measurement error, works well with multiple imputation methods for missing data, and is extremely fast computationally even with vast data sets.
+
+The data shows that diabetes education distributions in the treated and control groups before matching, divided into two groups, are very different from each other. The matching objective is to achieve the same distributions for the two groups so that the estimates later investigated will be precise and consistent.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Before Matching' }
+histbackback(split(brfss$psvalue,	brfss$diabetes_education),	main= "Propensity score before matching",	xlab=c("control",	"treatment"))
+
+labs <- paste("Actual Diabetes Education:", c("Yes", "No"))
+brfss %>%
+  mutate(diabetes_education = ifelse(diabetes_education == 1, labs[1], labs[2])) %>%
+  ggplot(aes(x = psvalue)) +
+  geom_histogram(color = "white") +
+  facet_wrap(~diabetes_education) +
+  xlab("Probability of going to having Diabetes Education") +
+  theme_bw()
+```
+
+The matching model on the treatment, diabetes education, is based on demographics and chronic health conditions. These include gender, age, income, education status, marital status, number of children, employment status, race, and indicators for whether the respondents have health insurance, arthritis, stroke, asthma, bronchitis, and depression. Given a large amount of information to match, it is expected that the observations after matching will significantly reduce. After matching, the final dataset is reduced by almost 50% from 99,328 observations to 51,855 observations, which is still large enough to continue the analysis. The matched sample includes 22,611 observations in the control group and 29,244 observations in the treated groups. The unmatched sample, which includes 19,380 observations in the control group and 28,093 observations in the treated group, is not used in this analysis.
+
+
+```{r, echo=FALSE,results='hide', fig.align='center', fig.keep='all'}
+plot(mod_match,	type	= "jitter")
+```
+
+\captionsetup[table]{labelformat=empty,skip=1pt}
+\begin{longtable}{ccc}
+\caption*{
+\large Matching Table\\ 
+} \\ 
+\toprule
+\multicolumn{3}{c}{Sample sizes:} \\
+\midrule
+            & Control  & Treated  \\
+All         & 41991    & 57337    \\
+Matched     & 22611    & 29244    \\
+Unmatched   & 19380    & 28093    \\
+Discarded   & 0        & 0       \\
+\hline 
+\bottomrule
+\end{longtable}
+
+
+Once the matching dataset is finalized, the treatment effect for diabetes education can be simply analyzed using different econometric models. As shown down below, it is visually evident that the after-matching distributions look so much better and more symmetric to each other compared to the before-matching distributions. In specific, the matching statistics from before and after shows that the mean differences before matching of the treatment and control group are widely different from 0 while the mean differences after matching for every single variable and subcategories are consistently at 0. This result shows that given many covariates in the dataset, the matching was done exceptionally ^[See Appendix for before-after matching mean difference for each covariate]. 
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'After Matching' }
+histbackback(split(match.data$subclass,	match.data$diabetes_education),	main= "Propensity score after matching",	xlab=c("control",	"treatment"))
+
+labs <- paste("Actual Diabetes Education:", c("Yes", "No"))
+match.data %>%
+  mutate(diabetes_education = ifelse(diabetes_education == 1, labs[1], labs[2])) %>%
+  ggplot(aes(x = distance)) +
+  geom_histogram(color = "white") +
+  facet_wrap(~diabetes_education) +
+  xlab("Probability of going to having Diabetes Education") +
+  theme_bw()
+```
+
+### 3.2 Visual Inspection
+
+This section inspects how well the data was matched. Precisely, the higher the degree of similarity between the two curves, the better the matching is purported to be. A visual inspection of the figures below shows that the matching technique employed did exceptionally well at achieving similarity between the control and treatment groups. In fact, for many covariates, they look identical. Just by looking at the first two graphs, it is clear that the matching method proposed is exceptional. CEM matches the respondents who have diabetes education to respondents who do not have diabetes education almost perfectly for the probability of respondents who have health insurance and the probability of heart disease. The magnitude of the two curves within each graph is very close to each other, if not the same.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Visual inspection'}
+fn_bal <- function(dta, variable) {
+  dta$variable <- dta[, variable]
+  dta$diabetes_education <- as.factor(dta$diabetes_education)
+  support <- c(min(dta$variable), max(dta$variable))
+  ggplot(dta, aes(x = psvalue, y = variable, color = diabetes_education)) +
+    geom_point(alpha = 0.2, size = 1.3) +
+    geom_smooth(method = "loess", se = F) +
+    xlab("Propensity score") +
+    ylab(variable) +
+    theme_bw() +
+    ylim(support)
+}
+
+grid.arrange(
+   fn_bal(match.data, "health_insured") + theme(legend.position = "top"),
+   fn_bal(match.data, "heart_disease") + theme(legend.position = "top"),
+   ncol =2
+)
+```
+
+Similarly, for the rest of the chronic diseases, CEM matches the two control and treated groups very well. It matches the probabilities of respondents who have depression, arthritis, stroke, and asthma within the two groups of respondents who have and do not have diabetes education almost identical in the magnitude. Although the probabilities of respondents who have cancer and bronchitis within the two groups of respondents who have and do not have diabetes education do not match other chronic conditions, they show that the matching method is more than good enough. In specific, at least 50% of the respondents are matched in this category.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Visual inspection'}
+grid.arrange(
+   fn_bal(match.data, "depression") + theme(legend.position = "top"),
+   fn_bal(match.data, "arthritis") + theme(legend.position = "top"),
+   ncol =2
+)
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Visual inspection'}
+grid.arrange(
+   fn_bal(match.data, "stroke") + theme(legend.position = "top"),
+   fn_bal(match.data, "asthma") + theme(legend.position = "top"),
+   ncol =2
+)
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Visual inspection'}
+grid.arrange(
+   fn_bal(match.data, "cancer") + theme(legend.position = "top"),
+   fn_bal(match.data, "bronchitis") + theme(legend.position = "top"),
+   ncol =3
+)
+
+```
+
+
+
+# 3.3 Descriptive Statistics
+
+\begingroup
+\tabcolsep = 11.0pt
+\def\arraystretch{0.65}
+\captionsetup[table]{labelformat=empty,skip=1pt}
+\begin{longtable}{llll}
+\caption*{
+\large Descriptive Statistics - Demographics\\ 
+\small By Diabetes Education\\ 
+} \\ 
+\toprule
+Characteristic & Statistic & 0, N = 22611 & 1, N = 29244 \\ 
+\midrule
+\textbf{Age}   &  &  &  \\ 
+\quad 18to24  & n / N (\%) & 11 / 22611 (<0.1\%) & 12 / 29244 (<0.1\%) \\ 
+\quad 25to34  & n / N (\%) & 76 / 22611 (0.3\%) & 101 / 29244 (0.3\%) \\ 
+\quad 35to44  & n / N (\%) & 358 / 22611 (1.6\%) & 514 / 29244 (1.8\%) \\ 
+\quad 45to54  & n / N (\%) & 1777 / 22611 (7.9\%) & 2415 / 29244 (8.3\%) \\ 
+\quad 55to64  & n / N (\%) & 5058 / 22611 (22\%) & 6728 / 29244 (23\%) \\ 
+\quad 65older  & n / N (\%) & 15331 / 22611 (68\%) & 19474 / 29244 (67\%) \\ 
+\textbf{Gender} &  &  &  \\ 
+\quad female  & n / N (\%) & 11660 / 22611 (52\%) & 15853 / 29244 (54\%) \\ 
+\quad male  & n / N (\%) & 10951 / 22611 (48\%) & 13391 / 29244 (46\%) \\ 
+\textbf{Income} &  &  &  \\ 
+\quad 50more  & n / N (\%) & 7949 / 22611 (35\%) & 11702 / 29244 (40\%) \\ 
+\quad 15to25K  & n / N (\%) & 4229 / 22611 (19\%) & 4920 / 29244 (17\%) \\ 
+\quad 25to35K  & n / N (\%) & 2371 / 22611 (10\%) & 2946 / 29244 (10\%) \\ 
+\quad 35to50K  & n / N (\%) & 2979 / 22611 (13\%) & 4091 / 29244 (14\%) \\ 
+\quad le15K  & n / N (\%) & 2206 / 22611 (9.8\%) & 2217 / 29244 (7.6\%) \\ 
+\quad others  & n / N (\%) & 2877 / 22611 (13\%) & 3368 / 29244 (12\%) \\ 
+\textbf{Education} &  &  &  \\ 
+\quad COLgrad  & n / N (\%) & 6585 / 22611 (29\%) & 9637 / 29244 (33\%) \\ 
+\quad attendCOL  & n / N (\%) & 5949 / 22611 (26\%) & 8924 / 29244 (31\%) \\ 
+\quad HSgrad  & n / N (\%) & 8333 / 22611 (37\%) & 9255 / 29244 (32\%) \\ 
+\quad K  & n / N (\%) & 1744 / 22611 (7.7\%) & 1428 / 29244 (4.9\%) \\ 
+\textbf{Marital Status} &  &  &  \\ 
+\quad married  & n / N (\%) & 12476 / 22611 (55\%) & 17359 / 29244 (59\%) \\ 
+\quad divorced  & n / N (\%) & 3173 / 22611 (14\%) & 3809 / 29244 (13\%) \\ 
+\quad membermarriedcoup  & n / N (\%) & 69 / 22611 (0.3\%) & 69 / 29244 (0.2\%) \\ 
+\quad nevermarried  & n / N (\%) & 1407 / 22611 (6.2\%) & 1739 / 29244 (5.9\%) \\ 
+\quad separated  & n / N (\%) & 112 / 22611 (0.5\%) & 100 / 29244 (0.3\%) \\ 
+\quad widowed  & n / N (\%) & 5374 / 22611 (24\%) & 6168 / 29244 (21\%) \\ 
+\textbf{Number of Children} &  &  &  \\ 
+\quad nochildren  & n / N (\%) & 21585 / 22611 (95\%) & 27830 / 29244 (95\%) \\ 
+\quad 1children  & n / N (\%) & 624 / 22611 (2.8\%) & 836 / 29244 (2.9\%) \\ 
+\quad 2children  & n / N (\%) & 303 / 22611 (1.3\%) & 431 / 29244 (1.5\%) \\ 
+\quad 3children  & n / N (\%) & 83 / 22611 (0.4\%) & 123 / 29244 (0.4\%) \\ 
+\quad 4morechildren  & n / N (\%) & 16 / 22611 (<0.1\%) & 24 / 29244 (<0.1\%) \\ 
+\textbf{Employment Status} &  &  &  \\ 
+\quad wagesemployed  & n / N (\%) & 5147 / 22611 (23\%) & 7172 / 29244 (25\%) \\ 
+\quad homemaker  & n / N (\%) & 791 / 22611 (3.5\%) & 840 / 29244 (2.9\%) \\ 
+\quad noworkless1  & n / N (\%) & 41 / 22611 (0.2\%) & 46 / 29244 (0.2\%) \\ 
+\quad noworkmore1  & n / N (\%) & 103 / 22611 (0.5\%) & 110 / 29244 (0.4\%) \\ 
+\quad retired  & n / N (\%) & 13764 / 22611 (61\%) & 17985 / 29244 (61\%) \\ 
+\quad selfemployed  & n / N (\%) & 856 / 22611 (3.8\%) & 991 / 29244 (3.4\%) \\ 
+\quad student  & n / N (\%) & 4 / 22611 (<0.1\%) & 5 / 29244 (<0.1\%) \\ 
+\quad unable  & n / N (\%) & 1905 / 22611 (8.4\%) & 2095 / 29244 (7.2\%) \\ 
+\textbf{Race} &  &  &  \\ 
+\quad white  & n / N (\%) & 20107 / 22611 (89\%) & 26044 / 29244 (89\%) \\ 
+\quad asian  & n / N (\%) & 166 / 22611 (0.7\%) & 140 / 29244 (0.5\%) \\ 
+\quad black  & n / N (\%) & 2186 / 22611 (9.7\%) & 2894 / 29244 (9.9\%) \\ 
+\quad native  & n / N (\%) & 91 / 22611 (0.4\%) & 101 / 29244 (0.3\%) \\ 
+\quad other  & n / N (\%) & 58 / 22611 (0.3\%) & 62 / 29244 (0.2\%) \\ 
+\quad pacific  & n / N (\%) & 3 / 22611 (<0.1\%) & 3 / 29244 (<0.1\%) \\ 
+\textbf{State Name} &  &  &  \\ 
+\quad alabama  & n / N (\%) & 741 / 22611 (3.3\%) & 842 / 29244 (2.9\%) \\ 
+\quad alaska  & n / N (\%) & 119 / 22611 (0.5\%) & 221 / 29244 (0.8\%) \\ 
+\quad arizona  & n / N (\%) & 985 / 22611 (4.4\%) & 1223 / 29244 (4.2\%) \\ 
+\quad arkansas  & n / N (\%) & 115 / 22611 (0.5\%) & 126 / 29244 (0.4\%) \\ 
+\quad colorado  & n / N (\%) & 246 / 22611 (1.1\%) & 450 / 29244 (1.5\%) \\ 
+\quad connecticut  & n / N (\%) & 504 / 22611 (2.2\%) & 533 / 29244 (1.8\%) \\ 
+\quad delaware  & n / N (\%) & 611 / 22611 (2.7\%) & 712 / 29244 (2.4\%) \\ 
+\quad district of columbia  & n / N (\%) & 293 / 22611 (1.3\%) & 373 / 29244 (1.3\%) \\ 
+\quad florida  & n / N (\%) & 1405 / 22611 (6.2\%) & 1593 / 29244 (5.4\%) \\ 
+\quad georgia  & n / N (\%) & 739 / 22611 (3.3\%) & 959 / 29244 (3.3\%) \\ 
+\quad hawaii  & n / N (\%) & 112 / 22611 (0.5\%) & 147 / 29244 (0.5\%) \\ 
+\quad illinois  & n / N (\%) & 273 / 22611 (1.2\%) & 311 / 29244 (1.1\%) \\ 
+\quad indiana  & n / N (\%) & 912 / 22611 (4.0\%) & 1399 / 29244 (4.8\%) \\ 
+\quad iowa  & n / N (\%) & 709 / 22611 (3.1\%) & 1291 / 29244 (4.4\%) \\ 
+\quad kentucky  & n / N (\%) & 713 / 22611 (3.2\%) & 800 / 29244 (2.7\%) \\ 
+\quad louisiana  & n / N (\%) & 607 / 22611 (2.7\%) & 722 / 29244 (2.5\%) \\ 
+\quad maine  & n / N (\%) & 440 / 22611 (1.9\%) & 585 / 29244 (2.0\%) \\ 
+\quad maryland  & n / N (\%) & 556 / 22611 (2.5\%) & 743 / 29244 (2.5\%) \\ 
+\quad michigan  & n / N (\%) & 433 / 22611 (1.9\%) & 559 / 29244 (1.9\%) \\ 
+\quad minnesota  & n / N (\%) & 494 / 22611 (2.2\%) & 1341 / 29244 (4.6\%) \\ 
+\quad mississippi  & n / N (\%) & 538 / 22611 (2.4\%) & 414 / 29244 (1.4\%) \\ 
+\quad missouri  & n / N (\%) & 269 / 22611 (1.2\%) & 352 / 29244 (1.2\%) \\ 
+\quad montana  & n / N (\%) & 314 / 22611 (1.4\%) & 430 / 29244 (1.5\%) \\ 
+\quad nevada  & n / N (\%) & 175 / 22611 (0.8\%) & 231 / 29244 (0.8\%) \\ 
+\quad new hampshire  & n / N (\%) & 229 / 22611 (1.0\%) & 352 / 29244 (1.2\%) \\ 
+\quad new jersey  & n / N (\%) & 1245 / 22611 (5.5\%) & 1067 / 29244 (3.6\%) \\ 
+\quad new mexico  & n / N (\%) & 525 / 22611 (2.3\%) & 672 / 29244 (2.3\%) \\ 
+\quad north carolina  & n / N (\%) & 339 / 22611 (1.5\%) & 520 / 29244 (1.8\%) \\ 
+\quad north dakota  & n / N (\%) & 597 / 22611 (2.6\%) & 792 / 29244 (2.7\%) \\ 
+\quad ohio  & n / N (\%) & 643 / 22611 (2.8\%) & 786 / 29244 (2.7\%) \\ 
+\quad oregon  & n / N (\%) & 61 / 22611 (0.3\%) & 160 / 29244 (0.5\%) \\ 
+\quad pennsylvania  & n / N (\%) & 495 / 22611 (2.2\%) & 576 / 29244 (2.0\%) \\ 
+\quad rhode island  & n / N (\%) & 232 / 22611 (1.0\%) & 241 / 29244 (0.8\%) \\ 
+\quad south carolina  & n / N (\%) & 1443 / 22611 (6.4\%) & 1685 / 29244 (5.8\%) \\ 
+\quad south dakota  & n / N (\%) & 398 / 22611 (1.8\%) & 576 / 29244 (2.0\%) \\ 
+\quad tennessee  & n / N (\%) & 573 / 22611 (2.5\%) & 652 / 29244 (2.2\%) \\ 
+\quad texas  & n / N (\%) & 487 / 22611 (2.2\%) & 608 / 29244 (2.1\%) \\ 
+\quad vermont  & n / N (\%) & 230 / 22611 (1.0\%) & 274 / 29244 (0.9\%) \\ 
+\quad virginia  & n / N (\%) & 1116 / 22611 (4.9\%) & 1401 / 29244 (4.8\%) \\ 
+\quad washington  & n / N (\%) & 390 / 22611 (1.7\%) & 790 / 29244 (2.7\%) \\ 
+\quad west virginia  & n / N (\%) & 365 / 22611 (1.6\%) & 391 / 29244 (1.3\%) \\ 
+\quad wisconsin  & n / N (\%) & 466 / 22611 (2.1\%) & 749 / 29244 (2.6\%) \\ 
+\quad wyoming  & n / N (\%) & 474 / 22611 (2.1\%) & 595 / 29244 (2.0\%) \\ 
+\hline 
+\hline 
+\bottomrule
+\end{longtable}
+\endgroup
+
+The descriptive statistics are shown above.  Variable for reported alcohol consumption and variable for reported A1C doctor check-ups indicate a large portion of the observations who reported having zero A1C check-ups and zero drinks in the past 30 days of the survey interview. Similarly, reported mental unhealthy days and physical unhealthy days also suffer imbalanced classification problems. Specifically, these variables have excess zero problems, which indicates that there should be proper statistical implementation for count data to precisely measure the effects of diabetes education on these variables. Section 4 will investigate this issue.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Number of Reported A-one-C Checkups and Reported Alcohol Consumption' }
+# Number of respondents
+hist(match.data$A1C,
+main="Histogram of Reported A-one-C Checkups",
+xlab="Number of Times",
+xlim=c(0,76),
+col="light blue",
+freq=FALSE
+)
+
+hist(match.data$alcohol_consumption,
+main="Histogram of Reported Alcohol Consumption",
+xlab="Number of Days",
+xlim=c(0,30),
+col="light blue",
+freq=FALSE
+)
+
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Daily Count Chart for Mental and Physical Unhealthy Days' }
+hist(match.data$mental_health,
+main="Histogram of Reported Mental Health Not Good",
+xlab="Number of Days",
+xlim=c(0,30),
+col="light blue",
+freq=FALSE
+)
+
+hist(match.data$physical_health,
+main="Histogram of Reported Physical Health Not Good",
+xlab="Number of Days",
+xlim=c(0,30),
+col="light blue",
+freq=FALSE
+)
+```
+
+\begingroup
+\tabcolsep = 11.0pt
+\def\arraystretch{0.65}
+\captionsetup[table]{labelformat=empty,skip=1pt}
+\begin{longtable}{lccccccc}
+\caption*{
+\large Descriptive Statistics\\ 
+} \\ 
+\toprule
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Pctl(25)} & \multicolumn{1}{c}{Pctl(75)} & \multicolumn{1}{c}{Max} \\ 
+\hline 
+\midrule
+Diabetes Education & 51,855 & 0.564 & 0.496 & 0 & 0 & 1 & 1 \\ 
+Physical Health Not Good & 51,855 & 6.224 & 10.341 & 0 & 0 & 7 & 30 \\ 
+Mental Health Not Good & 51,855 & 2.787 & 7.172 & 0 & 0 & 0 & 30 \\ 
+A1C Check-up & 51,855 & 2.722 & 2.678 & 0 & 2 & 4 & 76 \\ 
+Current Smoker & 51,855 & 0.090 & 0.286 & 0 & 0 & 0 & 1 \\ 
+Alcohol Consumption & 51,855 & 2.136 & 5.891 & 0 & 0 & 1 & 30 \\ 
+Physical Activity & 51,855 & 0.643 & 0.479 & 0 & 0 & 1 & 1 \\ 
+Health Insured & 51,855 & 0.992 & 0.088 & 0 & 1 & 1 & 1 \\ 
+Heart Disease & 51,855 & 0.110 & 0.313 & 0 & 0 & 0 & 1 \\ 
+Arthritis & 51,855 & 0.535 & 0.499 & 0 & 0 & 1 & 1 \\ 
+Stroke & 51,855 & 0.042 & 0.202 & 0 & 0 & 0 & 1 \\ 
+Asthma & 51,855 & 0.087 & 0.282 & 0 & 0 & 0 & 1 \\ 
+Bronchitis & 51,855 & 0.083 & 0.276 & 0 & 0 & 0 & 1 \\ 
+Depression & 51,855 & 0.165 & 0.371 & 0 & 0 & 0 & 1 \\ 
+Cancer & 51,855 & 0.115 & 0.319 & 0 & 0 & 0 & 1 \\ 
+\hline 
+\bottomrule
+\end{longtable}
+\endgroup
+
+The charts below show the descriptive statistics regarding two groups of respondents who have and do not have diabetes education after matching for the rest of the covariates. Generally, the two group characteristics are very similar in the proportion of respondents across different subcategories. For instance, the elderly from 65 and older are the most in the dataset for both groups, followed by respondents in the 55-64 age group, then 45-54 age group. The data consists of predominantly white, follows by black.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Demographics - Age and Race' }
+match.data$diabetes_education_binary <- ifelse(match.data$diabetes_education==1,"Diabetes Education", "No Diabetes Education")
+#Bar-plot
+age.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(calculated_age)))
+age.plot + geom_bar(position="dodge",color="black")  + labs(x="", y = "Count") + scale_fill_brewer(palette="Accent",name = "Age Brackets") 
+
+
+race.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(calculated_race)))
+race.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Race")
+
+
+```
+
+There are pretty equal proportions of respondents who have graduated from college, attended college, and have a high school diploma for education. Respondents who earn more than 50 thousand dollars per year are the most in the income bracket categories. The proportions of respondents who earn from 15 thousand dollars to 25 thousand dollars, 25 thousand dollars to 35 thousand dollars, 35 thousand dollars to 50 thousand dollars, and less than 15 thousand dollars are very equally distributed. There are slightly more females than males in the sample. Respondents who are married takes the majority of the sample, follows by widowed and divorced. Most people are retired or currently being employed, and most survey respondents do not have any children.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'Demographics - Education and Income'}
+education.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(calculated_education)))
+education.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Education")
+
+income.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(calculated_income)))
+income.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Income Brackets")
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap=  'Demographics - Gender and Marital-Status'}
+gender.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(gender)))
+gender.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Gender")
+
+marital.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(marital_status)))
+marital.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Marital Status")
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Demographics - Employment-Status and Number-of-Children' }
+employment.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(employment_status)))
+employment.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Employment Status")
+
+chidren.plot <- ggplot(match.data, aes(x = factor(diabetes_education_binary), fill = factor(number_of_children)))
+chidren.plot + geom_bar(position="dodge",color="black") + labs(x = "", y = "Count") + scale_fill_brewer(palette="Accent",name = "Number of Children")
+
+```
+
+
+# 4. Methodology and Results
+
+### Model 1 Results: Alcohol Consumption, A1C Checkups, Exercise, and Smoking
+
+This section analyzes diabetes education's effects on behavioral outcomes, including Alcohol Consumption, A1C Checkups, Exercise, and Smoking. As mentioned above, smoking is a binary outcome for adults who reported themselves to be current smokers. Exercise is the binary outcome for adults who reported doing physical activity or exercise during the past 30 days other than their regular job. Alcohol consumption is a count outcome representing the number of alcoholic beverages such as beer, wine, a malt beverage, or liquor. A1C is another count outcome representing the number of times in the past 12 months that a doctor, nurse, or other health professional checked the patient for A-one-C. In other words, this variable is the number of times checked for Glycosylated Hemoglobin.
+
+This analysis employs logistic regressions for binary outcomes, zero-inflated negative binomial for count outcomes, and simple OLS for continuous outcomes. All the regressions are weighted using the propensity or the distance weights from the matching sample. These weights take different values in which 1 represents a perfect matched observation, and 0 represents a non-matched observation. The technical practice for the matching method utilized in this study follows previous research closely (Ho, Imai, King, Stuart 2011).
+
+For Binary Outcomes, this paper faces quite difficult tasks given a massive imbalance in classification for some of the primary dependent variables, such as binary of being a current smoker and binary for exercising. After re-coding the data, class 0, or respondents who are non-smokers, consists of significantly fewer observations than class 1, or respondents who are smokers. The same situation applies to respondents who have physical activity or exercise during the past 30 days, although the magnitude of the imbalance classification is much less. In such cases, when the binary response variable is imbalanced in the data so that the proportion of class 1 heavily dominates the class 0 proportion, then the logistic model cannot perform well to detect the outcome with low proportion. In other words, the reporting Specificity of the model would be very low, which means the probability of detecting class 1 cases would be unsatisfying low. Thus, they result in biased predictions and misleading accuracies. There are many methods to tackle imbalanced classification problems, but those are not easy to perform in such a large dataset. This paper imposes two different methods to combat this issue and compare the results to assess the models' robustness. The first method is a mix of under-sampling and oversampling, where under-sampleing class 1 and over-sampling class 0 are performed to produce a perfect proportion of 50/50 for class 1 and class 0. The first model's problem is that the data generated from oversampling has an expected amount of repeated observations. The data generated from under-sampling is deprived of important information from the original data. This issue leads to some inaccuracies in the resulting performance. The second method is to simply impose under-sampling for class 1, in which a sample of class 1 would be cut randomly to get to the same amount of observations as class 0. The second method is to under-sampling the sample. This method would result in a loss of vital information from class 1, although it keeps all the information in class 0. However, by imposing the two methods and properly comparing the two results, this paper should yield estimates in the middle range of biases, producing arguably the best and most accurate estimates. These techniques are commonly used in previous literature in imbalanced classification logistic models, as they would significantly improve prediction accuracy.
+
+For Continuous Outcomes, this paper also faces an issue, in which there is comparably a large number of respondents who report having 0 drinks in the past 30 days. This problem is not as intense for respondents who report having their A-one-C check over the past year before the interview date. This paper, running various model fit tests, found that neither the Poisson model nor the Negative binomials model is appropriate for the physical and mental health model due to over-dispersion, which reported well over 1. Therefore, this paper imposes zero-inflated count models for these models^[See Goodness of Fit for model selections].
+
+
+```{r , include=FALSE, echo=FALSE, eval = FALSE}
+latex.risky =stargazer(model.glm.smoker,model.glm.exercise,model.glm.zinb.drinking,model.glm.zinb.a1c, type="latex",omit = c("imonth","iyear","state_name"),omit.labels =c("Month FE","Year FE","State FE"), omit.stat = c("rsq", "f"), column.labels = c("Current Smoker", "Exercise", "Alcohol Consumption","A1C Check-up"), title="Regression Results for Health and Risky Outcomes")
+```
+
+\begingroup
+\tabcolsep = 12.0pt
+\def\arraystretch{0.65}
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\scriptsize \begin{longtable}[c]{lcccc} 
+\caption*{ Regression Results for Risky and Health Outcomes\\ 
+\small \textit{Dependent variable: Risky and Health Outcomes} \\ 
+} \\ 
+\toprule \centering
+& Current Smokers & Exercise & Alcohol Consumption & A1C Checkups\\ [-1.8ex] 
+\\ & \textit{Logistics} & \textit{Logistics} & \textit{Zero-inflated NB} & \textit{Zero-inflated NB}\\ 
+\\[-1.8ex] & (1) & (2) & (3) & (4)\\ 
+\hline 
+\midrule 
+ diabetes\_education & $-$0.221$^{***}$ & 0.295$^{***}$ & $-$0.195$^{***}$ & 0.130$^{***}$ \\ 
+  & (0.046) & (0.022) & (0.025) & (0.006) \\ 
+ 
+ health\_insured & $-$0.088 & 0.306$^{**}$ & 0.178 & 0.294$^{***}$ \\ 
+  & (0.231) & (0.134) & (0.174) & (0.043) \\ 
+ 
+ heart\_disease & $-$0.164$^{**}$ & $-$0.133$^{***}$ & $-$0.101$^{**}$ & 0.062$^{***}$ \\ 
+  & (0.076) & (0.036) & (0.042) & (0.010) \\ 
+ 
+ arthritis & $-$0.142$^{***}$ & $-$0.214$^{***}$ & $-$0.034 & 0.051$^{***}$ \\ 
+  & (0.049) & (0.023) & (0.026) & (0.007) \\ 
+ 
+ stroke & 0.219$^{**}$ & $-$0.183$^{***}$ & $-$0.035 & 0.130$^{***}$ \\ 
+  & (0.107) & (0.055) & (0.076) & (0.015) \\ 
+ 
+ asthma & $-$0.395$^{***}$ & 0.044 & $-$0.160$^{***}$ & 0.008 \\ 
+  & (0.092) & (0.042) & (0.049) & (0.012) \\ 
+ 
+ bronchitis & 1.324$^{***}$ & $-$0.384$^{***}$ & 0.169$^{***}$ & 0.061$^{***}$ \\ 
+  & (0.084) & (0.044) & (0.058) & (0.012) \\ 
+ 
+ depression & 0.249$^{***}$ & $-$0.299$^{***}$ & 0.014 & 0.045$^{***}$ \\ 
+  & (0.063) & (0.031) & (0.037) & (0.009) \\ 
+ 
+ cancer & $-$0.068 & $-$0.118$^{***}$ & 0.089$^{**}$ & 0.042$^{***}$ \\ 
+  & (0.081) & (0.035) & (0.040) & (0.010) \\ 
+ 
+ calculated\_age25to34 & 0.121 & $-$2.325$^{*}$ & $-$0.471 & $-$0.228 \\ 
+  & (0.882) & (1.389) & (0.515) & (0.170) \\ 
+ 
+ calculated\_age35to44 & 0.206 & $-$2.210 & $-$0.844$^{*}$ & $-$0.233 \\ 
+  & (0.845) & (1.376) & (0.497) & (0.163) \\ 
+ 
+ calculated\_age45to54 & 0.016 & $-$2.634$^{*}$ & $-$0.787 & $-$0.197 \\ 
+  & (0.831) & (1.373) & (0.492) & (0.162) \\ 
+ 
+ calculated\_age55to64 & $-$0.331 & $-$2.665$^{*}$ & $-$0.775 & $-$0.192 \\ 
+  & (0.830) & (1.373) & (0.492) & (0.162) \\ 
+ 
+ calculated\_age65older & $-$1.031 & $-$2.872$^{**}$ & $-$0.685 & $-$0.155 \\ 
+  & (0.832) & (1.374) & (0.493) & (0.162) \\ 
+ 
+ gendermale & 0.203$^{***}$ & 0.191$^{***}$ & 0.631$^{***}$ & $-$0.019$^{***}$ \\ 
+  & (0.050) & (0.025) & (0.027) & (0.007) \\ 
+ 
+ calculated\_income15to25K & 0.215$^{***}$ & $-$0.355$^{***}$ & $-$0.279$^{***}$ & 0.020$^{*}$ \\ 
+  & (0.080) & (0.039) & (0.052) & (0.011) \\ 
+ 
+ calculated\_income25to35K & 0.225$^{***}$ & $-$0.312$^{***}$ & $-$0.228$^{***}$ & $-$0.010 \\ 
+  & (0.086) & (0.041) & (0.051) & (0.012) \\ 
+ 
+ calculated\_income35to50K & 0.160$^{**}$ & $-$0.218$^{***}$ & $-$0.244$^{***}$ & $-$0.001 \\ 
+  & (0.075) & (0.036) & (0.040) & (0.010) \\ 
+ 
+ calculated\_incomele15K & 0.401$^{***}$ & $-$0.221$^{***}$ & $-$0.110 & 0.059$^{***}$ \\ 
+  & (0.109) & (0.055) & (0.090) & (0.015) \\ 
+ 
+ calculated\_incomeothers & 0.070 & $-$0.272$^{***}$ & $-$0.058 & $-$0.008 \\ 
+  & (0.089) & (0.039) & (0.049) & (0.011) \\ 
+ 
+ calculated\_educationattendCOL & 0.396$^{***}$ & $-$0.320$^{***}$ & $-$0.189$^{***}$ & 0.005 \\ 
+  & (0.061) & (0.029) & (0.030) & (0.008) \\ 
+ 
+ calculated\_educationHSgrad & 0.429$^{***}$ & $-$0.549$^{***}$ & $-$0.228$^{***}$ & $-$0.007 \\ 
+  & (0.064) & (0.030) & (0.035) & (0.009) \\ 
+ 
+ calculated\_educationK & 0.540$^{***}$ & $-$0.579$^{***}$ & $-$0.355$^{***}$ & 0.007 \\ 
+  & (0.114) & (0.056) & (0.100) & (0.016) \\ 
+ 
+ marital\_statusdivorced & 0.527$^{***}$ & $-$0.009 & 0.034 & $-$0.035$^{***}$ \\ 
+  & (0.069) & (0.036) & (0.043) & (0.010) \\ 
+ 
+ marital\_statusmembermarriedcoup & 0.566 & $-$0.097 & 0.097 & $-$0.004 \\ 
+  & (0.388) & (0.225) & (0.197) & (0.065) \\ 
+ 
+ marital\_statusnevermarried & 0.077 & $-$0.126$^{**}$ & 0.008 & $-$0.006 \\ 
+  & (0.103) & (0.050) & (0.057) & (0.014) \\ 
+ 
+ marital\_statusseparated & 0.340 & 0.144 & 0.641$^{**}$ & 0.020 \\ 
+  & (0.346) & (0.185) & (0.309) & (0.050) \\ 
+ 
+ marital\_statuswidowed & 0.220$^{***}$ & $-$0.067$^{**}$ & 0.065 & 0.006 \\ 
+  & (0.068) & (0.031) & (0.040) & (0.009) \\ 
+ 
+ number\_of\_children1children & $-$0.155 & $-$0.017 & $-$0.120$^{*}$ & 0.016 \\ 
+  & (0.144) & (0.072) & (0.072) & (0.020) \\ 
+ 
+ number\_of\_children2children & $-$0.001 & $-$0.036 & $-$0.086 & $-$0.003 \\ 
+  & (0.201) & (0.104) & (0.087) & (0.029) \\ 
+ 
+ number\_of\_children3children & 0.082 & $-$0.103 & 0.182 & 0.057 \\ 
+  & (0.366) & (0.184) & (0.169) & (0.051) \\ 
+ 
+ number\_of\_children4morechildren & $-$1.373 & 1.216$^{**}$ & 0.273 & $-$0.037 \\ 
+  & (1.393) & (0.616) & (0.384) & (0.115) \\ 
+ 
+ employment\_statushomemaker & $-$0.068 & 0.191$^{***}$ & 0.090 & $-$0.005 \\ 
+  & (0.155) & (0.072) & (0.101) & (0.021) \\ 
+ 
+ employment\_statusnoworkless1 & 0.410 & 0.359 & $-$0.016 & $-$0.044 \\ 
+  & (0.527) & (0.275) & (0.278) & (0.082) \\ 
+ 
+ employment\_statusnoworkmore1 & 0.201 & 0.159 & 0.078 & 0.252$^{***}$ \\ 
+  & (0.359) & (0.181) & (0.193) & (0.048) \\ 
+ 
+ employment\_statusretired & $-$0.067 & 0.226$^{***}$ & 0.081$^{**}$ & 0.026$^{**}$ \\ 
+  & (0.077) & (0.037) & (0.040) & (0.011) \\ 
+ 
+ employment\_statusselfemployed & $-$0.173 & $-$0.049 & 0.152$^{**}$ & 0.018 \\ 
+  & (0.139) & (0.065) & (0.061) & (0.019) \\ 
+ 
+ employment\_statusstudent &  & $-$0.507 & $-$0.147 & $-$0.135 \\ 
+  &  & (1.670) & (0.935) & (0.264) \\ 
+ 
+ employment\_statusunable & 0.427$^{***}$ & $-$0.298$^{***}$ & $-$0.054 & 0.192$^{***}$ \\ 
+  & (0.103) & (0.055) & (0.080) & (0.015) \\ 
+ 
+ calculated\_raceasian & $-$0.012 & 0.242 & $-$1.014$^{***}$ & 0.063 \\ 
+  & (0.406) & (0.201) & (0.167) & (0.047) \\ 
+ 
+ calculated\_raceblack & 0.031 & $-$0.006 & $-$0.488$^{***}$ & 0.078$^{***}$ \\ 
+  & (0.083) & (0.040) & (0.051) & (0.011) \\ 
+ 
+ calculated\_racenative & 0.729$^{**}$ & $-$0.059 & 0.005 & 0.141$^{***}$ \\ 
+  & (0.350) & (0.184) & (0.257) & (0.051) \\ 
+ 
+ calculated\_raceother & $-$0.136 & 0.020 & 0.177 & $-$0.056 \\ 
+  & (0.430) & (0.236) & (0.259) & (0.069) \\ 
+ 
+ calculated\_racepacific & 10.366 & 0.480 & $-$0.527 & $-$0.212 \\ 
+  & (119.466) & (1.310) & (1.797) & (0.350) \\ 
+ 
+ Constant & $-$0.031 & 2.577$^{*}$ & 1.593$^{***}$ & 0.748$^{***}$ \\ 
+  & (0.880) & (1.382) & (0.533) & (0.169) \\ 
+  
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes & Yes & Yes \\ 
+Year FE & Yes & Yes & Yes & Yes \\ 
+State FE & Yes & Yes & Yes & Yes \\ 
+\hline \\[-1.8ex]
+Survey Weights & Yes & Yes & Yes & Yes \\ 
+Observations & 9,318 & 37,070 & 51,855 & 51,855 \\ 
+Log Likelihood &  &  & $-$73,484.660 & $-$98,678.670 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{5}{l}{Note: Panel consists of the 2013-2018 survey sample waves of BRFSS. Model propensity weights applied. Combination of}\\
+\multicolumn{5}{l}{upsampling \& downsampling sample are applied in both models. All models control for demographics, including age, gender,}\\
+\multicolumn{5}{l}{race, income, education status, marital status, employment-status, number of children. See Appendix for detailed}\\
+\multicolumn{5}{l}{variable definition, and construction.}\\
+\multicolumn{5}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+\endgroup
+
+
+Below are the graphs for the model estimates of respondents with diabetes education and without diabetes education. Respondents who have diabetes education are represented by the blue curve (1), and respondents who do not have diabetes education are represented by the red curve (2). Visually, it is clear that respondents in the treated group or who have diabetes education perform better in all aspects of health. Given the 95% confidence interval, the two groups are also significantly different for most of the graphs down below. For risky behaviors, respondents without diabetes education consume more alcohol than respondents with diabetes education. They also show a higher probability of being a current smoker and less likely to exercise ^[Note that the x-axis (distance) is the propensity score]. Besides, respondents without diabetes education have more A-one-C check-ups than respondents with diabetes education.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Regression Estimates Plot for Alcohol Consumption and A1C Checkups' }
+#alcohol
+ggplot(graphs.matched.data, aes(distance, alcohol_consumption,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="zeroinfl",formula = alcohol_consumption ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer +  state_name + imonth + iyear,dist = "negbin") + coord_cartesian(ylim=c(0,10))
+
+#A1C
+ggplot(graphs.matched.data, aes(distance, A1C,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="zeroinfl",formula = A1C ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear,dist = "negbin") + coord_cartesian(ylim=c(0,5))
+```
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Regression Estimates Plot for Current Smokers and Physical Activity' }
+#exercise
+ggplot(graphs.matched.data.exercise, aes(distance, exercise,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm",formula = exercise ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=quasibinomial(link=logit)) 
+
+#smoking
+ggplot(graphs.matched.data.smoker, aes(distance, calculated_current_smokers,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm",formula = calculated_current_smokers ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=quasibinomial(link=logit)) 
+
+#obesity
+# ggplot(graphs.matched.data.obesity, aes(distance, overweight,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="glm",formula = overweight ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear, family=quasibinomial(link=logit)) 
+```
+
+
+### Model 2 Results: Physical and Mental Unhealthy Days
+
+This sub-section is dedicated to General Health Models for dependent variables presented under Count data, including physical health and mental health. Physical and Mental Health represents the number of days respondents report their health to be NOT good in their past 30 days. In other words, these are the reported unhealthy mental and physical days. These variables can take the value ranging from 0 to 30, in which 0 represents respondents who do not have any bad mental and/or physical health days, and 30 represents respondents who have the maximum of bad mental and/or physical health days out of a month. 
+
+This paper, performing various model fit tests, found that neither the Poisson model nor the Negative binomials model is fit for the physical and mental health model due to the issue of over-dispersion, which reported to be well over 1. Therefore, this paper uses a zero-inflated count model for these models^[See Goodness of Fit for model selections].
+
+```{r , include=FALSE, echo=FALSE, eval = FALSE}
+latex.count.general =stargazer(model.glm.zinb.mental,model.glm.zinb.physical, type="latex",omit = c("imonth","iyear","state_name"),omit.labels =c("Month FE","Year FE","State FE"), omit.stat = c("rsq", "f"), column.labels = c("Physical Unhealthy Days","Mental Unhealthy Days"), title="Regression Results for General Outcomes")
+```
+
+\begingroup
+\tabcolsep = 12.0pt
+\def\arraystretch{0.65}
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\scriptsize \begin{longtable}[c]{lll} 
+\caption*{ Regression Results for General Health Outcomes\\ 
+\small \textit{Dependent variable: General Health Outcomes} \\ 
+} \\ 
+\toprule \centering
+ &  Mental Unhealthy Days & Physical Unhealthy Days\\ [-1.8ex] 
+\\ & \textit{Zero-Inflated NB} & \textit{Zero-Inflated NB} \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline 
+\midrule 
+ diabetes\_education & $-$0.030 & $-$0.035$^{**}$ \\ 
+  & (0.021) & (0.014) \\ 
+  
+ health\_insured & $-$0.128 & $-$0.223$^{***}$ \\ 
+  & (0.121) & (0.085) \\ 
+  
+ heart\_disease & 0.120$^{***}$ & 0.149$^{***}$ \\ 
+  & (0.034) & (0.020) \\ 
+  
+ arthritis & 0.045$^{*}$ & 0.146$^{***}$ \\ 
+  & (0.024) & (0.016) \\ 
+  
+ stroke & 0.086$^{*}$ & 0.167$^{***}$ \\ 
+  & (0.048) & (0.031) \\ 
+  
+ asthma & 0.050 & 0.013 \\ 
+  & (0.034) & (0.023) \\ 
+  
+ bronchitis & 0.053 & 0.165$^{***}$ \\ 
+  & (0.036) & (0.024) \\ 
+  
+ depression & 0.513$^{***}$ & 0.154$^{***}$ \\ 
+  & (0.023) & (0.018) \\ 
+  
+ cancer & 0.066$^{*}$ & 0.140$^{***}$ \\ 
+  & (0.034) & (0.021) \\ 
+  
+ calculated\_age25to34 & 1.328$^{***}$ & 0.083 \\ 
+  & (0.443) & (0.593) \\ 
+  
+ calculated\_age35to44 & 1.060$^{**}$ & $-$0.015 \\ 
+  & (0.424) & (0.583) \\ 
+  
+ calculated\_age45to54 & 1.093$^{***}$ & 0.039 \\ 
+  & (0.419) & (0.580) \\ 
+  
+ calculated\_age55to64 & 1.025$^{**}$ & 0.049 \\ 
+  & (0.419) & (0.580) \\ 
+  
+ calculated\_age65older & 1.064$^{**}$ & 0.078 \\ 
+  & (0.420) & (0.580) \\ 
+  
+ gendermale & 0.111$^{***}$ & 0.100$^{***}$ \\ 
+  & (0.023) & (0.016) \\ 
+  
+ calculated\_income15to25K & 0.101$^{***}$ & 0.116$^{***}$ \\ 
+  & (0.036) & (0.024) \\ 
+  
+ calculated\_income25to35K & 0.096$^{**}$ & 0.090$^{***}$ \\ 
+  & (0.040) & (0.027) \\ 
+  
+ calculated\_income35to50K & 0.089$^{**}$ & 0.066$^{***}$ \\ 
+  & (0.036) & (0.024) \\ 
+  
+ calculated\_incomele15K & 0.093$^{**}$ & 0.143$^{***}$ \\ 
+  & (0.047) & (0.032) \\ 
+  
+ calculated\_incomeothers & 0.180$^{***}$ & 0.154$^{***}$ \\ 
+  & (0.042) & (0.027) \\ 
+  
+ calculated\_educationattendCOL & 0.158$^{***}$ & 0.089$^{***}$ \\ 
+  & (0.027) & (0.019) \\ 
+  
+ calculated\_educationHSgrad & 0.186$^{***}$ & 0.099$^{***}$ \\ 
+  & (0.029) & (0.020) \\ 
+  
+ calculated\_educationK & 0.285$^{***}$ & 0.171$^{***}$ \\ 
+  & (0.051) & (0.034) \\ 
+  
+ marital\_statusdivorced & 0.040 & 0.047$^{**}$ \\ 
+  & (0.032) & (0.023) \\ 
+  
+ marital\_statusmembermarriedcoup & $-$0.096 & 0.266$^{*}$ \\ 
+  & (0.217) & (0.155) \\ 
+  
+ marital\_statusnevermarried & $-$0.153$^{***}$ & 0.021 \\ 
+  & (0.045) & (0.032) \\ 
+  
+ marital\_statusseparated & 0.084 & 0.048 \\ 
+  & (0.126) & (0.097) \\ 
+  
+ marital\_statuswidowed & 0.013 & $-$0.007 \\ 
+  & (0.030) & (0.020) \\ 
+  
+ number\_of\_children1children & $-$0.044 & $-$0.088$^{*}$ \\ 
+  & (0.063) & (0.048) \\ 
+  
+ number\_of\_children2children & $-$0.084 & $-$0.300$^{***}$ \\ 
+  & (0.087) & (0.072) \\ 
+  
+ number\_of\_children3children & 0.246 & $-$0.008 \\ 
+  & (0.158) & (0.135) \\ 
+  
+ number\_of\_children4morechildren & $-$0.412 & $-$1.337$^{***}$ \\ 
+  & (0.343) & (0.302) \\ 
+  
+ employment\_statushomemaker & 0.092 & 0.276$^{***}$ \\ 
+  & (0.069) & (0.047) \\ 
+  
+ employment\_statusnoworkless1 & 0.385$^{*}$ & 0.572$^{***}$ \\ 
+  & (0.222) & (0.169) \\ 
+  
+ employment\_statusnoworkmore1 & 0.258$^{*}$ & 0.464$^{***}$ \\ 
+  & (0.148) & (0.106) \\ 
+  
+ employment\_statusretired & 0.029 & 0.303$^{***}$ \\ 
+  & (0.037) & (0.025) \\ 
+  
+ employment\_statusselfemployed & 0.255$^{***}$ & 0.108$^{**}$ \\ 
+  & (0.075) & (0.049) \\ 
+  
+ employment\_statusstudent & 1.212$^{*}$ & $-$0.920 \\ 
+  & (0.721) & (1.068) \\ 
+  
+ employment\_statusunable & 0.336$^{***}$ & 0.572$^{***}$ \\ 
+  & (0.042) & (0.030) \\ 
+  
+ calculated\_raceasian & $-$0.064 & $-$0.307$^{*}$ \\ 
+  & (0.236) & (0.159) \\ 
+  
+ calculated\_raceblack & $-$0.039 & $-$0.087$^{***}$ \\ 
+  & (0.040) & (0.026) \\ 
+  
+ calculated\_racenative & 0.069 & 0.053 \\ 
+  & (0.174) & (0.125) \\ 
+  
+ calculated\_raceother & $-$0.024 & $-$0.059 \\ 
+  & (0.232) & (0.161) \\ 
+  
+ calculated\_racepacific & $-$1.634 & $-$0.216 \\ 
+  & (1.459) & (0.577) \\ 
+  
+ Constant & 0.701 & 1.923$^{***}$ \\ 
+  & (0.441) & (0.588) \\ 
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes \\ 
+Year FE & Yes & Yes \\ 
+State FE & Yes & Yes \\ 
+Demographics & Yes & Yes \\
+\hline \\[-1.8ex]
+Survey Weights & Yes & Yes \\ 
+Observations & 51,855 & 51,855 \\ 
+Log Likelihood & $-$66,562.530 & $-$114,085.800 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{3}{l}{Note: Panel consists of the 2013-2018 survey sample waves of BRFSS. Propensity weight applied.}\\
+\multicolumn{3}{l}{All models control for demographics, including age, gender, race, income, education status, marital}\\
+\multicolumn{3}{l}{status, employment status, number of children. See Appendix for detailed variable, definition and}\\
+\multicolumn{3}{l}{construction.}\\
+\multicolumn{3}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+\endgroup
+
+Below are the graphs for the model estimates for respondents' mental and physical unhealthy days with diabetes education and without diabetes education. It is harder to visualize the effect entirely. However, it is quite clear that respondents who do not have diabetes education have more mental unhealthy days than respondents who have diabetes education, especially those who have a higher propensity score ^[Note that the x-axis (distance) is the propensity score].
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Regression Estimates Plot for Mental and Physical Unhealthy Days' }
+#mental
+ggplot(graphs.matched.data, aes(distance, mental_health,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="zeroinfl",formula = mental_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + cancer + depression + state_name + imonth + iyear,dist = "negbin") + coord_cartesian(ylim=c(0,8))
+
+#physical 
+ggplot(graphs.matched.data, aes(distance, physical_health,color=diabetes_education)) + geom_point(alpha = 0.2, size = 0.3) + geom_smooth() +stat_smooth(method="zeroinfl",formula = physical_health ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + cancer + state_name + imonth + iyear,dist = "negbin") + coord_cartesian(ylim=c(0,12))
+```
+
+### Interpretation
+
+Interpretation varies differently for different metrics. In this section, Count models will be interpreted differently from Logistic models. Thus, two sub-sections are dedicated to the Logistic model interpretation and the Zero-inflated Negative Binomial model interpretation. Precisely, this paper will interpret average marginal effects and marginal effects at the mean for logistic regressions. Meanwhile, for Zero-inflated Negative Binomial, this paper will provide interpretation for both Count and Zero Inflation models. It is also important to mention that the marginal effect results do not take sample weights into account. Indeed, this is one of the limitations coming from attempting to find the marginal effects of interpretation. This limitation is coming from the statistical software R, which is being used for this study. For the most recent update, R function $logitmfx$ does not allow sample weights to be included, and thus this study cannot yield weighted marginal estimates for the regressions. Nonetheless, the results show in Model 1 and Model 2 are weighted and correctly executed.
+
+Down below are results for average marginal effects and marginal effects at the mean. The results show significant adverse marginal effects of diabetes education on current smokers and physical activity. Specifically, holding all else constant, having diabetes education reduces the probability of being a smoker by 4.8% and increases the probability of exercising by 6.7% on average. These effects do not change much compared to marginal effects at the mean. At the mean, having diabetes education reduces the probability of being a smoker by 5.6% and increases the probability of exercising by 7.2%. All of these coefficients are significant at the 1% level.
+
+Regarding other covariates, it is clear that all the covariates have the expected relationships. There are significant negative relationships between having chronic heart conditions on the probability of being a current smoker and exercising. Respectively, having arthritis is associated with a lower probability of being a smoker and a lower probability of exercising. Meanwhile, having a stroke is positively correlated with being a current smoker and negatively correlated with exercising. Similar results apply for respondents who have chronic bronchitis. For respondents who have chronic asthma, having asthma is negatively correlated with being a smoker. Besides, being depressed is positively correlated with being a current smoker and negatively correlated with exercising. Lastly, having cancer is negatively correlated with being a current smoker and negatively correlated with exercising.
+
+```{r , include=FALSE, echo=FALSE, eval = FALSE}
+latex.marginal <- stargazer(model.marginal.smokerMEM$fit, model.marginal.exerciseMEM$fit,model.marginal.smokerAME$fit, model.marginal.exerciseAME$fit, type="latex", coef = list(model.marginal.smokerMEM$mfxest[,1], model.marginal.exerciseMEM$mfxest[,1], model.marginal.smokerAME$mfxest[,1], model.marginal.exerciseAME$mfxest[,1]), se = list(model.marginal.smokerMEM$mfxest[,2], model.marginal.exerciseMEM$mfxest[,2], model.marginal.smokerAME$mfxest[,2], model.marginal.exerciseAME$mfxest[,2]), column.labels = c("MEM Smoker","MEM Exercise", "AME Smoker","AME Exercise"), title="Marginal Effects Table")
+```
+
+
+\begingroup
+\tabcolsep = 12.0pt
+\def\arraystretch{0.65}
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\scriptsize \begin{longtable}[c]{lcccc} 
+\caption*{ Average Marginal Effects Table\\ 
+} \\ 
+\toprule \centering
+ & MEM Smoker & MEM Exercise & AME Smoker & AME Exercise  \\ 
+\\[-1.8ex] & (1) & (2) & (3) & (4)\\ 
+\hline 
+\midrule 
+ diabetes\_education & $-$0.056$^{***}$ & 0.072$^{***}$ & $-$0.048$^{***}$ & 0.067$^{***}$ \\ 
+  & (0.005) & (0.005) & (0.004) & (0.004) \\ 
+ 
+ health\_insured & $-$0.044$^{*}$ & 0.076$^{***}$ & $-$0.038$^{*}$ & 0.071$^{***}$ \\ 
+  & (0.023) & (0.025) & (0.020) & (0.023) \\ 
+ 
+ heart\_disease & $-$0.027$^{***}$ & $-$0.026$^{***}$ & $-$0.023$^{***}$ & $-$0.024$^{***}$ \\ 
+  & (0.008) & (0.008) & (0.007) & (0.007) \\ 
+ 
+ arthritis & $-$0.039$^{***}$ & $-$0.054$^{***}$ & $-$0.034$^{***}$ & $-$0.050$^{***}$ \\ 
+  & (0.005) & (0.005) & (0.004) & (0.005) \\ 
+ 
+ stroke & 0.064$^{***}$ & $-$0.045$^{***}$ & 0.055$^{***}$ & $-$0.041$^{***}$ \\ 
+  & (0.011) & (0.011) & (0.010) & (0.011) \\ 
+ 
+ asthma & $-$0.131$^{***}$ & $-$0.0001 & $-$0.111$^{***}$ & $-$0.0001 \\ 
+  & (0.009) & (0.009) & (0.008) & (0.008) \\ 
+ 
+ bronchitis & 0.296$^{***}$ & $-$0.099$^{***}$ & 0.270$^{***}$ & $-$0.093$^{***}$ \\ 
+  & (0.007) & (0.009) & (0.006) & (0.008) \\ 
+ 
+ depression & 0.067$^{***}$ & $-$0.067$^{***}$ & 0.058$^{***}$ & $-$0.062$^{***}$ \\ 
+  & (0.007) & (0.007) & (0.006) & (0.006) \\ 
+ 
+ cancer & $-$0.052$^{***}$ & $-$0.024$^{***}$ & $-$0.044$^{***}$ & $-$0.022$^{***}$ \\ 
+  & (0.008) & (0.007) & (0.007) & (0.007) \\ 
+ 
+ calculated\_age25to34 & 0.106 & $-$0.134 & 0.092 & $-$0.125 \\ 
+  & (0.094) & (0.161) & (0.083) & (0.151) \\ 
+ 
+ calculated\_age35to44 & 0.043 & $-$0.218 & 0.037 & $-$0.203 \\ 
+  & (0.093) & (0.138) & (0.080) & (0.131) \\ 
+ 
+ calculated\_age45to54 & 0.008 & $-$0.264$^{**}$ & 0.007 & $-$0.243$^{**}$ \\ 
+  & (0.092) & (0.132) & (0.079) & (0.119) \\ 
+ 
+ calculated\_age55to64 & $-$0.071 & $-$0.274$^{*}$ & $-$0.059 & $-$0.243$^{**}$ \\ 
+  & (0.092) & (0.144) & (0.075) & (0.118) \\ 
+ 
+ calculated\_age65older & $-$0.247$^{***}$ & $-$0.336$^{**}$ & $-$0.221$^{***}$ & $-$0.298$^{***}$ \\ 
+  & (0.086) & (0.143) & (0.078) & (0.111) \\ 
+ 
+ gendermale & 0.046$^{***}$ & 0.051$^{***}$ & 0.039$^{***}$ & 0.048$^{***}$ \\ 
+  & (0.005) & (0.005) & (0.005) & (0.005) \\ 
+ 
+ calculated\_income15to25K & 0.057$^{***}$ & $-$0.070$^{***}$ & 0.049$^{***}$ & $-$0.065$^{***}$ \\ 
+  & (0.008) & (0.008) & (0.007) & (0.007) \\ 
+ 
+ calculated\_income25to35K & 0.051$^{***}$ & $-$0.075$^{***}$ & 0.044$^{***}$ & $-$0.070$^{***}$ \\ 
+  & (0.009) & (0.009) & (0.008) & (0.008) \\ 
+ 
+ calculated\_income35to50K & 0.053$^{***}$ & $-$0.053$^{***}$ & 0.046$^{***}$ & $-$0.049$^{***}$ \\ 
+  & (0.008) & (0.008) & (0.007) & (0.007) \\ 
+ 
+ calculated\_incomele15K & 0.074$^{***}$ & $-$0.055$^{***}$ & 0.064$^{***}$ & $-$0.051$^{***}$ \\ 
+  & (0.011) & (0.011) & (0.010) & (0.010) \\ 
+ 
+ calculated\_incomeothers & 0.0004 & $-$0.065$^{***}$ & 0.0004 & $-$0.060$^{***}$ \\ 
+  & (0.009) & (0.008) & (0.008) & (0.008) \\ 
+ 
+ calculated\_educationattendCOL & 0.119$^{***}$ & $-$0.072$^{***}$ & 0.102$^{***}$ & $-$0.066$^{***}$ \\ 
+  & (0.007) & (0.006) & (0.006) & (0.006) \\ 
+ 
+ calculated\_educationHSgrad & 0.136$^{***}$ & $-$0.136$^{***}$ & 0.118$^{***}$ & $-$0.128$^{***}$ \\ 
+  & (0.007) & (0.006) & (0.006) & (0.006) \\ 
+ 
+ calculated\_educationK & 0.150$^{***}$ & $-$0.136$^{***}$ & 0.131$^{***}$ & $-$0.127$^{***}$ \\ 
+  & (0.010) & (0.010) & (0.009) & (0.010) \\ 
+ 
+ marital\_statusdivorced & 0.144$^{***}$ & 0.008 & 0.127$^{***}$ & 0.007 \\ 
+  & (0.007) & (0.007) & (0.006) & (0.007) \\ 
+ 
+ marital\_statusmembermarriedcoup & 0.129$^{***}$ & 0.019 & 0.112$^{***}$ & 0.018 \\ 
+  & (0.040) & (0.048) & (0.036) & (0.044) \\ 
+ 
+ marital\_statusnevermarried & 0.033$^{***}$ & 0.0002 & 0.028$^{***}$ & 0.0002 \\ 
+  & (0.011) & (0.011) & (0.009) & (0.010) \\ 
+ 
+ marital\_statusseparated & 0.125$^{***}$ & $-$0.004 & 0.109$^{***}$ & $-$0.004 \\ 
+  & (0.034) & (0.040) & (0.030) & (0.037) \\ 
+ 
+ marital\_statuswidowed & 0.045$^{***}$ & $-$0.011$^{*}$ & 0.039$^{***}$ & $-$0.010$^{*}$ \\ 
+  & (0.007) & (0.007) & (0.006) & (0.006) \\ 
+ 
+ number\_of\_children1children & $-$0.055$^{***}$ & 0.007 & $-$0.047$^{***}$ & 0.007 \\ 
+  & (0.015) & (0.015) & (0.013) & (0.014) \\ 
+ 
+ number\_of\_children2children & $-$0.066$^{***}$ & 0.062$^{***}$ & $-$0.056$^{***}$ & 0.057$^{***}$ \\ 
+  & (0.021) & (0.023) & (0.018) & (0.021) \\ 
+ 
+ number\_of\_children3children & $-$0.090$^{**}$ & $-$0.034 & $-$0.077$^{**}$ & $-$0.032 \\ 
+  & (0.035) & (0.042) & (0.030) & (0.039) \\ 
+ 
+ number\_of\_children4morechildren & $-$0.446$^{***}$ & 0.225$^{**}$ & $-$0.415$^{***}$ & 0.211$^{**}$ \\ 
+  & (0.044) & (0.100) & (0.053) & (0.096) \\ 
+ 
+ employment\_statushomemaker & $-$0.040$^{**}$ & 0.056$^{***}$ & $-$0.034$^{**}$ & 0.052$^{***}$ \\ 
+  & (0.016) & (0.014) & (0.013) & (0.013) \\ 
+ 
+ employment\_statusnoworkless1 & 0.046 & 0.019 & 0.040 & 0.017 \\ 
+  & (0.050) & (0.058) & (0.043) & (0.054) \\ 
+ 
+ employment\_statusnoworkmore1 & $-$0.015 & 0.053 & $-$0.013 & 0.049 \\ 
+  & (0.035) & (0.036) & (0.029) & (0.034) \\ 
+ 
+ employment\_statusretired & $-$0.015$^{*}$ & 0.074$^{***}$ & $-$0.013$^{*}$ & 0.068$^{***}$ \\ 
+  & (0.008) & (0.008) & (0.007) & (0.007) \\ 
+ 
+ employment\_statusselfemployed & $-$0.088$^{***}$ & 0.027$^{**}$ & $-$0.075$^{***}$ & 0.025$^{**}$ \\ 
+  & (0.015) & (0.014) & (0.012) & (0.013) \\ 
+ 
+ employment\_statusstudent & $-$0.508$^{***}$ & $-$0.022 & $-$0.501$^{***}$ & $-$0.021 \\ 
+  & (0.003) & (0.180) & (0.003) & (0.167) \\ 
+ 
+ employment\_statusunable & 0.098$^{***}$ & $-$0.060$^{***}$ & 0.085$^{***}$ & $-$0.056$^{***}$ \\ 
+  & (0.010) & (0.011) & (0.009) & (0.011) \\ 
+ 
+ calculated\_raceasian & $-$0.053 & 0.101$^{***}$ & $-$0.045 & 0.094$^{***}$ \\ 
+  & (0.035) & (0.035) & (0.030) & (0.032) \\ 
+ 
+ calculated\_raceblack & 0.013 & $-$0.007 & 0.011 & $-$0.007 \\ 
+  & (0.009) & (0.009) & (0.008) & (0.008) \\ 
+ 
+ calculated\_racenative & 0.121$^{***}$ & 0.010 & 0.105$^{***}$ & 0.010 \\ 
+  & (0.032) & (0.038) & (0.028) & (0.036) \\ 
+ 
+ calculated\_raceother & 0.152$^{***}$ & $-$0.018 & 0.133$^{***}$ & $-$0.016 \\ 
+  & (0.045) & (0.052) & (0.041) & (0.048) \\ 
+ 
+ calculated\_racepacific & 0.115 & 0.501$^{***}$ & 0.100 & 0.501$^{***}$ \\ 
+  & (0.174) & (0.005) & (0.154) & (0.006) \\ 
+ 
+\hline \\[-1.8ex]
+Month FE & Yes & Yes & Yes & Yes \\ 
+Year FE & Yes & Yes & Yes & Yes \\ 
+State FE & Yes & Yes & Yes & Yes \\ 
+\hline \\[-1.8ex]
+Survey Weights & No & No & No & No \\
+Observations & 51,855 & 51,855 & 51,855 & 51,855 \\ 
+Log Likelihood & $-$31,897.420 & $-$33,958.050 & $-$31,897.420 & $-$33,958.050 \\ 
+Akaike Inf. Crit. & 64,000.840 & 68,122.090 & 64,000.840 & 68,122.090 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{5}{l}{Note: Panel consists of the 2013-2018 survey sample waves of BRFSS. Propensity weights NOT applied due to regression}\\
+\multicolumn{5}{l}{restriction in R logitfx function. All models control for demographics,including age, gender, race, income, education status,}\\
+\multicolumn{5}{l}{marital status, employment status, number of children. See Appendix for detailed variable, definition and construction.}\\
+\multicolumn{5}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+\endgroup
+
+Down below are Exponentiated Results for Zero-inflated Negative Binomial Models. The results show that having diabetes education decreases the number of bad mental health days by 0.97 times among those who have bad mental health days. This result is not statistically significant. Meanwhile, having diabetes education decreases the number of bad physical health days by 0.97 times for the Count model among those who have bad physical health days. In the Inflation model, having diabetes education decreases the odds of having bad physical health days by 0.90 times among those who never have bad physical health days. These coefficients are significant at the 1% level. In the Count model, having diabetes education decreases the number of drinks by 0.82 times among those who have drinks in the past 30 days. In the Inflation model,  having diabetes education decreases the odds of having drinks by 0.89 times among those who never drink in the past 30 days. The Count model's coefficient is significant at the 1% level, while the Zero Inflation model's coefficient is significant at the 10% level. Lastly, among those who have A1C check-ups in the past 30 days, having diabetes education increases the number of doctor check-ups by 1.13 times. Among those who never have A1C check-ups in the past 30 days, having diabetes education increases the odds of having doctor check-ups by 2.51 times. Both of the coefficients are significant at the 1% level.
+
+
+\begin{table}[!htbp] \centering 
+\caption{Count Model Interpretation} 
+  \label{}
+\begin{tabular}{|l|c|l|c|l|}
+\hline
+\multicolumn{5}{|c|}{\textit{Exponentiated coefficients}}                                                                                                   \\ \hline
+\multirow{2}{*}{}  & \multicolumn{2}{c|}{Mental Unhealthy Days}                         & \multicolumn{2}{c|}{Physical Unhealthy Days}                      \\ \cline{2-5} 
+                   & \multicolumn{1}{l|}{Count Model} & Zero Inflation Model            & \multicolumn{1}{l|}{Count Model} & Zero Inflation Model           \\ \hline
+Diabetes Education & $0.9700348$                        & \multicolumn{1}{c|}{0.9929643}  & $0.9658129^{***}$                        & \multicolumn{1}{c|}{$0.8987212^{***}$} \\ \hline \hline \\[-1.8ex] 
+\multirow{2}{*}{}  & \multicolumn{2}{c|}{Alcohol Consumption}                           & \multicolumn{2}{c|}{A1C Check-ups}                                \\ \cline{2-5} 
+                   & \multicolumn{1}{l|}{Count Model} & Zero Inflation Model            & \multicolumn{1}{l|}{Count Model} & Zero Inflation Model           \\ \hline
+Diabetes Education & $0.8231515^{***}$                       & \multicolumn{1}{c|}{$0.89035623^{*}$} & $1.1313657^{***}$                        & \multicolumn{1}{c|}{$2.508105^{***}$}  \\ \hline
+\end{tabular}
+\end{table}
+
+### The Economic Effects of the Estimates
+
+Generally, it is quite difficult to pin down cost-saving estimates for probabilistic coefficients simply because there is no reference point to compare the percentage change to an actual number, especially for physical activity. For instance, given the positive effect of having diabetes education that yields an increase in the probability of exercising by 7.2%, it is not certain that the 7.2% increase in the likelihood of exercise will make diabetes patients start exercising for sure. However, previous research has suggested that diabetes intervention by exercising can be cost-effective (Foster, 2011). Similarly, Coyle 2012 found that physical activity effectively treats diabetes and is also cost-saving effective. It also found that the cost-saving ranges depending on different types of exercising. In terms of total lifetime costs, including the costs of the exercise programs and downstream healthcare resource usage, although the combined exercise program was the most expensive (\$40,050), followed by the aerobic program (\$39,250), the resistance program (\$38,300), and no program (\$31,075), both life expectancy and quality-adjusted life expectancy were highest for the combined exercise program (life-years = 11.79, QALYs = 8.94) compared with aerobic training (life-years = 11.57, QALYs = 8.77), resistance training (life-years = 11.51, QALYs = 8.73), and no program (life-years = 11.48, QALYs = 8.70).
+
+The Count model is more straightforward to yield estimated cost savings for additional A1C check-ups because statistical models tend to interpret coefficients using addition increment. Chatterjee et al. estimate health system costs for screening and treating diabetes of 1,573 participants by risk group and percent cost difference for screening and treatment compared with no screening and shows that having A1C screening reduces the health cost by 14.88 percent. Notably, without A1C screening, the health care cost is estimated at \$95,710, while having A1C screening, this cost is at \$81,467. Coefficients produced by this paper suggest that having diabetes education increases the number of doctor check-ups by 1.13 times among those who never have A1C check-ups in the past 30 days. Meanwhile, having diabetes education increases the odds of having doctor check-ups by 2.51 times among those who have had A1C check-ups in the past 30 days. These results indicate that for diabetic patients who have never had diabetes education, by having diabetes education, patients would undoubtedly have at least one additional A1C check-up and save the economy by roughly $14,243 per person over three year periods. This finding is economically significant, given that in this analysis alone, there are a total of 99,3288 observations with type 2 diabetes, of which 22,611 of them have not had diabetes education. It translates to the fact that, if all of these observations have diabetes education and have at least one additional A1C check-up, they would have saved the economy by roughly 322 million dollars.
+
+Siegel et al conducted a systematic literature review of studies from high-income countries evaluating the Cost-effectiveness of Interventions to Manage Diabetes recommended by the American Diabetes Association (ADA) and showed that having A1C screening would be very cost-effective. Particularly, one relevant study by Gillett et al., 2015 shows that for adults aged 40–74 years with Prediabetes and undiagnosed Type 2 diabetes, compared to no A1C screening, having A1C screening would have an incremental cost-effectiveness ratio of $2,088/QALY (quality-adjusted life-year). Given that the sample only applies to adults from 40 to 74 years old, although this estimate is slightly lower than estimates discussed above it still shows a significant effect on the economy.
+
+Although the cost-benefit analysis in dollar terms of estimates yielded from this study is adequately explained, this study cannot find cost savings estimates in dollar terms of diabetes education on alcohol consumption. It could be due to ethical and moral reasons for why there have not been randomized control experiments regarding alcohol or smoking. However, it is not difficult to expect that reducing alcohol consumption and the rate of smoking by having diabetes education result in better savings, both physically and monetarily.
+
+# 5. Goodness of Fit
+
+```{r, include=FALSE, echo=FALSE}
+# Create Training Data
+input_ones.smoke <- data_balanced_both.smoker[which(data_balanced_both.smoker$calculated_current_smokers == 1), ]  # all 1's
+input_zeros.smoke <- data_balanced_both.smoker[which(data_balanced_both.smoker$calculated_current_smokers == 0), ]  # all 0's
+set.seed(1)  # for repeatability of samples
+input_zeros_training_rows.smoke <- sample(1:nrow(input_zeros.smoke), 0.7*nrow(input_zeros.smoke)) 
+input_ones_training_rows.smoke <- sample(1:nrow(input_ones.smoke), 0.7*nrow(input_zeros.smoke))  
+ 
+training_ones.smoke <- input_ones.smoke[input_ones_training_rows.smoke, ]  
+training_zeros.smoke <- input_zeros.smoke[input_zeros_training_rows.smoke, ]
+trainingData.smoke <- rbind(training_ones.smoke, training_zeros.smoke)  # row bind the 1's and 0's 
+table(trainingData.smoke$calculated_current_smokers)
+
+# Create Test Data
+test_ones.smoke <- input_ones.smoke[-input_ones_training_rows.smoke, ]
+test_zeros.smoke <- input_zeros.smoke[-input_zeros_training_rows.smoke, ]
+testData.smoke <- rbind(test_ones.smoke, test_zeros.smoke)  # row bind the 1's and 0's 
+table(testData.smoke$calculated_current_smokers)
+
+model.glm.smoker.training= glm(calculated_current_smokers ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + state_name + imonth + iyear, weights = xstrwt, family=binomial(link=logit), data  = trainingData.smoke)
+summary(model.glm.smoker.training)
+predicted.1 <- plogis(predict(model.glm.smoker.training, testData.smoke))
+# predicted <- predict(test.lm1, testData, type="response") 
+optCutOff.1 <- optimalCutoff(testData.smoke$calculated_current_smokers, predicted.1)[1] 
+misClassError(testData.smoke$calculated_current_smokers, predicted.1, threshold = optCutOff.1)
+plotROC(testData.smoke$calculated_current_smokers, predicted.1)  #0.77, which is pretty good
+sens.1 = sensitivity(testData.smoke$calculated_current_smokers, predicted.1, threshold = optCutOff.1) #sensitivity is low because false negative is too high
+spec.1 = specificity(testData.smoke$calculated_current_smokers, predicted.1, threshold = optCutOff.1) #specificity is high because false positive is too low
+confu.1 = confusionMatrix(testData.smoke$calculated_current_smokers, predicted.1, threshold = optCutOff.1)
+Concordance(testData.smoke$calculated_current_smokers, predicted.1)
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+# Create Training Data
+input_ones.exercise <- data_balanced_both.exercise[which(data_balanced_both.exercise$exercise == 1), ]  # all 1's
+input_zeros.exercise <- data_balanced_both.exercise[which(data_balanced_both.exercise$exercise == 0), ]  # all 0's
+set.seed(1)  # for repeatability of samples
+input_zeros_training_rows.exercise <- sample(1:nrow(input_zeros.exercise), 0.7*nrow(input_zeros.exercise)) 
+input_ones_training_rows.exercise <- sample(1:nrow(input_ones.exercise), 0.7*nrow(input_zeros.exercise))  
+ 
+training_ones.exercise <- input_ones.exercise[input_ones_training_rows.exercise, ]  
+training_zeros.exercise <- input_zeros.exercise[input_zeros_training_rows.exercise, ]
+trainingData.exercise <- rbind(training_ones.exercise, training_zeros.exercise)  # row bind the 1's and 0's 
+table(trainingData.exercise$exercise)
+
+# Create Test Data
+test_ones.exercise <- input_ones.exercise[-input_ones_training_rows.exercise, ]
+test_zeros.exercise <- input_zeros.exercise[-input_zeros_training_rows.exercise, ]
+testData.exercise <- rbind(test_ones.exercise, test_zeros.exercise)  # row bind the 1's and 0's 
+table(testData.exercise$exercise)
+
+model.glm.exercise.training= glm(exercise ~  diabetes_education + calculated_age + gender + calculated_income + calculated_education + marital_status + number_of_children+ employment_status + calculated_race + health_insured + heart_disease + arthritis + stroke + asthma + bronchitis + depression + state_name + imonth + iyear, weights = xstrwt, family=binomial(link=logit), data  = trainingData.exercise)
+summary(model.glm.exercise.training)
+predicted.3 <- plogis(predict(model.glm.exercise.training, testData.exercise))
+# predicted <- predict(test.lm1, testData, type="response") 
+optCutOff.3 <- optimalCutoff(testData.exercise$exercise, predicted.3)[1] 
+misClassError(testData.exercise$exercise, predicted.3, threshold = optCutOff.3)
+plotROC(testData.exercise$exercise, predicted.3)  #0.77, which is pretty good
+sens.3 = sensitivity(testData.exercise$exercise, predicted.3, threshold = optCutOff.3) #sensitivity is low because false negative is too high
+spec.3 = specificity(testData.exercise$exercise, predicted.3, threshold = optCutOff.3) #specificity is high because false positive is too low
+confu.3 = confusionMatrix(testData.exercise$exercise, predicted.3, threshold = optCutOff.3)
+Concordance(testData.exercise$exercise, predicted.3)
+```
+
+To assess the model predictions' accuracy, this paper calculated a variety of goodness of fits tests, including sensitivity, specificity, positive predictive value, negative predictive value, and, most importantly, the models' concordance. Specificity is the percentage of 0's (actuals) correctly predicted, while sensitivity (or true positive rate) is the percentage of 1's (actuals) correctly predicted by the model. Positive and negative predictive values are other reliable tests that can be calculated through the confusion matrix. Concordance is the percentage of 1-0 combination pairs with the model calculated probability scores of actuals positives greater than those of actual negatives. For a perfect model, the concordance will be 100%. Although yielding a 100\% concordance is nearly impossible for any models, the higher the concordance, the better the model's quality. In addition, this paper also plots the ROC Curve (Receiver Operating Characteristics Curve) to show the model's ability to classify the difference between class 0 and class 1. For a good model, the greater the area under the ROC curve, the better the predictive ability. In simpler terms, the closer the ROC value to 1, or 100\%, the better the model is.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'ROC Curves - Current Smoker'}
+plotROC(testData.smoke$calculated_current_smokers, predicted.1)
+```
+
+\begin{table}[!htbp] \centering
+\caption{Confusion Matrix - Current Smoker} 
+  \label{}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Confusion Matrix                    & \multicolumn{3}{c|}{\textbf{Actuals}}                  & \multirow{2}{*}{Training N = 36,240} \\ \cline{1-4}
+\multirow{3}{*}{\textbf{Predicted}} & Classification & 0                 & 1                 &                            \\ \cline{2-5} 
+                                    & 0              & 5277             & 2903              & NPV = 65\%                 \\ \cline{2-5} 
+                                    & 1              & 2489              & 4946             & PPV = 67\%                 \\ \hline
+\multicolumn{2}{|c|}{Testing N = 15,615}                      & Specificity: 68\% & Sensitivity: 63\% & \textbf{Concordance: 71\%}        \\ \hline
+\end{tabular}
+\end{table}
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'ROC Curves - Exercise'}
+plotROC(testData.exercise$exercise, predicted.3)
+```
+
+
+\begin{table}[!htbp] \centering
+\caption{Confusion Matrix - Exercise} 
+  \label{}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Confusion Matrix                    & \multicolumn{3}{c|}{\textbf{Actuals}}                  & \multirow{2}{*}{Training N = 36,356} \\ \cline{1-4}
+\multirow{3}{*}{\textbf{Predicted}} & Classification & 0                 & 1                 &                            \\ \cline{2-5} 
+                                    & 0              & 4584             & 2908              & NPV = 61\%                 \\ \cline{2-5} 
+                                    & 1              & 3207              & 4800             & PPV = 60\%                 \\ \hline
+\multicolumn{2}{|c|}{Testing N = 15,499}                      & Specificity: 59\% & Sensitivity: 62\% & \textbf{Concordance: 65\%}        \\ \hline
+\end{tabular}
+\end{table}
+
+
+The plots above represent the ROC curves and the Confusion Matrix for the leading binary models, Smoking and Exercise. As explained above, these models are fitted with 71% concordance for the model estimating Current Smokers and 65% concordance for the model estimating exercise. These values show that the quality of these models is quite good. Also, Specificity and Sensitivity values of 68% and 63% for the model estimating Current Smokers and 59% and 62% for the model estimating exercise show that the model's performance on the test data is exceptional. Generally, there are always trade-offs between sensitivity and specificity, in which re-sampling the data to improve sensitivity can significantly reduce the specificity level. Therefore, having the standard estimates of the Specificity and Sensitivity like above shows that the model is robust and accurate (as shown in the ROC curves).
+
+For Count models, this paper performs various tests to show that the chosen models exhibited the best performance. The charts below represent the model fits of the negative binomials for all count models of bad mental health, bad physical health, alcohol consumption, and A1C check-ups.
+
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Model Fits - Negative Binomials'}
+rootogram(model.glm.nb.mental)
+rootogram(model.glm.nb.physical)
+rootogram(model.glm.nb.drinking)
+rootogram(model.glm.nb.a1c)
+```
+
+Below are the fits for zero-inflated negative binomials models for the primary outcome variables. By visual inspection alone, it is evident that the zero-inflated negative binomial models are better fits than the simple negative binomial models. Generally, excluding negatives, models with the greater area under the red curve are the better models. In addition, the Vuong test gives a p-value of 0 across different model specifications, which indicates that for all the count models represented, the zero-inflated negative binomial models are significant improvements over the standard negative binomial models. The test is significant at the 1% level.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Model Fits - Zero-inflated NB'}
+rootogram(model.glm.zinb.mental)
+rootogram(model.glm.zinb.physical)
+rootogram(model.glm.zinb.drinking)
+rootogram(model.glm.zinb.a1c)
+```
+
+
+Additionally, this paper performs hurdle regressions on the paper's primary outcomes, mental health, and physical health. Besides, it also performs hurdle regressions for alcohol consumption models and the number of A1C check-ups. The difference between the hurdle and the zero-inflated model is not immensely significant. One limitation of standard count models is that the zeros and the non-zeros (positives) are assumed to come from the same data-generating process. These two processes do not have to be the same with hurdle models. The fundamental explanation is that since the Bernoulli probability function oversees the binary outcome of whether a count variate has a zero or non-zero number, the hurdle is crossed if the realization is non-zero. Then a truncated-at-zero count data model rules the conditional distribution of the non-zeroes. With zero-inflated models, the response variable is modeled as a mixture of a Bernoulli distribution (or call it a point mass at zero) and a Poisson distribution (or any other count distribution supported non-negative integers)^[For more detail, see, for example, Dalrymple, Hudson, and Ford (2003); Gurmu and Trivedi (2011)].
+
+The hurdle results below indicate that the main results are still consistent and accurate across different count models. For the alcohol consumption variable, the hurdle model yields an estimate of $0.203$, while the zero-inflated model yields an estimate of $-0.195$. For the A1C doctor check-ups variable, the hurdle model yields an estimate of $0.123$, while the zero-inflated model yields an estimate of 0.130. For the physical unhealthy days variable, the hurdle model yields an estimated $-0.028$, while the zero-inflated model yields $-0.035$. All of these coefficients are statistically significant. These results show that although the two methods are coming from different data generating processes, the estimates are the same in the direction and very similar in the magnitude of the effects.
+
+
+```{r , include=FALSE, echo=FALSE, eval = FALSE}
+latex.risky.hurlde =stargazer(hurdle.mental,hurdle.physical, hurdle.drinking,hurdle.a1c, type="latex",omit = c("imonth","iyear","state_name"),omit.labels =c("Month FE","Year FE","State FE"), omit.stat = c("rsq", "f"), column.labels = c("Physical Unhealthy Days","Mental Unhealthy Days","Alcohol Consumption","A1C Check-up"), title="Hurdle Regression Results for Risky Outcomes")
+```
+
+\begingroup
+\tabcolsep = 12.0pt
+\def\arraystretch{0.65}
+\captionsetup[justification=centering]{labelformat=empty,skip=1pt} 
+{\scriptsize \begin{longtable}[c]{lccccc} 
+\caption*{ Regression Results for General Health Outcomes\\ 
+\small \textit{Dependent variable: General Health Outcomes} \\ 
+} \\ 
+\toprule \centering
+ &  Mental Unhealthy Days & Physical Unhealthy Days & Alcohol Consumption & A1C Checkups\\ [-1.8ex] 
+\\ & \textit{Hurdle Regression} & \textit{Hurdle Regression} & \textit{Hurdle Regression} & \textit{Hurdle Regression} \\ 
+\\[-1.8ex] & (1) & (2) & (3) & (4)\\ 
+\hline 
+\midrule 
+ diabetes\_education & $-$0.028 & $-$0.035$^{**}$ & $-$0.203$^{***}$ & 0.123$^{***}$ \\ 
+  & (0.021) & (0.014) & (0.032) & (0.008) \\ 
+ 
+ health\_insured & $-$0.135 & $-$0.224$^{***}$ & 0.179 & 0.186$^{***}$ \\ 
+  & (0.121) & (0.085) & (0.221) & (0.056) \\ 
+
+ heart\_disease & 0.122$^{***}$ & 0.149$^{***}$ & $-$0.099$^{*}$ & 0.076$^{***}$ \\ 
+  & (0.034) & (0.020) & (0.054) & (0.012) \\ 
+
+ arthritis & 0.046$^{*}$ & 0.145$^{***}$ & $-$0.041 & 0.054$^{***}$ \\ 
+  & (0.024) & (0.016) & (0.034) & (0.008) \\ 
+
+ stroke & 0.089$^{*}$ & 0.168$^{***}$ & 0.029 & 0.171$^{***}$ \\ 
+  & (0.048) & (0.031) & (0.099) & (0.018) \\ 
+
+ asthma & 0.052 & 0.012 & $-$0.163$^{**}$ & 0.001 \\ 
+  & (0.034) & (0.023) & (0.063) & (0.014) \\ 
+
+ bronchitis & 0.050 & 0.166$^{***}$ & 0.224$^{***}$ & 0.088$^{***}$ \\ 
+  & (0.036) & (0.024) & (0.075) & (0.015) \\ 
+
+ depression & 0.518$^{***}$ & 0.153$^{***}$ & 0.034 & 0.073$^{***}$ \\ 
+  & (0.023) & (0.018) & (0.047) & (0.011) \\ 
+
+ cancer & 0.067$^{*}$ & 0.140$^{***}$ & 0.099$^{*}$ & 0.060$^{***}$ \\ 
+  & (0.034) & (0.021) & (0.052) & (0.012) \\ 
+
+ Constant & 0.567 & 1.841$^{***}$ & 0.213 & 0.996$^{***}$ \\ 
+  & (0.467) & (0.528) & (0.703) & (0.212) \\ 
+ 
+\hline \\[-1.8ex] 
+Month FE & Yes & Yes & Yes & Yes \\ 
+Year FE & Yes & Yes & Yes & Yes \\ 
+State FE & Yes & Yes & Yes & Yes \\ 
+Demographics& Yes & Yes & Yes & Yes \\ 
+\hline \\[-1.8ex] 
+Observations & 51,855 & 51,855 & 51,855 & 51,855 \\ 
+Log Likelihood & $-$66,560.270 & $-$114,084.800 & $-$73,180.220 & $-$96,344.590 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\multicolumn{5}{l}{Note: Panel consists of the 2013-2018 survey sample waves of BRFSS. Model propensity weights applied. All models control for}\\
+\multicolumn{5}{l}{demographics, including age, gender, race, income, education status, marital status, employment status, number of children. See}\\
+\multicolumn{5}{l}{Appendix for detailed variable definition, and construction.}\\
+\multicolumn{4}{l}{ $^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\bottomrule
+\end{longtable}}
+\endgroup
+
+Charts down below show the hurdle model's fits for different count outcomes, mentally unhealthy days, physical unhealthy days, alcohol consumption, and A1C doctor check-ups. Visually, it is clear that the hurdle models are just as good as the zero-inflated models. It is difficult to tell the differences between the two models. The results indicate that the hurdle models have done superb jobs at showing consistency, and imposing the hurdle model as the goodness of fit is not a flawed idea after all.
+
+```{r, out.width = '.49\\linewidth',fig.show='hold',fig.align='center', echo=FALSE, fig.cap= 'Model Fits - Hurdle'}
+rootogram(hurdle.mental)
+rootogram(hurdle.physical)
+rootogram(hurdle.drinking)
+rootogram(hurdle.a1c)
+```
+
+
+# 6. Conclusion
+
+This study results support the vital role of diabetes education programs in promoting preventive health and health behaviors among diabetes patients. Specifically, although the study does not find a significant effect of diabetes education on mental health days, it shows strong evidence that receiving diabetes education reduces the number of days that the survey participants do not feel well physically. It also reduces respondent's alcohol intake and the probability of respondents being a current smoker. Moreover, this study also shows that having diabetes education increases the frequency of having an A1C check-up and increases physical activity among respondents.
+
+Moreover, the cost-saving estimates yielded from this study proves the essential part of diabetes education to health professionals and policymakers. Previous studies have repeatedly shown the effectiveness of diabetes intervention programs on saving money and increasing life expectancy. Although the results are widely different across different study designs and samples, results from this study give proper and reasonable cost-saving estimates for the economy using the national-level data and add to the recent literature on the economics of diabetes education. This study, solely based on just one specification regarding the impact of diabetes education on A1C doctor check-ups, concludes that just within the data used of 22,000 patients without diabetes education, the cost savings are estimated in the hundreds of millions of dollars. This number is expected to be much more extensive for different specifications with different covariates; perhaps it could reach billions of dollars saved for the economy each year.
+
+While the study estimates are intensely investigated, there are several limitations to this study. First, since the BRFSS is a phone survey, it excludes patients in health institutions, including patients in nursing homes, patients who do not have a telephone, and people who have a severely impaired physical and mental illness that might not have been able to answer the survey. In addition, the survey does not have information on the level of A1C for each patient, which makes it impossible to investigate deeply into the effect of diabetes education on health based on different A1C levels. This missing piece is quite significant because previous literature has shown that people with different A1C levels impose different economic costs on society. Lastly, although the paper, using propensity score analysis, tries it best to get close to the causal estimates of diabetes education on health, the estimates are not causal if there is an endogeneity issue. People who have diabetes education tend to be more proactive, and if so, there would be an unobserved factor. Instrument variables could be used to solve, but again the BRFSS is restricted. Thus through an intensive search for an instrument in the dataset, this paper is unable to find the proper instruments.
+
+Nonetheless, the paper underscores the importance of diabetes education on various health factors. Furthermore, understanding diabetes education's implication on behavior and lifestyle is a crucial element to the cost-effective management of chronic illnesses such as diabetes. This paper helps shed light on scientific studies and helps motivate policymakers to focus on diabetes interventions that are widely accepted.
+
+
+\newpage
+# Appendix
+
+
+For demographic variables, given the nature of the BRFSS survey, all of them are categorical variables. $Gender$ is recoded from "sex" in BRFSS from 2013-2017 and "sex1" in BRFSS 2018. The question asked, "What is your sex? or What was your sex at birth? Was it…" This paper recoded this variable with 1 being "Male," 0 being "Female," and got rid of "Don’t know/Not Sure," and "Refused." Variable $number\_of\_children$ is recoded from a calculated variable asking, "Number of children in household." This is a categorical variable with options "No children in household," "One child in household," "Two child in household," "Three child in household," "Four child in household," and "Five or more children in household." In this analysis, I combine "Four child in household" and "Five or more children in household" into one category and name "Four or more children in household." Variable $marital\_status$ is recoded from section "Demographics", under label "Marital Status." This variable is a categorical variable with "Married," "Divorced," "Widowed," "Separated," "Never married," and "A member of an unmarried couple." I got rid of options "Refused," and missing data for this variable. Variable $employment\_status$ is also under "Demographics" section. The question asked, "Question: Are you currently…?" and the answers ranged from "Employed for wages," "Self-employed," "Out of work for 1 year or more," "Out of work for less than 1 year," "A homemaker," "A student," "Retired," "Unable to work." Options "Refused" and “BLANK” (missing data) are eliminated from the analysis. Variable $calculated\_race$ is a calculated race variable with 6 categories "White," "Black or African American," "American Indian or Alaskan Native," "Asian," "Native Hawaiian or other Pacific Islander," and "Other race." I got rid of "No preferred race," "Don’t know/Not sure," "Refused," missing data, and combine "Native Hawaiian or other Pacific Islander" with "Other race" together. Variable $calculated\_education$ represents education status with 4 main categories "Did not graduate High School," "Graduated High School," "Attended College or Technical School," and "Graduated from College or Technical School." I also got rid of "Don’t know/Not sure/Missing" value. Variable $calculated\_income$ represents income brackets from "Less than $\$15,000$," "$\$15,000$ to less than $\$25,000$," "$\$25,000$ to less than $\$35,000$," "$\$35,000$ to less than $\$50,000$," and "$\$50,000$ or more." Category "Don’t know/Not sure/Missing" is eliminated. Variable $calculated\_age$ represent calculated age variable with categories "Age 18 to 24," "Age 25 to 34," "Age 35 to 44," "Age 45 to 54," "Age 55 to 64," "Age 65 or older."  Missing data is also eliminated. 
+
+Down below are Matching Statistics.
+
+\begingroup
+\tabcolsep = 11.0pt
+\def\arraystretch{0.65}
+\captionsetup[table]{labelformat=empty,skip=1pt}
+\begin{longtable}{lcccc}
+\caption*{
+\large Before Matching\\ 
+} \\ 
+\hline 
+\toprule 
+\multicolumn{3}{c}{Summary of balance for all data:}             &            &                  \\
+\midrule
+\multicolumn{1}{c}{}   & Means Treated & Means Control & SD Control & Mean Diff \\
+distance                              & 0.5883      &  0.5621   &  0.0831   & 0.0262 \\
+health\_insured                        & 0.9555      &  0.9391   &  0.2391   & 0.0164  \\
+heart\_disease                         & 0.1680      &  0.1487   &  0.3557   & 0.0194  \\
+arthritis                             & 0.5515      &  0.5456   &  0.4979   & 0.0060  \\
+stroke                                & 0.0986      &  0.0954   &  0.2937   & 0.0032  \\
+asthma                                & 0.1835      &  0.1734   &  0.3786   & 0.0102  \\
+bronchitis                            & 0.1568      &  0.1663   &  0.3724   & -0.0096  \\
+depression                            & 0.2771      &  0.2587   &  0.4379   & 0.0184  \\
+cancer                                & 0.1463      &  0.1489   &  0.3560   & -0.0027  \\
+calculated\_age18to24                  & 0.0032      &  0.0036   &  0.0603   & -0.0004  \\
+calculated\_age25to34                  & 0.0143      &  0.0131   &  0.1138   & 0.0011  \\
+calculated\_age35to44                  & 0.0456      &  0.0428   &  0.2023   & 0.0028  \\
+calculated\_age45to54                  & 0.1319      &  0.1246   &  0.3303   & 0.0073  \\
+calculated\_age55to64                  & 0.2804      &  0.2681   &  0.4430   & 0.0124  \\
+calculated\_age65older                 & 0.5246      &  0.5478   &  0.4977   & -0.0232  \\
+gendermale                            & 0.4254      &  0.4581   &  0.4982   & -0.0327  \\
+calculated\_income15to25K              & 0.1966      &  0.2123   &  0.4090   & -0.0157  \\
+calculated\_income25to35K              & 0.1150      &  0.1141   &  0.3180   & 0.0009  \\
+calculated\_income35to50K              & 0.1385      &  0.1251   &  0.3308   & 0.0134  \\
+calculated\_incomele15K                & 0.1230      &  0.1550   &  0.3619   & -0.0319  \\
+calculated\_incomeothers               & 0.1191      &  0.1342   &  0.3409   & -0.0151 \\
+calculated\_educationattendCOL         & 0.3190      &  0.2587   &  0.4380   & 0.0602  \\
+calculated\_educationHSgrad            & 0.3090      &  0.3633   &  0.4809   & -0.0543  \\
+calculated\_educationK                 & 0.0770      &  0.1389   &  0.3459   & -0.0619  \\
+marital\_statusdivorced                & 0.1698      &  0.1745   &  0.3796   & -0.0048  \\
+marital\_statusmembermarriedcoup       & 0.0142      &  0.0137   &  0.1164   & 0.0004  \\
+marital\_statusnevermarried            & 0.1018      &  0.1052   &  0.3068   & -0.0034  \\
+marital\_statusseparated               & 0.0243      &  0.0294   &  0.1688   & -0.0051  \\
+marital\_statuswidowed                 & 0.1854      &  0.2106   &  0.4078   & -0.0252  \\
+number\_of\_children1children           & 0.0738      &  0.0731   &  0.2602   & 0.0007  \\
+number\_of\_children2children           & 0.0428      &  0.0388   &  0.1930   & 0.0041  \\
+number\_of\_children3children           & 0.0173      &  0.0162   &  0.1261   & 0.0011  \\
+number\_of\_children4morechildren       & 0.0089      &  0.0088   &  0.0932   & 0.0001  \\
+employment\_statushomemaker            & 0.0401      &  0.0454   &  0.2083   & -0.0053  \\
+employment\_statusnoworkless1          & 0.0139      &  0.0143   &  0.1187   & -0.0004 \\
+employment\_statusnoworkmore1          & 0.0262      &  0.0274   &  0.1631   & -0.0011  \\
+employment\_statusretired              & 0.4638      &  0.4596   &  0.4984   & 0.0042  \\
+employment\_statusselfemployed         & 0.0461      &  0.0507   &  0.2193   & -0.0045  \\
+employment\_statusstudent              & 0.0040      &  0.0034   &  0.0583   & 0.0006  \\
+employment\_statusunable               & 0.1612      &  0.1716   &  0.3771   & -0.0104  \\
+calculated\_raceasian                  & 0.0111      &  0.0155   &  0.1236   & -0.0044  \\
+calculated\_raceblack                  & 0.1669      &  0.1525   &  0.3595   & 0.0145  \\
+calculated\_racenative                 & 0.0321      &  0.0296   &  0.1694   & 0.0026  \\
+calculated\_raceother                  & 0.0150      &  0.0183   &  0.1341   & -0.0033  \\
+calculated\_racepacific                & 0.0039      &  0.0032   &  0.0568   & 0.0007  \\
+\hline 
+\bottomrule
+\end{longtable}
+\endgroup
+
+\begingroup
+\tabcolsep = 11.0pt
+\def\arraystretch{0.65}
+\captionsetup[table]{labelformat=empty,skip=1pt}
+\begin{longtable}{lcccc} 
+\caption*{
+\large After Matching\\ 
+} \\ 
+\hline 
+\toprule
+\multicolumn{3}{c}{Summary of balance for matched data:}             &            &               \\
+\midrule
+\multicolumn{1}{c}{}   & Means Treated & Means Control & SD Control & Mean Diff  \\
+distance                              & 0.5877      &  0.5877   &  0.0682       &  0  \\
+health\_insured                        & 0.9933      &  0.9933   &  0.0814       &  0   \\
+heart\_disease                         & 0.1110      &  0.1110   &  0.3141       &  0  \\
+arthritis                             & 0.5352      &  0.5352   &  0.4988       &  0  \\
+stroke                                & 0.0410      &  0.0410   &  0.1984       &  0  \\
+asthma                                & 0.0862      &  0.0862   &  0.2807       &  0   \\
+bronchitis                            & 0.0791      &  0.0791   &  0.2699       &  0   \\
+depression                            & 0.1675      &  0.1675   &  0.3734       &  0   \\
+cancer                                & 0.1100      &  0.1100   &  0.3129       &  0   \\
+calculated\_age18to24                  & 0.0004      &  0.0004   &  0.0203       &  0  \\
+calculated\_age25to34                  & 0.0035      &  0.0035   &  0.0587       &  0   \\
+calculated\_age35to44                  & 0.0176      &  0.0176   &  0.1314       &  0  \\
+calculated\_age45to54                  & 0.0826      &  0.0826   &  0.2753       &  0   \\
+calculated\_age55to64                  & 0.2301      &  0.2301   &  0.4209       &  0   \\
+calculated\_age65older                 & 0.6659      &  0.6659   &  0.4717       &  0  \\
+gendermale                            & 0.4579      &  0.4579   &  0.4982       &  0   \\
+calculated\_income15to25K              & 0.1682      &  0.1682   &  0.3741       &  0   \\
+calculated\_income25to35K              & 0.1007      &  0.1007   &  0.3010       &  0  \\
+calculated\_income35to50K              & 0.1399      &  0.1399   &  0.3469       &  0   \\
+calculated\_incomele15K                & 0.0758      &  0.0758   &  0.2647       &  0   \\
+calculated\_incomeothers               & 0.1152      &  0.1152   &  0.3192       &  0   \\
+calculated\_educationattendCOL         & 0.3052      &  0.3052   &  0.4605       &  0   \\
+calculated\_educationHSgrad            & 0.3165      &  0.3165   &  0.4651       &  0   \\
+calculated\_educationK                 & 0.0488      &  0.0488   &  0.2155       &  0  \\
+marital\_statusdivorced                & 0.1302      &  0.1302   &  0.3366       &  0   \\
+marital\_statusmembermarriedcoup       & 0.0024      &  0.0024   &  0.0485       &  0   \\
+marital\_statusnevermarried            & 0.0595      &  0.0595   &  0.2365       &  0   \\
+marital\_statusseparated               & 0.0034      &  0.0034   &  0.0584       &  0   \\
+marital\_statuswidowed                 & 0.2109      &  0.2109   &  0.4080       &  0   \\
+number\_of\_children1children           & 0.0286      &  0.0286   &  0.1666       &  0   \\
+number\_of\_children2children           & 0.0147      &  0.0147   &  0.1205       &  0   \\
+number\_of\_children3children           & 0.0042      &  0.0042   &  0.0647       &  0   \\
+number\_of\_children4morechildren       & 0.0008      &  0.0008   &  0.0286       &  0   \\
+employment\_statushomemaker            & 0.0287      &  0.0287   &  0.1670       &  0   \\
+employment\_statusnoworkless1          & 0.0016      &  0.0016   &  0.0396       &  0   \\
+employment\_statusnoworkmore1          & 0.0038      &  0.0038   &  0.0612       &  0   \\
+employment\_statusretired              & 0.6150      &  0.6150   &  0.4866       &  0   \\
+employment\_statusselfemployed         & 0.0339      &  0.0339   &  0.1809       &  0   \\
+employment\_statusstudent              & 0.0002      &  0.0002   &  0.0131       &  0  \\
+employment\_statusunable               & 0.0716      &  0.0716   &  0.2579       &  0   \\
+calculated\_raceasian                  & 0.0048      &  0.0048   &  0.0690       &  0  \\
+calculated\_raceblack                  & 0.0990      &  0.0990   &  0.2986       &  0   \\
+calculated\_racenative                 & 0.0035      &  0.0035   &  0.0587       &  0   \\
+calculated\_raceother                  & 0.0021      &  0.0021   &  0.0460       &  0   \\
+calculated\_racepacific                & 0.0001      &  0.0001   &  0.0101       &  0   \\
+\hline 
+\bottomrule
+\end{longtable}
+\endgroup
+
+\newpage
+# Reference
+
+
+Apouey, B., & Clark, A. E. (2015). Winning Big but Feeling no Better? The Effect of Lottery Prizes on Physical and Mental Health. Health Economics, 24(5), 516–538. https://doi.org/10.1002/hec.3035
+
+Baker, M., Stabile, M., & Deri, C. (2004). What Do Self-Reported, Objective, Measures of Health Measure? Journal of Human Resources, XXXIX(4), 1067–1093. https://doi.org/10.3368/jhr.XXXIX.4.1067
+
+Balamurugan, A., Ohsfeldt, R., Hughes, T., & Phillips, M. (2006). Diabetes Self-management Education Program for Medicaid Recipients. The Diabetes Educator, 32(6), 893–900. https://doi.org/10.1177/0145721706294787
+
+Benjamins, M. R., Hummer, R. A., Eberstein, I. W., & Nam, C. B. (2004). Self-reported health and adult mortality risk: An analysis of cause-specific mortality. Social Science & Medicine (1982), 59(6), 1297–1306. https://doi.org/10.1016/j.socscimed.2003.01.001
+
+Blackwell, M., Iacus, S., King, G., & Porro, G. (2009). Cem: Coarsened Exact Matching in Stata. The Stata Journal, 9(4), 524–546. https://doi.org/10.1177/1536867X0900900402
+
+Böckerman, P., & Ilmakunnas, P. (2009). Unemployment and self-assessed health: Evidence from panel data. Health Economics, 18(2), 161–179. https://doi.org/10.1002/hec.1361
+
+Boren, S. A., Fitzner, K. A., Panhalkar, P. S., & Specker, J. E. (2009). Costs and Benefits Associated With Diabetes Education A Review of the Literature. The Diabetes Educator, 35(1), 72–96. https://doi.org/10.1177/0145721708326774
+
+Brownson, C. A., & Heisler, M. (2009). The Role of Peer Support in Diabetes Care and Self-Management. The Patient: Patient-Centered Outcomes Research, 2(1), 5–17. https://doi.org/10.2165/01312067-200902010-00002
+
+Caspersen, C. J., Thomas, G. D., Boseman, L. A., Beckles, G. L. A., & Albright, A. L. (2012). Aging, Diabetes, and the Public Health System in the United States. American Journal of Public Health, 102(8), 1482–1497. https://doi.org/10.2105/AJPH.2011.300616
+
+Chase, H. P., Dixon, B., Pearson, J., Fiallo-Scharer, R., Walravens, P., Klingensmith, G., Rewers, M., & Garg, S. K. (2003). Reduced hypoglycemic episodes and improved glycemic control in children with type 1 diabetes using insulin glargine and neutral protamine Hagedorn insulin. The Journal of Pediatrics, 143(6), 737–740. https://doi.org/10.1067/S0022-3476(03)00415-3
+
+Chatterjee, R., Narayan, K. M. V., Lipscomb, J., Jackson, S. L., Long, Q., Zhu, M., & Phillips, L. S. (2013). Screening for Diabetes and Prediabetes Should Be Cost-Saving in Patients at High Risk. Diabetes Care, 36(7), 1981–1987. https://doi.org/10.2337/dc12-1752
+
+Colberg, S. R., Sigal, R. J., Fernhall, B., Regensteiner, J. G., Blissmer, B. J., Rubin, R. R., Chasan-Taber, L., Albright, A. L., & Braun, B. (2010). Exercise and Type 2 Diabetes. Diabetes Care, 33(12), e147–e167. https://doi.org/10.2337/dc10-9990
+
+Cottini, E., & Lucifora, C. (2013). Mental Health and Working Conditions in Europe. ILR Review, 66(4), 958–988. https://doi.org/10.1177/001979391306600409
+
+Coyle, D., Coyle, K., Kenny, G. P., Boulé, N. G., Wells, G. A., Fortier, M., Reid, R. D., Phillips, P., & Sigal, R. J. (2012). COST-EFFECTIVENESS OF EXERCISE PROGRAMS IN TYPE 2 DIABETES. International Journal of Technology Assessment in Health Care, 28(3), 228–234. https://doi.org/10.1017/S0266462312000256
+
+Cranor, C. W., Bunting, B. A., & Christensen, D. B. (2003). The Asheville Project: Long-term clinical and economic outcomes of a community pharmacy diabetes care program. Journal of the American Pharmaceutical Association (Washington,D.C.: 1996), 43(2), 173–184. https://doi.org/10.1331/108658003321480713
+
+Gillett, M., Dallosso, H. M., Dixon, S., Brennan, A., Carey, M. E., Campbell, M. J., Heller, S., Khunti, K., Skinner, T. C., & Davies, M. J. (2010). Delivering the diabetes education and self management for ongoing and newly diagnosed (DESMOND) programme for people with newly diagnosed type 2 diabetes: Cost effectiveness analysis. BMJ (Clinical Research Ed.), 341, c4093. https://doi.org/10.1136/bmj.c4093
+
+Gillett, Mike, Brennan, A., Watson, P., Khunti, K., Davies, M., Mostafa, S., Gray, L. J., Gillett, M., Brennan, A., Watson, P., Khunti, K., Davies, M., Mostafa, S., & Gray, L. J. (2015). The cost-effectiveness of testing strategies for type 2 diabetes: A modelling study. NIHR Journals Library.
+
+Gravelle, H., & Sutton, M. (2009). Income, relative income, and self-reported health in Britain 1979–2000. Health Economics, 18(2), 125–145. https://doi.org/10.1002/hec.1354
+
+Johnson, T. M., Richards, J., & Churilla, J. R. (2015). Care Utilization Patterns and Diabetes Self-Management Education Duration. Diabetes Spectrum, 28(3), 193–200. https://doi.org/10.2337/diaspect.28.3.193
+
+Jylhä, M. (2009). What is self-rated health and why does it predict mortality? Towards a unified conceptual model. Social Science & Medicine (1982), 69(3), 307–316. https://doi.org/10.1016/j.socscimed.2009.05.013
+
+Lenhart, A., Smith, A., Anderson, M., Duggan, M., & Perrin, A. (2015). Teens, technology and friendships (Australia) [Report]. Pew Research Center. https://apo.org.au/node/56457
+
+Lindeboom, M., & van Doorslaer, E. (2004). Cut-point shift and index shift in self-reported health. Journal of Health Economics, 23(6), 1083–1099. https://doi.org/10.1016/j.jhealeco.2004.01.002
+
+MacLean, P. S., Wing, R. R., Davidson, T., Epstein, L., Goodpaster, B., Hall, K. D., Levin, B. E., Perri, M. G., Rolls, B. J., Rosenbaum, M., Rothman, A. J., & Ryan, D. (2015). NIH working group report: Innovative research to improve maintenance of weight loss. Obesity, 23(1), 7–15. https://doi.org/10.1002/oby.20967
+
+Miilunpalo, S., Vuori, I., Oja, P., Pasanen, M., & Urponen, H. (1997). Self-rated health status as a health measure: The predictive value of self-reported health status on the use of physician services and on mortality in the working-age population. Journal of Clinical Epidemiology, 50(5), 517–528. https://doi.org/10.1016/s0895-4356(97)00045-0
+
+Nangalia, J., Massie, C. E., Baxter, E. J., Nice, F. L., Gundem, G., Wedge, D. C., Avezov, E., Li, J., Kollmann, K., Kent, D. G., Aziz, A., Godfrey, A. L., Hinton, J., Martincorena, I., Van Loo, P., Jones, A. V., Guglielmelli, P., Tarpey, P., Harding, H. P., … Green, A. R. (2013). Somatic CALR Mutations in Myeloproliferative Neoplasms with Nonmutated JAK2. New England Journal of Medicine, 369(25), 2391–2405. https://doi.org/10.1056/NEJMoa1312542
+
+Neumann, A., Lindholm, L., Norberg, M., Schoffer, O., Klug, S. J., & Norström, F. (2017). The cost-effectiveness of interventions targeting lifestyle change for the prevention of diabetes in a Swedish primary care and community based prevention program. The European Journal of Health Economics: HEPAC: Health Economics in Prevention and Care, 18(7), 905–919. https://doi.org/10.1007/s10198-016-0851-9
+
+Norris, S. L., Lau, J., Smith, S. J., Schmid, C. H., & Engelgau, M. M. (2002). Self-Management Education for Adults With Type 2 Diabetes: A meta-analysis of the effect on glycemic control. Diabetes Care, 25(7), 1159–1171. https://doi.org/10.2337/diacare.25.7.1159
+
+Siegel, K. (2020). Cost-effectiveness of Interventions to Manage Diabetes: Has the Evidence Changed Since 2008? 43, 36.
+
+Stetson, B., Schlundt, D., Rothschild, C., Floyd, J. E., Rogers, W., & Mokshagundam, S. P. (2011). Development and validation of The Personal Diabetes Questionnaire (PDQ): A measure of diabetes self-care behaviors, perceptions and barriers. Diabetes Research and Clinical Practice, 91(3), 321–332. https://doi.org/10.1016/j.diabres.2010.12.002
+
+Strine, T. W., Chapman, D. P., Balluz, L., & Mokdad, A. H. (2008). Health-related quality of life and health behaviors by social and emotional support: Their relevance to psychiatry and medicine. Social Psychiatry and Psychiatric Epidemiology, 43(2), 151–159. https://doi.org/10.1007/s00127-007-0277-x
+
+Strine, T. W., Okoro, C. A., Chapman, D. P., Beckles, G. L. A., Balluz, L., & Mokdad, A. H. (2005). The impact of formal diabetes education on the preventive health practices and behaviors of persons with type 2 diabetes. Preventive Medicine, 41(1), 79–84. https://doi.org/10.1016/j.ypmed.2004.10.009
+
+Thorpe, K. E. (2012). The Affordable Care Act Lays The Groundwork For A National Diabetes Prevention And Treatment Strategy. Health Affairs, 31(1), 61–66. https://doi.org/10.1377/hlthaff.2011.1023
+
+Tsai, J., Ford, E. S., Li, C., Zhao, G., & Balluz, L. S. (2010). Physical activity and optimal self-rated health of adults with and without diabetes. 9.
+
+Weerdt, I. de, Visser, A. P., Kok, G. J., Weerdt, O. de, & Veen, E. A. van der. (1991). Randomized Controlled Multicentre Evaluation of an Education Programme for Insulin-treated Diabetic Patients: Effects on Metabolic Control, Quality of Life, and Costs of Therapy. Diabetic Medicine, 8(4), 338–345. https://doi.org/10.1111/j.1464-5491.1991.tb01607.x
+
+Stetson, B., Schlundt, D., Rothschild, C., Floyd, J. E., Rogers, W., & Mokshagundam, S. P. (2011). Development and validation of The Personal Diabetes Questionnaire (PDQ): A measure of diabetes self-care behaviors, perceptions and barriers. Diabetes Research and Clinical Practice, 91(3), 321–332. https://doi.org/10.1016/j.diabres.2010.12.002
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

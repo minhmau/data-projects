@@ -1,0 +1,95 @@
+---
+title: "Week 3 Peer Review"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+######DO NOT MODIFY. This will load required packages and data.
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+cces <- drop_na(read_csv(url("https://www.dropbox.com/s/ahmt12y39unicd2/cces_sample_coursera.csv?raw=1")))
+
+cel <- drop_na(read_csv(url("https://www.dropbox.com/s/4ebgnkdhhxo5rac/cel_volden_wiseman%20_coursera.csv?raw=1")))
+
+```
+
+Following the directions on the Coursera assignment page, you will make four original visualizations. Note that the data for the CCES and CEL data are imported in code in the R Markdown file.
+
+### Put your name here: Minh Q Pham
+
+## Exercise 1
+
+Explain what you are visualizing here: I want to visualize the relationship between race and political point of view. 
+
+Put your figure here:
+
+```{r exercise1,echo=FALSE}
+library(ggthemes)
+cces$Race <- recode(cces$race, `1`="White", `2`="Black", `3`="Hispanic", `4`="Asian", `5`="Native American", `6`="Mixed", `7`="Other",`8`="Middle Eastern")
+cces$Race2 <- recode(cces$race, `1`="White", `2`="Not White", `3`="Not White", `4`="Not White", `5`="Not White", `6`="Not White", `7`="Not White",`8`="Not White")
+
+cces$ideo5 <- recode(cces$ideo5, `1`="Very Liberal", `2`="Liberal", `3`="Moderate", `4`="Conservative", `5`= "Very Conservative" )
+  
+ggplot(cces, aes(x=ideo5, fill=Race)) + geom_bar(position = "dodge") +
+  labs(x="Ideology", y="Count", title = "Political Viewpoint \n All Races") + scale_fill_brewer(name="Race", palette = "BrBG")  + theme_wsj()
+
+ggplot(cces, aes(x=ideo5, fill=Race2)) + geom_bar(position = "dodge") +
+  labs(x="Ideology", y="Count", title = "Political Viewpoint \n White/Non-White") + scale_fill_brewer(name="Race", palette = "Paired")  + theme_wsj()
+
+```
+
+## Exercise 2
+
+Explain what you are visualizing here: I want to use the boxplot to visualize distribution of how income level varies by race.
+
+Put your figure here:
+
+```{r exercise2,echo=FALSE}
+ggplot(cces, aes(y=faminc_new, x=Race, color=Race)) + geom_boxplot() +
+  labs(x="Race", y="Income Level", title = "Race and Income Relationship") +
+  scale_color_brewer(name="Race", palette = "RdYlGn") + 
+  theme(legend.position = "top", axis.text.x = element_text(angle = 45, hjust=1, color = "blue"),axis.title.y = element_text(color = "blue"))
+```
+
+## Exercise 3
+
+Explain what you are visualizing here: I'd like to see how ideology changes with the percent of the vote the MC won in the election for the 115th congress. I restrict the data for the percent of the vote the MC won in the election to be under 50.
+
+Put your figure here:
+
+```{r exercise3,echo=FALSE}
+library(ggrepel)
+cel$Ideology <- cel$dwnom1
+cel$VotePercentage <- cel$votepct
+
+cel1<- cel %>% filter(congress==115 & VotePercentage <50) 
+
+ggplot(cel1, aes(x=Ideology, y=VotePercentage)) + geom_point() + 
+    geom_text_repel(data=filter(cel1, congress==115 & VotePercentage <50), mapping = aes(x=Ideology,y=VotePercentage, label=thomas_name))+
+  annotate("rect", xmin = -0.35, xmax = -0.28, ymin = 43.5, ymax = 44.5, alpha=0.1, fill="red")+
+  annotate("text", x=-0.3, y=43, label="Lowest", color="red") +
+  labs(title = "Lowest Vote % the MC won in 115th Congress")
+
+
+```
+
+## Exercise 4
+
+Explain what you are visualizing here: I want to see whether a powerful or not as powerful committee member of Congress have different ideology. It looks like it does not matter if the committee member is powerful or not, they tend to be more conservative overtime. 
+
+Put your figure here:
+
+```{r exercise4,echo=FALSE}
+cel$Power <- recode(cel$power, `1`="Powerful", `0`="Not Powerful")
+
+temp_data <- cel %>% group_by(Power, year) %>% summarize("MeanIdeology"=mean(dwnom1, na.rm = T))
+
+ggplot(temp_data, aes(x=year, y=MeanIdeology, group=Power, color=Power)) +
+  geom_line() +
+  labs(x="Year", y="Mean Ideology", title = "115th Congress") +
+  scale_color_manual(values=c("green", "orange")) +
+  facet_wrap(~as.factor(Power)) + guides(color=FALSE)
+```
